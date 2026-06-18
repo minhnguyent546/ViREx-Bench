@@ -9,3 +9,7 @@ ViREx-Bench is a lightweight framework for comparing inference-time reasoning st
 The framework aims to compare approaches such as Chain-of-Thought, Tree-of-Thought, Monte Carlo Tree-of-Thought, Graph-of-Thought, Program-of-Thought, and symbolic reasoning with tools such as Z3.
 
 > Work in progress: dataset format, evaluation protocol, and supported reasoning methods are under active development.
+
+## License
+
+This repository's source code and associated datasets are licensed under the GNU General Public License v3.0. See [LICENSE](LICENSE) for details.
