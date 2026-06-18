@@ -1,0 +1,43 @@
+# python stuff
+__pycache__
+.ipynb_checkpoints
+
+# virtual environments
+.venv
+.venv.*
+.venv-*
+
+# env
+.env
+.env.*
+
+# local stuff
+_*
+!__init__.py
+/checkpoints
+*.local
+/.plans
+/.code-review
+/results
+/slides
+
+# datasets
+# /data
+
+# log files
+*.log
+*.logs
+
+# cache
+.pytest_cache
+.ruff_cache
+
+# shell scripts
+s.sh
+
+# other
+*.bak
+*.backup
+/*.pdf
+/*.json
+!/pyrightconfig.json

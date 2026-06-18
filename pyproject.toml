@@ -1,0 +1,103 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "virex-bench"
+version = "0.1.0"
+description = "ViREx-Bench is a lightweight framework for comparing inference-time reasoning strategies on Vietnamese reasoning tasks."
+readme = "README.md"
+authors = [
+  {name = "Minh-Thien Nguyen", email = "minhnguyent546@gmail.com"},
+]
+maintainers = [
+  {name = "Minh-Thien Nguyen", email = "minhnguyent546@gmail.com"},
+]
+license = "GPL-3.0-only"
+license-files = ["LICENSE"]
+keywords = ["vietnamese", "reasoning", "benchmark", "logical-reasoning", "llm", "evaluation"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "pydantic>=2.10.0",
+]
+
+[project.scripts]
+virex-bench = "virex_bench.cli:main"
+vb = "virex_bench.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["virex_bench"]
+
+[project.urls]
+Homepage = "https://github.com/minhnguyent546/ViREx-Bench"
+Repository = "https://github.com/minhnguyent546/ViREx-Bench"
+
+[dependency-groups]
+dev = [
+    "colorama>=0.4.6",
+    "hf-transfer>=0.1.9",
+    "huggingface-hub>=0.36.0",
+    "ipykernel>=7.1.0",
+    "ipywidgets>=8.1.8",
+    "jupyter>=1.1.1",
+    "ninja>=1.13.0",
+    "notebook>=7.5.5",
+    "ruff>=0.14.11",
+    "tabulate>=0.9.0",
+]
+
+[tool.ruff]
+line-length = 99
+target-version = "py312"
+exclude = [
+    "./thirdparty/",
+]
+
+[tool.ruff.lint]
+select = [
+    "B",      # flake8-bugbear
+    "C",      # comple-structure
+    "E",      # pycodestyle errors
+    "F",      # pyflakes
+    "I",      # isort
+    "W",      # pycodestyle warnings
+    "RUF013", # implicit-optional
+    "UP006",  # non-pep585-annotation (e.g. `list[int]` instead of `List[int]`)
+]
+extend-safe-fixes = ["UP006"]
+ignore = [
+    "C901", # complex-structure
+    "E101", # mixed-spaces-and-tabs
+    "E501", # line-too-long
+    "E741", # ambiguous-variable-name
+    "F402", # import-shadowed-by-loop-var
+    "F823", # undefined-local
+]
+
+[tool.ruff.lint.isort]
+known-third-party = ["wandb"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = [
+    "E402", # module-import-not-at-top-of-file
+    "F401", # unused-import
+    "F403", # undefined-local-with-import-star
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
