@@ -31,7 +31,11 @@ classifiers = [
 ]
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "datasets>=5.0.0",
+    "loguru>=0.7.3",
     "pydantic>=2.10.0",
+    "torch==2.11.0",
+    "transformers>=5.11.0,<5.12.0",
 ]
 
 [project.scripts]
@@ -57,6 +61,10 @@ dev = [
     "notebook>=7.5.5",
     "ruff>=0.14.11",
     "tabulate>=0.9.0",
+]
+vllm = [
+    "flashinfer-python>=0.6.12",
+    "vllm>=0.23.0,<0.24.0",
 ]
 
 [tool.ruff]

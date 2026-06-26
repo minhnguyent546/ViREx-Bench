@@ -19,7 +19,7 @@ _*
 /.plans
 /.code-review
 /results
-/slides
+# /slides
 
 # datasets
 # /data
