@@ -58,13 +58,14 @@ _LANGUAGE_NAMES = {
 
 # Domain-aware translation instruction, sent through TranslateGemma's `<<<custom>>>` chat
 # template mode. It tells the model the text is logic-based educational content (so domain
-# terminology is translated consistently) and asks it to leave the segment labels and option
-# letters untouched so the fields can be recovered afterwards.
+# terminology is translated consistently), injects the exact premise count so the model
+# cannot lose track, and demands that every premise is translated.
 _DOMAIN_TRANSLATION_PROMPT = """\
 You are a professional {source_name} ({source_lang}) to {target_name} ({target_lang}) translator.
-The text below is from a logic-based educational benchmark. It bundles, in order, a question labeled [Q] (which may include multiple-choice options labeled A, B, C, D), the answer labeled [A], and a list of logical premises labeled [P1], [P2], ... (rules and facts), each on its own line.
+The text below is from a logic-based educational benchmark. It contains a question labeled [Q] (which may include multiple-choice options labeled A, B, C, D), the answer labeled [A], and exactly {num_premises} premises labeled [P1] through [P{num_premises}] (rules and facts), each on its own line.
 Your goal is to accurately convey the meaning and nuances of the original {source_name} text while adhering to {target_name} grammar, vocabulary, and cultural sensitivities. Keep the logical terminology consistent across the whole bundle.
-Leave the segment labels ([Q], [A], [P1], [P2], ...) and the option letters (A, B, C, D) unchanged; keep each segment on its own line and do not remove, merge, or add any.
+You MUST translate ALL {num_premises} premises — skipping, omitting, or merging any premise is a critical error. The output must contain every label from [P1] to [P{num_premises}] in sequence, each on its own line.
+Leave the segment labels ([Q], [A], [P1], [P2], ...) and the option letters (A, B, C, D) unchanged.
 Produce only the {target_name} translation, without any additional explanations or commentary. Please translate the following {source_name} text into {target_name}:
 
 {text}""".strip("\n")
@@ -157,14 +158,21 @@ def translate_dataset(args: argparse.Namespace) -> None:
         seed=args.seed,
         gpu_memory_utilization=args.gpu_memory_utilization,
         tensor_parallel_size=args.tensor_parallel_size,
+        language_model_only=True,
+
     )
     sampling_params = SamplingParams(seed=args.seed, max_tokens=args.max_new_tokens)
     tokenizer = AutoTokenizer.from_pretrained(args.model)
 
     bundles = [build_bundle(row.query, row.premises, row.answer) for row in validated_rows]
     bundle_messages = [
-        build_messages(source_lang=args.source_lang, target_lang=args.target_lang, text=bundle)
-        for bundle in bundles
+        build_messages(
+            source_lang=args.source_lang,
+            target_lang=args.target_lang,
+            text=bundle,
+            num_premises=len(row.premises),
+        )
+        for bundle, row in zip(bundles, validated_rows, strict=True)
     ]
     bundle_prompts = tokenizer.apply_chat_template(
         bundle_messages, tokenize=False, add_generation_prompt=True
@@ -234,7 +242,9 @@ def translate_dataset(args: argparse.Namespace) -> None:
     logger.info("─" * 60)
 
 
-def build_messages(source_lang: str, target_lang: str, text: str) -> list[dict[str, Any]]:
+def build_messages(
+    source_lang: str, target_lang: str, text: str, num_premises: int
+) -> list[dict[str, Any]]:
     """Build messages for the TranslateGemma chat template using its `<<<custom>>>` mode.
 
     The custom mode lets us inject a domain-aware instruction (logic-based educational
@@ -248,6 +258,7 @@ def build_messages(source_lang: str, target_lang: str, text: str) -> list[dict[s
         source_lang=source_lang,
         target_name=target_name,
         target_lang=target_lang,
+        num_premises=num_premises,
         text=text,
     )
     return [{"role": "user", "content": f"<<<custom>>>{prompt}"}]
