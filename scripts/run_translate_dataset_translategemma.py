@@ -159,7 +159,6 @@ def translate_dataset(args: argparse.Namespace) -> None:
         gpu_memory_utilization=args.gpu_memory_utilization,
         tensor_parallel_size=args.tensor_parallel_size,
         language_model_only=True,
-
     )
     sampling_params = SamplingParams(seed=args.seed, max_tokens=args.max_new_tokens)
     tokenizer = AutoTokenizer.from_pretrained(args.model)
