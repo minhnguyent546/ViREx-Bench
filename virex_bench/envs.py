@@ -26,6 +26,12 @@ if TYPE_CHECKING:
     # Default directory benchmark results are written into when `--output-dir` is unset.
     VIREX_BENCH_OUTPUT_DIR: str = "results"
 
+    # Base URL of the OpenAI-compatible endpoint (e.g. "http://localhost:8000/v1").
+    OPENAI_BASE_URL: str | None = None
+
+    # API key for the OpenAI-compatible endpoint.
+    OPENAI_API_KEY: str | None = None
+
 
 def get_bool(env_name: str, default: str) -> bool:
     """Parse a boolean env var. Truthy values: 1, true, yes, on (case-insensitive)."""
@@ -39,6 +45,9 @@ environment_variables: dict[str, Callable[[], Any]] = {
     "VIREX_BENCH_LOG_LEVEL": lambda: os.environ.get("VIREX_BENCH_LOG_LEVEL", "INFO").upper(),
     # --- Paths ---
     "VIREX_BENCH_OUTPUT_DIR": lambda: os.environ.get("VIREX_BENCH_OUTPUT_DIR", "results"),
+    # --- Model endpoint (OpenAI-compatible) ---
+    "OPENAI_BASE_URL": lambda: os.environ.get("OPENAI_BASE_URL"),
+    "OPENAI_API_KEY": lambda: os.environ.get("OPENAI_API_KEY"),
 }
 
 

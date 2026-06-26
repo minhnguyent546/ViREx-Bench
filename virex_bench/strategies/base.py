@@ -1,28 +1,20 @@
-from virex_bench.models.base import GenerationConfig, LanguageModel
-from virex_bench.tasks.base import ReasoningExample
+import dspy
 
 
-class ReasoningStrategy:
+class ReasoningStrategy(dspy.Module):
     """Base class for prompting / inference-time-scaling strategies.
 
-    Real strategies will be implemented as `dspy.Module` subclasses; this toy base
-    keeps the package runnable without DSPy installed. A strategy turns an example
-    into a prompt, asks the model, and extracts a final answer.
+    A strategy is a generic `dspy.Module` (the reasoning *algorithm*); the
+    task-specific instructions live in the `dspy.Signature` handed to it by the
+    task. Subclasses wire the signature into a concrete DSPy module in `__init__`
+    and delegate to it in `forward`.
     """
 
     name: str = "base"
 
-    def build_prompt(self, example: ReasoningExample) -> str:
-        premises = "\n".join(f"- {premise}" for premise in example.premises)
-        return f"Cho các tiền đề sau:\n{premises}\n\nCâu hỏi: {example.question}\n"
+    def __init__(self, signature: type[dspy.Signature]) -> None:
+        super().__init__()
+        self.signature = signature
 
-    def extract_answer(self, completion: str) -> str:
-        marker = "Câu trả lời:"
-        if marker in completion:
-            return completion.split(marker, 1)[1].strip()
-        return completion.strip()
-
-    def run(self, model: LanguageModel, example: ReasoningExample) -> str:
-        prompt = self.build_prompt(example)
-        completions = model.generate(prompt, GenerationConfig())
-        return self.extract_answer(completions[0])
+    def forward(self, **inputs: object) -> dspy.Prediction:
+        raise NotImplementedError

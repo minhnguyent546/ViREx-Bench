@@ -1,5 +1,6 @@
+import dspy
+
 from virex_bench.strategies.base import ReasoningStrategy
-from virex_bench.tasks.base import ReasoningExample
 
 
 class CoTStrategy(ReasoningStrategy):
@@ -7,8 +8,9 @@ class CoTStrategy(ReasoningStrategy):
 
     name = "cot"
 
-    def build_prompt(self, example: ReasoningExample) -> str:
-        return (
-            super().build_prompt(example)
-            + "\nHãy suy luận từng bước, sau đó đưa ra kết luận.\nCâu trả lời:"
-        )
+    def __init__(self, signature: type[dspy.Signature]) -> None:
+        super().__init__(signature)
+        self.predict = dspy.ChainOfThought(signature)
+
+    def forward(self, **inputs: object) -> dspy.Prediction:
+        return self.predict(**inputs)

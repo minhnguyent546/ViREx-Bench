@@ -1,9 +1,10 @@
 import os
 
+import dspy
 from pydantic import BaseModel, Field
 
 from virex_bench.logger import init_logger
-from virex_bench.models.base import LanguageModel
+from virex_bench.models import BaseLM
 from virex_bench.strategies.base import ReasoningStrategy
 from virex_bench.tasks.base import ReasoningTask, TaskResult
 
@@ -26,35 +27,44 @@ class EvaluationReport(BaseModel):
 
 def evaluate(
     task: ReasoningTask,
-    model: LanguageModel,
+    lm: BaseLM,
     strategy: ReasoningStrategy,
+    model_name: str,
     backend: str,
 ) -> EvaluationReport:
-    """Run `strategy` with `model` over every example in `task` and score accuracy."""
+    """Run `strategy` with `lm` over every example in `task` and score accuracy."""
     examples = task.load_examples()
     logger.info(
-        f"Evaluating task={task.name} model={model.name} "
+        f"Evaluating task={task.name} model={model_name} "
         f"strategy={strategy.name} on {len(examples)} examples"
     )
     results: list[TaskResult] = []
-    for example in examples:
-        predicted = strategy.run(model, example)
-        is_correct = _normalize(predicted) == _normalize(example.answer)
-        results.append(
-            TaskResult(
-                example_id=example.example_id,
-                predicted=predicted,
-                gold=example.answer,
-                is_correct=is_correct,
+    with dspy.context(lm=lm):
+        for example in examples:
+            inputs = task.example_to_inputs(example)
+            prediction = strategy(**inputs)
+            predicted = str(prediction.answer)
+            is_correct = _normalize(predicted) == _normalize(example.answer)
+            extra: dict[str, object] = {}
+            reasoning = getattr(prediction, "reasoning", None)
+            if reasoning is not None:
+                extra["reasoning"] = reasoning
+            results.append(
+                TaskResult(
+                    example_id=example.example_id,
+                    predicted=predicted,
+                    gold=example.answer,
+                    is_correct=is_correct,
+                    extra=extra,
+                )
             )
-        )
 
     num_correct = sum(1 for result in results if result.is_correct)
     accuracy = num_correct / len(results) if results else 0.0
     logger.info(f"Done: accuracy={accuracy:.4f} ({num_correct}/{len(results)})")
     return EvaluationReport(
         task=task.name,
-        model=model.name,
+        model=model_name,
         backend=backend,
         strategy=strategy.name,
         accuracy=accuracy,

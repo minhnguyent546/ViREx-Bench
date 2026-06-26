@@ -12,10 +12,16 @@ logger = init_logger(__name__)
 
 def _run(args: argparse.Namespace) -> None:
     task = get_task(args.task)
-    model = get_model(args.model, backend=args.backend)
-    strategy = get_strategy(args.strategy)
+    lm = get_model(
+        args.model,
+        backend=args.backend,
+        api_base=args.api_base,
+        api_key=args.api_key,
+    )
+    signature = task.get_signature(args.strategy)
+    strategy = get_strategy(args.strategy, signature)
 
-    report = evaluate(task, model, strategy, backend=args.backend)
+    report = evaluate(task, lm, strategy, model_name=args.model, backend=args.backend)
 
     print(
         f"task={report.task} model={report.model} backend={report.backend} "
@@ -64,8 +70,20 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument(
         "--backend",
         type=str,
-        default="echo",
-        help="Model backend (echo, vllm, hf, api). Only 'echo' is implemented for now.",
+        default="openai",
+        help="litellm provider prefix for the model (e.g. 'openai' for any OpenAI-compatible endpoint)",
+    )
+    run_parser.add_argument(
+        "--api-base",
+        type=str,
+        default=None,
+        help="Base URL of the OpenAI-compatible endpoint. Falls back to $OPENAI_BASE_URL.",
+    )
+    run_parser.add_argument(
+        "--api-key",
+        type=str,
+        default=None,
+        help="API key for the endpoint. Falls back to $OPENAI_API_KEY.",
     )
     run_parser.add_argument(
         "--output-dir",

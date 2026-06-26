@@ -1,4 +1,20 @@
+import dspy
+
 from virex_bench.tasks.base import ReasoningExample, ReasoningTask, TaskMetadata
+
+
+class VietnameseLogicalReasoningSignature(dspy.Signature):
+    """Solve a Vietnamese logical-reasoning problem.
+
+    Given a set of premises and a question, reason over the premises to produce
+    the correct answer to the question. Use only the information stated in the
+    given premises. The premises, question, and answer are written in Vietnamese.
+    """
+
+    premises: list[str] = dspy.InputField(desc="The list of premises.")
+    question: str = dspy.InputField(desc="The question to answer based on the premises.")
+    answer: str = dspy.OutputField(desc="The final answer to the question.")
+
 
 # A handful of toy Vietnamese logical-reasoning examples so the CLI is runnable
 # end-to-end before the real dataset lands under `data/`.
@@ -39,6 +55,7 @@ class VietnameseLogicalReasoning(ReasoningTask):
         description="Vietnamese logical-reasoning task: premises + a question with a gold answer.",
         language="vie",
     )
+    signatures = {"default": VietnameseLogicalReasoningSignature}
 
     def load_examples(self) -> list[ReasoningExample]:
         return list(_TOY_EXAMPLES)
