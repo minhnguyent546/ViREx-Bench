@@ -4,13 +4,16 @@
 The dataset was originally authored in Vietnamese, translated to English for a contest,
 and is now translated back to Vietnamese with TranslateGemma served through vLLM.
 
-For every row the translatable fields — `query`, `premises` and `answer_aliases` — are
-bundled into a single piece of text so the translation model has the full row context.
-A stable delimiter (`|||`) separates the bundled items; because the item counts are known
-upstream, the translated bundle can be split back into the three fields afterwards.
+For every row the `query`, `premises`, and `answer` are bundled into a single piece of text
+so the translation model has the full row context — this is especially helpful for answers
+like "Yes"/"No"/"Uncertain" that need the question for correct translation. A stable
+delimiter (`|||`) separates the bundled items; because the premise count is known upstream,
+the translated bundle can be split back into the three fields afterwards. The
+`answer_aliases` column is dropped from the output entirely.
 
-The output JSON file keeps every original column and adds `<field>_vi` companions for the
-three translated fields, ready to be loaded back and pushed to the Hugging Face Hub.
+The output JSON file keeps every original column (minus `answer_aliases`) and adds
+`query_vi`, `premises_vi` and `answer_vi`, ready to be loaded back and pushed to the
+Hugging Face Hub.
 
 Usage:
     uv run python scripts/run_translate_dataset_translategemma.py \\
@@ -50,7 +53,7 @@ _LANGUAGE_NAMES = {
 # `|||` bundle separators untouched so the fields can be recovered afterwards.
 _DOMAIN_TRANSLATION_PROMPT = """\
 You are a professional {source_name} ({source_lang}) to {target_name} ({target_lang}) translator.
-The text below is from a logic-based educational benchmark. It bundles, in order, a question (which may include multiple-choice options labeled A, B, C, D), a list of logical premises (rules and facts), and answer aliases, all separated by " ||| ".
+The text below is from a logic-based educational benchmark. It bundles, in order, a question (which may include multiple-choice options labeled A, B, C, D), the answer, and a list of logical premises (rules and facts), all separated by " ||| ".
 Your goal is to accurately convey the meaning and nuances of the original {source_name} text while adhering to {target_name} grammar, vocabulary, and cultural sensitivities. Keep the logical terminology consistent across the whole bundle.
 Leave the option letters (A, B, C, D) and every " ||| " separator unchanged; do not remove, merge, or add any.
 Produce only the {target_name} translation, without any additional explanations or commentary. Please translate the following {source_name} text into {target_name}:
@@ -74,38 +77,37 @@ class LogicalReasoningRow(BaseModel):
     premises_used: list[int]
 
 
-def build_bundle(query: str, premises: list[str], answer_aliases: list[str]) -> str:
-    """Bundle the translatable fields of a row into one piece of text.
+def build_bundle(query: str, premises: list[str], answer: str) -> str:
+    """Bundle the query, answer, and premises of a row into one piece of text.
 
-    The order is: query, then every premise, then every answer alias. Items are joined
-    with `BUNDLE_DELIMITER` so the translation model sees the full row context while the
-    individual fields can still be recovered after translation.
+    The order is: query, answer, then every premise. The answer is placed right after the
+    question (and before the lengthy premises) so the model has the question as direct
+    context when translating it — especially helpful for "Yes"/"No"/"Uncertain" answers
+    that need the question for correct meaning. Items are joined with `BUNDLE_DELIMITER` so
+    the individual fields can still be recovered after translation.
     """
-    items: list[str] = [query, *premises, *answer_aliases]
+    items: list[str] = [query, answer, *premises]
     return BUNDLE_DELIMITER.join(items)
 
 
-def parse_bundle(
-    translated: str,
-    num_premises: int,
-    num_aliases: int,
-) -> tuple[str, list[str], list[str]] | None:
-    """Split a translated bundle back into (query, premises, answer_aliases).
+def parse_bundle(translated: str, num_premises: int) -> tuple[str, list[str], str] | None:
+    """Split a translated bundle back into (query, premises, answer).
 
     Returns None when the recovered item count does not match the expectation, which
     happens if the translation model altered the delimiters.
     """
     parts = [part.strip() for part in translated.split("|||")]
-    expected_count = 1 + num_premises + num_aliases
+    expected_count = 2 + num_premises
     if len(parts) != expected_count:
         return None
     query = parts[0]
-    premises = parts[1 : 1 + num_premises]
-    answer_aliases = parts[1 + num_premises :]
-    return query, premises, answer_aliases
+    answer = parts[1]
+    premises = parts[2:]
+    return query, premises, answer
 
 
 def translate_dataset(args: argparse.Namespace) -> None:
+    run_start_time = time.perf_counter()
     os.makedirs(args.output_dir, exist_ok=True)
     log_file_path = os.path.join(
         args.output_dir, f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.log"
@@ -142,41 +144,48 @@ def translate_dataset(args: argparse.Namespace) -> None:
     sampling_params = SamplingParams(seed=args.seed, max_tokens=args.max_new_tokens)
     tokenizer = AutoTokenizer.from_pretrained(args.model)
 
-    bundles = [build_bundle(row.query, row.premises, row.answer_aliases) for row in validated_rows]
-    messages = [
+    bundles = [build_bundle(row.query, row.premises, row.answer) for row in validated_rows]
+    bundle_messages = [
         build_messages(source_lang=args.source_lang, target_lang=args.target_lang, text=bundle)
         for bundle in bundles
     ]
-    prompts = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+    bundle_prompts = tokenizer.apply_chat_template(
+        bundle_messages, tokenize=False, add_generation_prompt=True
+    )
+    logger.debug(f"Example bundle prompt: {bundle_prompts[0]}")
 
     start_time = time.perf_counter()
-    outputs = llm.generate(prompts=prompts, sampling_params=sampling_params)
-    inference_time = time.perf_counter() - start_time
-    translated_bundles = [output.outputs[0].text.strip() for output in outputs]
-    logger.info(f"Translated {len(translated_bundles)} bundles in {to_hms(inference_time)}")
+    bundle_outputs = llm.generate(prompts=bundle_prompts, sampling_params=sampling_params)
+    bundle_inference_time = time.perf_counter() - start_time
+    translated_bundles = [output.outputs[0].text.strip() for output in bundle_outputs]
+    logger.info(
+        f"Translated {len(translated_bundles)} query+premises+answer bundles "
+        f"in {to_hms(bundle_inference_time)}"
+    )
 
     output_rows: list[dict[str, Any]] = []
     num_parsed = 0
-    for row, translated in zip(rows, translated_bundles, strict=True):
-        parsed = parse_bundle(translated, len(row["premises"]), len(row["answer_aliases"]))
-        output_row = dict(row)
+    failed_query_ids: list[str] = []
+    for row, translated_bundle in zip(rows, translated_bundles, strict=True):
+        parsed = parse_bundle(translated=translated_bundle, num_premises=len(row["premises"]))
+        output_row = {key: value for key, value in row.items() if key != "answer_aliases"}
         if parsed is None:
             logger.warning(
-                f"Could not reconstruct fields for {row['query_id']}; "
+                f"Could not reconstruct query+premises+answer for {row['query_id']}; "
                 f"keeping the original (English) text for this row"
             )
+            logger.debug(f"{translated_bundle = }")
             output_row["query_vi"] = row["query"]
             output_row["premises_vi"] = list(row["premises"])
-            output_row["answer_aliases_vi"] = list(row["answer_aliases"])
+            output_row["answer_vi"] = row["answer"]
+            failed_query_ids.append(row["query_id"])
         else:
-            query_vi, premises_vi, answer_aliases_vi = parsed
+            query_vi, premises_vi, answer_vi = parsed
             output_row["query_vi"] = query_vi
             output_row["premises_vi"] = premises_vi
-            output_row["answer_aliases_vi"] = answer_aliases_vi
+            output_row["answer_vi"] = answer_vi
             num_parsed += 1
         output_rows.append(output_row)
-
-    logger.info(f"Successfully reconstructed {num_parsed}/{len(output_rows)} rows from bundles")
 
     output_file_path = os.path.join(
         args.output_dir, f"{args.dataset_name}_{args.target_lang}.json"
@@ -184,8 +193,21 @@ def translate_dataset(args: argparse.Namespace) -> None:
     with open(output_file_path, "w", encoding="utf-8") as output_file:
         json.dump(output_rows, output_file, ensure_ascii=False, indent=2)
 
-    logger.info(f"Translated dataset saved to {output_file_path}")
-    logger.info(f"Log file saved to {log_file_path}")
+    total_elapsed = time.perf_counter() - run_start_time
+    num_failed = len(failed_query_ids)
+    logger.info("─" * 60)
+    logger.info("Translation summary")
+    logger.info("─" * 60)
+    logger.info(f"  Rows processed          : {len(output_rows)}")
+    logger.info(f"  Successfully translated : {num_parsed}/{len(output_rows)}")
+    logger.info(f"  Failed (kept original)  : {num_failed}/{len(output_rows)}")
+    if failed_query_ids:
+        logger.info(f"  Failed query IDs        : {', '.join(failed_query_ids)}")
+    logger.info(f"  Inference time          : {to_hms(bundle_inference_time)}")
+    logger.info(f"  Total elapsed time      : {to_hms(total_elapsed)}")
+    logger.info(f"  Output file             : {output_file_path}")
+    logger.info(f"  Log file                : {log_file_path}")
+    logger.info("─" * 60)
 
 
 def build_messages(source_lang: str, target_lang: str, text: str) -> list[dict[str, Any]]:
