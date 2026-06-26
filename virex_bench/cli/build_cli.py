@@ -2,7 +2,7 @@ import argparse
 
 from virex_bench import envs
 from virex_bench.evaluation import evaluate, save_report
-from virex_bench.logger import init_logger
+from virex_bench.logger import init_logger, set_level
 from virex_bench.models import get_model
 from virex_bench.strategies import get_strategy, list_strategies
 from virex_bench.tasks import get_task, list_tasks
@@ -44,6 +44,13 @@ def build_parser() -> argparse.ArgumentParser:
         description="Vietnamese Reasoning Exploration Benchmark",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
+    parser.add_argument(
+        "--log-level",
+        type=str.upper,
+        default=envs.VIREX_BENCH_LOG_LEVEL,
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="Logging verbosity for the virex_bench logger.",
+    )
     subparsers = parser.add_subparsers(title="subcommands", required=True)
 
     run_parser = subparsers.add_parser("run", help="Run a model on a task with a strategy")
@@ -82,4 +89,5 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
+    set_level(args.log_level)
     args.func(args)
