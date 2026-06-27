@@ -30,6 +30,9 @@ def _run(args: argparse.Namespace) -> None:
         api_key=args.api_key,
         **args.model_kwargs,
     )
+    logger.debug(
+        f"Loaded model {args.model} with backend {args.backend} and kwargs {args.model_kwargs}"
+    )
     signature = task.get_signature(args.strategy)
     strategy = get_strategy(args.strategy, signature)
 
@@ -56,48 +59,44 @@ def _strategies(args: argparse.Namespace) -> None:
             print(name)
 
 
-def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        prog="virex-bench",
-        description="Vietnamese Reasoning Exploration Benchmark",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+def _add_run_opts(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--model",
+        type=str,
+        required=True,
+        help="Model name or path",
     )
     parser.add_argument(
-        "--log-level",
-        type=str.upper,
-        default=envs.VIREX_BENCH_LOG_LEVEL,
-        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-        help="Logging verbosity for the virex_bench logger.",
+        "--task",
+        type=str,
+        default="vietnamese-logical-reasoning",
+        help="Task name",
     )
-    subparsers = parser.add_subparsers(title="subcommands", required=True)
-
-    run_parser = subparsers.add_parser("run", help="Run a model on a task with a strategy")
-    run_parser.add_argument("--model", type=str, required=True, help="Model name or path")
-    run_parser.add_argument(
-        "--task", type=str, default="vietnamese-logical-reasoning", help="Task name"
+    parser.add_argument(
+        "--strategy",
+        type=str,
+        default="direct",
+        help="Prompting strategy name",
     )
-    run_parser.add_argument(
-        "--strategy", type=str, default="direct", help="Prompting strategy name"
-    )
-    run_parser.add_argument(
+    parser.add_argument(
         "--backend",
         type=str,
         default="openai",
         help="litellm provider prefix for the model (e.g. 'openai' for any OpenAI-compatible endpoint)",
     )
-    run_parser.add_argument(
+    parser.add_argument(
         "--api-base",
         type=str,
         default=None,
         help="Base URL of the OpenAI-compatible endpoint. Falls back to $OPENAI_BASE_URL.",
     )
-    run_parser.add_argument(
+    parser.add_argument(
         "--api-key",
         type=str,
         default=None,
         help="API key for the endpoint. Falls back to $OPENAI_API_KEY.",
     )
-    run_parser.add_argument(
+    parser.add_argument(
         "--model-kwargs",
         type=_parse_model_kwargs,
         default={},
@@ -108,20 +107,70 @@ def build_parser() -> argparse.ArgumentParser:
             "Vendor params like chat_template_kwargs must go under extra_body."
         ),
     )
-    run_parser.add_argument(
+    parser.add_argument(
         "--output-dir",
         type=str,
         default=envs.VIREX_BENCH_OUTPUT_DIR,
         help="Directory to write results into",
     )
-    run_parser.set_defaults(func=_run)
+    parser.add_argument(
+        "--log-level",
+        type=str.upper,
+        default=envs.VIREX_BENCH_LOG_LEVEL,
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="Logging verbosity for the virex_bench logger.",
+    )
 
-    tasks_parser = subparsers.add_parser("tasks", help="Inspect available tasks")
-    tasks_parser.add_argument("--list", action="store_true", help="List available tasks")
+
+def _add_tasks_opts(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--list",
+        action="store_true",
+        help="List available tasks",
+    )
+
+
+def _add_strategies_opts(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--list",
+        action="store_true",
+        help="List available strategies",
+    )
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="virex-bench",
+        description="Vietnamese Reasoning Exploration Benchmark",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    subparsers = parser.add_subparsers(title="subcommands", required=True)
+
+    # run subcommand
+    run_parser = subparsers.add_parser(
+        "run",
+        help="Run a model on a task with a strategy",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    _add_run_opts(run_parser)
+    parser.set_defaults(func=_run)
+
+    # tasks subcommand
+    tasks_parser = subparsers.add_parser(
+        "tasks",
+        help="Inspect available tasks",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    _add_tasks_opts(tasks_parser)
     tasks_parser.set_defaults(func=_tasks)
 
-    strategies_parser = subparsers.add_parser("strategies", help="Inspect available strategies")
-    strategies_parser.add_argument("--list", action="store_true", help="List available strategies")
+    # strategies subcommand
+    strategies_parser = subparsers.add_parser(
+        "strategies",
+        help="Inspect available strategies",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    _add_strategies_opts(strategies_parser)
     strategies_parser.set_defaults(func=_strategies)
 
     return parser
