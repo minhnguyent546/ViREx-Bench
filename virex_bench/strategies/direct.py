@@ -1,4 +1,5 @@
 import dspy
+from pydantic.fields import FieldInfo
 
 from virex_bench.strategies.base import ReasoningStrategy
 
@@ -8,8 +9,13 @@ class DirectStrategy(ReasoningStrategy):
 
     name = "direct"
 
-    def __init__(self, signature: type[dspy.Signature]) -> None:
-        super().__init__(signature)
+    def __init__(
+        self,
+        signature: type[dspy.Signature],
+        rationale_field: FieldInfo | None = None,
+        rationale_field_type: type = str,
+    ) -> None:
+        super().__init__(signature, rationale_field, rationale_field_type)
         self.predict = dspy.Predict(signature)
 
     def forward(self, **inputs: object) -> dspy.Prediction:

@@ -34,7 +34,8 @@ def _run(args: argparse.Namespace) -> None:
         f"Loaded model {args.model} with backend {args.backend} and kwargs {args.model_kwargs}"
     )
     signature = task.get_signature(args.strategy)
-    strategy = get_strategy(args.strategy, signature)
+    rationale_field = task.get_rationale_field(args.strategy)
+    strategy = get_strategy(args.strategy, signature, rationale_field=rationale_field)
 
     report = evaluate(
         task,

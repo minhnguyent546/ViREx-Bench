@@ -16,9 +16,11 @@ class CoTStrategy(ReasoningStrategy):
         rationale_field: FieldInfo | None = None,
         rationale_field_type: type = str,
     ) -> None:
-        super().__init__(signature)
+        super().__init__(signature, rationale_field, rationale_field_type)
         self.predict = ChainOfThought(
-            signature, rationale_field=rationale_field, rationale_field_type=rationale_field_type
+            signature,
+            rationale_field=self.rationale_field,
+            rationale_field_type=self.rationale_field_type,
         )
 
     def forward(self, **inputs: object) -> dspy.Prediction:

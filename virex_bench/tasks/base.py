@@ -2,6 +2,7 @@ from collections.abc import Mapping
 from typing import Any, cast
 
 import dspy
+from pydantic.fields import FieldInfo
 
 from virex_bench.logger import init_logger
 from virex_bench.types import ReasoningExample, TaskMetadata
@@ -14,6 +15,7 @@ class ReasoningTask:
 
     metadata: TaskMetadata
     signatures: dict[str, type[dspy.Signature]]
+    rationale_fields: dict[str, FieldInfo] = {}
 
     def load_examples(self) -> list[ReasoningExample]:
         """Load every row of the configured HuggingFace dataset as a reasoning example."""
@@ -44,6 +46,14 @@ class ReasoningTask:
     def get_signature(self, strategy_name: str) -> type[dspy.Signature]:
         """Return the signature for a given strategy, falling back to the default."""
         return self.signatures.get(strategy_name, self.signatures["default"])
+
+    def get_rationale_field(self, strategy_name: str) -> FieldInfo | None:
+        """Return the reasoning-field override for a reasoning strategy, if any.
+
+        Falls back to the ``"default"`` entry, then to ``None`` (which lets the
+        strategy use the DSPy module's built-in reasoning field).
+        """
+        return self.rationale_fields.get(strategy_name, self.rationale_fields.get("default"))
 
     def example_to_inputs(self, example: ReasoningExample) -> dict[str, object]:
         """Convert an example into the dict of input kwargs for the signature."""

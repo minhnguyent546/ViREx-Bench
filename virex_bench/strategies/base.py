@@ -1,4 +1,5 @@
 import dspy
+from pydantic.fields import FieldInfo
 
 
 class ReasoningStrategy(dspy.Module):
@@ -8,6 +9,13 @@ class ReasoningStrategy(dspy.Module):
     task-specific instructions live in the `dspy.Signature` handed to it by the
     task. Subclasses wire the signature into a concrete DSPy module in `__init__`
     and delegate to it in `forward`.
+
+    Reasoning strategies (CoT, ToT, ...) prepend a reasoning field to the
+    signature. The task can supply a custom `rationale_field` (and its type) to
+    control that field's instruction — e.g. to require the reasoning be written
+    in the task language. Strategies without a reasoning step (e.g. the direct
+    baseline) accept these arguments for a uniform constructor signature and
+    ignore them.
     """
 
     name: str = "base"
@@ -15,9 +23,13 @@ class ReasoningStrategy(dspy.Module):
     def __init__(
         self,
         signature: type[dspy.Signature],
+        rationale_field: FieldInfo | None = None,
+        rationale_field_type: type = str,
     ) -> None:
         super().__init__()
         self.signature = signature
+        self.rationale_field = rationale_field
+        self.rationale_field_type = rationale_field_type
 
     def forward(self, **inputs: object) -> dspy.Prediction:
         raise NotImplementedError()

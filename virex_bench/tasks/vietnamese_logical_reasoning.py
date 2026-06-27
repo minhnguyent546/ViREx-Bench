@@ -104,9 +104,18 @@ class VietnameseLogicalReasoning(ReasoningTask):
     signatures = {
         "default": VietnameseLogicalReasoningSignature,
         "direct": VietnameseLogicalReasoningSignature,
-        # 'cot': TODO,
+        "cot": VietnameseLogicalReasoningSignature,
         # 'tot': TODO,
         # 'pot_z3': TODO,
+    }
+    rationale_fields = {
+        "default": dspy.OutputField(
+            desc=(
+                "Step-by-step reasoning over the premises that leads to the answer. "
+                "Cite only what the premises state and avoid outside knowledge. "
+                "IMPORTANT: write this reasoning in Vietnamese."
+            )
+        ),
     }
 
     def _row_to_example(self, row: Mapping[str, Any]) -> ReasoningExample:

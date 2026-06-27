@@ -1,4 +1,5 @@
 import dspy
+from pydantic.fields import FieldInfo
 
 from virex_bench.strategies.base import ReasoningStrategy
 from virex_bench.strategies.cot import CoTStrategy
@@ -12,11 +13,16 @@ _STRATEGY_REGISTRY: dict[str, type[ReasoningStrategy]] = {
 }
 
 
-def get_strategy(name: str, signature: type[dspy.Signature]) -> ReasoningStrategy:
+def get_strategy(
+    name: str,
+    signature: type[dspy.Signature],
+    rationale_field: FieldInfo | None = None,
+    rationale_field_type: type = str,
+) -> ReasoningStrategy:
     if name not in _STRATEGY_REGISTRY:
         available = ", ".join(sorted(_STRATEGY_REGISTRY))
         raise KeyError(f"Unknown strategy {name!r}. Available strategies: {available}")
-    return _STRATEGY_REGISTRY[name](signature)
+    return _STRATEGY_REGISTRY[name](signature, rationale_field, rationale_field_type)
 
 
 def list_strategies() -> list[str]:
