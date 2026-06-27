@@ -2,6 +2,7 @@ import os
 
 import dspy
 from pydantic import BaseModel, Field
+from tqdm.auto import tqdm
 
 from virex_bench.logger import init_logger
 from virex_bench.models import BaseLM
@@ -40,7 +41,7 @@ def evaluate(
     )
     results: list[TaskResult] = []
     with dspy.context(lm=lm):
-        for example in examples:
+        for example in tqdm(examples, desc=f"Eval [{task.name}/{strategy.name}]", unit=" example"):
             inputs = task.example_to_inputs(example)
             prediction = strategy(**inputs)
             predicted = str(prediction.answer)
