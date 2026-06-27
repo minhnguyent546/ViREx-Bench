@@ -1,5 +1,5 @@
 import os
-from collections.abc import Callable, Iterable
+from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
 
 import dspy
@@ -11,7 +11,7 @@ from virex_bench.logger import init_logger
 from virex_bench.models import BaseLM
 from virex_bench.strategies.base import ReasoningStrategy
 from virex_bench.tasks.base import ReasoningTask
-from virex_bench.types import EvaluationReport, ReasoningExample, TaskResult
+from virex_bench.types import EvaluationReport, ReasoningExample, ReasoningMetric, TaskResult
 
 logger = init_logger(__name__)
 
@@ -39,7 +39,7 @@ def evaluate(
     judge_name = task.metadata.judge
     judge_module: LLMJudge | None = None
     judge_model_name: str | None = None
-    metric_func: Callable[[ReasoningExample, dspy.Prediction], float] | None = None
+    metric_func: ReasoningMetric | None = None
 
     if judge_name is not None:
         judge_module = build_judge(judge_name)
