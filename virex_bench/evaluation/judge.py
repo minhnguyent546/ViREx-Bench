@@ -1,9 +1,11 @@
-"""LLM-as-a-judge for Vietnamese logical-reasoning answers.
+"""LLM-as-a-judge framework for reasoning-task evaluation.
 
-The judge compares a predicted answer against the gold answer across all answer
-types (multiple-choice, yes/no/uncertain, numeric, and open-ended free text). It
-runs on a fixed DeepSeek reasoning model so the judge is independent of the model
-under test, avoiding self-judging bias.
+Provides a generic :class:`LLMJudge` base class (owning the judge LM, predict
+module, and retry logic), a registry for task-specific judge subclasses, and a
+fixed DeepSeek reasoning LM builder so that the judge is always independent of the
+model under test — avoiding self-judging bias. Task-specific judges (e.g.
+:class:`LogicalReasoningJudge`) live alongside their signatures and implement the
+``forward`` / normalization logic for their answer types.
 """
 
 import time
