@@ -121,17 +121,12 @@ class DualTask2ChainOfThought(ChainOfThought):
     """
 
     def forward(self, **kwargs):
-        lm = self.predict.lm or dspy.settings.lm
+        lm = kwargs.pop("lm", self.predict.lm) or dspy.settings.lm
         if lm is None:
             return super().forward(**kwargs)
 
         capture_lm = ThinkingCaptureLM(lm)  # pyright: ignore[reportArgumentType]
-        old_lm = self.predict.lm
-        self.predict.lm = capture_lm
-        try:
-            result = super().forward(**kwargs)
-        finally:
-            self.predict.lm = old_lm
+        result = super().forward(lm=capture_lm, **kwargs)
 
         if capture_lm.last_thinking:
             result["thinking_content"] = capture_lm.last_thinking
@@ -142,17 +137,12 @@ class DualTask2ChainOfThought(ChainOfThought):
         return result
 
     async def aforward(self, **kwargs):
-        lm = self.predict.lm or dspy.settings.lm
+        lm = kwargs.pop("lm", self.predict.lm) or dspy.settings.lm
         if lm is None:
             return await super().aforward(**kwargs)
 
         capture_lm = ThinkingCaptureLM(lm)  # pyright: ignore[reportArgumentType]
-        old_lm = self.predict.lm
-        self.predict.lm = capture_lm
-        try:
-            result = await super().aforward(**kwargs)
-        finally:
-            self.predict.lm = old_lm
+        result = await super().aforward(lm=capture_lm, **kwargs)
 
         if capture_lm.last_thinking:
             result["thinking_content"] = capture_lm.last_thinking
