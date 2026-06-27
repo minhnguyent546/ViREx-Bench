@@ -36,7 +36,14 @@ def _run(args: argparse.Namespace) -> None:
     signature = task.get_signature(args.strategy)
     strategy = get_strategy(args.strategy, signature)
 
-    report = evaluate(task, lm, strategy, model_name=args.model, backend=args.backend)
+    report = evaluate(
+        task,
+        lm,
+        strategy,
+        model_name=args.model,
+        backend=args.backend,
+        num_threads=args.num_threads,
+    )
 
     print(
         f"task={report.task} model={report.model} backend={report.backend} "
@@ -112,6 +119,12 @@ def _add_run_opts(parser: argparse.ArgumentParser) -> None:
         type=str,
         default=envs.VIREX_BENCH_OUTPUT_DIR,
         help="Directory to write results into",
+    )
+    parser.add_argument(
+        "--num-threads",
+        type=int,
+        default=4,
+        help="Number of worker threads for concurrent example evaluation",
     )
     parser.add_argument(
         "--log-level",
