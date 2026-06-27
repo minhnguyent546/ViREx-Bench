@@ -1,4 +1,5 @@
 import argparse
+import json
 
 from virex_bench import envs
 from virex_bench.evaluation import evaluate, save_report
@@ -10,6 +11,16 @@ from virex_bench.tasks import get_task, list_tasks
 logger = init_logger(__name__)
 
 
+def _parse_model_kwargs(raw: str) -> dict[str, object]:
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as error:
+        raise argparse.ArgumentTypeError(f"--model-kwargs must be valid JSON: {error}") from error
+    if not isinstance(parsed, dict):
+        raise argparse.ArgumentTypeError("--model-kwargs must be a JSON object")
+    return parsed
+
+
 def _run(args: argparse.Namespace) -> None:
     task = get_task(args.task)
     lm = get_model(
@@ -17,6 +28,7 @@ def _run(args: argparse.Namespace) -> None:
         backend=args.backend,
         api_base=args.api_base,
         api_key=args.api_key,
+        **args.model_kwargs,
     )
     signature = task.get_signature(args.strategy)
     strategy = get_strategy(args.strategy, signature)
@@ -84,6 +96,17 @@ def build_parser() -> argparse.ArgumentParser:
         type=str,
         default=None,
         help="API key for the endpoint. Falls back to $OPENAI_API_KEY.",
+    )
+    run_parser.add_argument(
+        "--model-kwargs",
+        type=_parse_model_kwargs,
+        default={},
+        help=(
+            "Extra LM options as a JSON object, forwarded to dspy.LM / litellm "
+            '(e.g. \'{"temperature":0.6,"top_p":0.95,"max_tokens":32768,'
+            '"extra_body":{"chat_template_kwargs":{"enable_thinking":false}}}\'). '
+            "Vendor params like chat_template_kwargs must go under extra_body."
+        ),
     )
     run_parser.add_argument(
         "--output-dir",
