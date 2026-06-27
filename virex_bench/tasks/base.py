@@ -37,6 +37,8 @@ class TaskMetadata(BaseModel):
     description: str
     language: str = "vie"
     dataset: DatasetConfig
+    main_metric: str = "exact_match"
+    judge: str | None = None
 
 
 class ReasoningTask:
@@ -90,5 +92,5 @@ class TaskResult(BaseModel):
     example_id: str
     predicted: str
     gold: str
-    is_correct: bool
+    score: float
     extra: dict[str, object] = Field(default_factory=dict)

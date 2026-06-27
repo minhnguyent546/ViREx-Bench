@@ -49,7 +49,7 @@ def _run(args: argparse.Namespace) -> None:
         f"task={report.task} model={report.model} backend={report.backend} "
         f"strategy={report.strategy}"
     )
-    print(f"accuracy={report.accuracy:.4f} ({report.num_examples} examples)")
+    print(f"{report.metric}={report.score:.4f} ({report.num_examples} examples)")
 
     save_report(report, args.output_dir)
 

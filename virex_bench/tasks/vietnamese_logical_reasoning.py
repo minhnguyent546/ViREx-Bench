@@ -43,6 +43,8 @@ class VietnameseLogicalReasoning(ReasoningTask):
             revision="b55afc3316bd905b33523e4c9af2e36d9dd012b3",
             num_proc=2,
         ),
+        main_metric="llm_judge",
+        judge="logical_reasoning",
     )
     signatures = {"default": VietnameseLogicalReasoningSignature}
 
