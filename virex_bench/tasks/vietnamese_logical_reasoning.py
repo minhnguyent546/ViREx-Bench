@@ -3,12 +3,8 @@ from typing import Any
 
 import dspy
 
-from virex_bench.tasks.base import (
-    DatasetConfig,
-    ReasoningExample,
-    ReasoningTask,
-    TaskMetadata,
-)
+from virex_bench.tasks.base import ReasoningTask
+from virex_bench.types import DatasetConfig, ReasoningExample, TaskMetadata
 
 
 class VietnameseLogicalReasoningSignature(dspy.Signature):

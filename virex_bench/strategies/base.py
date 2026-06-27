@@ -1,5 +1,4 @@
 import dspy
-from pydantic.fields import FieldInfo
 
 
 class ReasoningStrategy(dspy.Module):
@@ -16,8 +15,6 @@ class ReasoningStrategy(dspy.Module):
     def __init__(
         self,
         signature: type[dspy.Signature],
-        rationale_field: FieldInfo | None = None,
-        rationale_field_type: type = str,
     ) -> None:
         super().__init__()
         self.signature = signature

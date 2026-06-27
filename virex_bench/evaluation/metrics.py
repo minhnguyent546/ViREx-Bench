@@ -11,15 +11,11 @@ resolved against a metric implementation.
 import string
 import unicodedata
 from collections import Counter
-from collections.abc import Callable
 
 import dspy
-from pydantic import BaseModel
 
 from virex_bench.evaluation.judge import LLMJudge
-from virex_bench.tasks.base import ReasoningExample
-
-ReasoningMetric = Callable[[ReasoningExample, dspy.Prediction], float]
+from virex_bench.types import JudgeOutcome, ReasoningExample, ReasoningMetric
 
 
 def _normalize(text: str) -> str:
@@ -63,15 +59,6 @@ def token_f1(example: ReasoningExample, prediction: dspy.Prediction) -> float:
 def contains(example: ReasoningExample, prediction: dspy.Prediction) -> float:
     """Return ``1.0`` if the normalized gold answer appears anywhere within the normalized prediction, else ``0.0``."""
     return float(_normalize(example.answer) in _normalize(str(prediction.answer)))
-
-
-class JudgeOutcome(BaseModel):
-    """Full outcome of judging a single example with an LLM-as-a-judge."""
-
-    verdict: str
-    error_type: str
-    feedback: str
-    score: float
 
 
 def judge_example(

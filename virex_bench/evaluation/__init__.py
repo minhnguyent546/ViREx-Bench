@@ -1,4 +1,4 @@
-from virex_bench.evaluation.evaluate import EvaluationReport, evaluate, save_report
+from virex_bench.evaluation.evaluate import evaluate, save_report
 from virex_bench.evaluation.judge import (
     JUDGE_REGISTRY,
     LLMJudge,
@@ -9,12 +9,11 @@ from virex_bench.evaluation.judge import (
 )
 from virex_bench.evaluation.metrics import (
     METRIC_REGISTRY,
-    JudgeOutcome,
-    ReasoningMetric,
     get_metric,
     judge_example,
     list_metrics,
 )
+from virex_bench.types import EvaluationReport, JudgeOutcome, ReasoningMetric
 
 __all__ = [
     "EvaluationReport",

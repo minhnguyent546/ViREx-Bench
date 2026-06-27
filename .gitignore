@@ -14,6 +14,7 @@ __pycache__
 # local stuff
 _*
 !__init__.py
+!/virex_bench/types/_*
 /checkpoints
 *.local
 /.plans

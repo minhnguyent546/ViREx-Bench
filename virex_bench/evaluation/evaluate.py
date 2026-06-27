@@ -3,7 +3,6 @@ from collections.abc import Callable, Iterable
 from concurrent.futures import ThreadPoolExecutor
 
 import dspy
-from pydantic import BaseModel, Field
 from tqdm.auto import tqdm
 
 from virex_bench.evaluation.judge import LLMJudge, build_judge
@@ -11,22 +10,10 @@ from virex_bench.evaluation.metrics import get_metric, judge_example
 from virex_bench.logger import init_logger
 from virex_bench.models import BaseLM
 from virex_bench.strategies.base import ReasoningStrategy
-from virex_bench.tasks.base import ReasoningExample, ReasoningTask, TaskResult
+from virex_bench.tasks.base import ReasoningTask
+from virex_bench.types import EvaluationReport, ReasoningExample, TaskResult
 
 logger = init_logger(__name__)
-
-
-class EvaluationReport(BaseModel):
-    task: str
-    model: str
-    backend: str
-    strategy: str
-    metric: str
-    judge: str | None = None
-    judge_model: str | None = None
-    score: float
-    num_examples: int
-    results: list[TaskResult] = Field(default_factory=list)
 
 
 def evaluate(
