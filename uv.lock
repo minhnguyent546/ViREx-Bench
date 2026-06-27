@@ -492,8 +492,7 @@ dependencies = [
     { name = "loguru" },
     { name = "pydantic" },
     { name = "torch" },
-    { name = "transformers", version = "5.6.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support'" },
-    { name = "transformers", version = "5.11.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-virex-bench-vllm-v0-20'" },
+    { name = "transformers" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/41/1b/c3c4a98ec5f2727656336f07a0c35862195c310d8eb0b2fa5b4be6848680/compressed_tensors-0.15.0.1.tar.gz", hash = "sha256:a8e93054e8a5ec49c980b09ed36c4c1249b4a8ee167920a8e461c4da26e78d99", size = 229412, upload-time = "2026-04-10T14:23:54.708Z" }
 wheels = [
@@ -502,59 +501,8 @@ wheels = [
 
 [[package]]
 name = "cryptography"
-version = "48.0.1"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "sys_platform == 'darwin'",
-    "sys_platform == 'win32'",
-    "sys_platform == 'emscripten'",
-    "sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-]
-dependencies = [
-    { name = "cffi", marker = "platform_python_implementation != 'PyPy'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/12/45/870e7f4bef50e5f53b9f51d4428aee5290eedf58ba443f16b1ebb7ab8e66/cryptography-48.0.1.tar.gz", hash = "sha256:266f4ee051abb2f725b74ef8072b521ce1feacf685a3364fa6a6b45548db791a", size = 832989, upload-time = "2026-06-09T22:32:31.8Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/1b/bc/ee4137cbbe105652c0ee4252792b78fc8e7afa4b8e61d9d5dc05a7f45731/cryptography-48.0.1-cp311-abi3-macosx_10_9_universal2.whl", hash = "sha256:3e4a1a3232eef2e6c732827d5722db29a0cc8b27af2a4d865b094cf954be9ca1", size = 8008324, upload-time = "2026-06-09T22:31:00.702Z" },
-    { url = "https://files.pythonhosted.org/packages/d5/85/6379d42181bfc713094f081360fc5784d6c816b599d45e7f082502d173ce/cryptography-48.0.1-cp311-abi3-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:32143b24adb918f078134e1e230f1eb8cc04886b92c28b5f0041aaf3e5699225", size = 4696243, upload-time = "2026-06-09T22:32:33.446Z" },
-    { url = "https://files.pythonhosted.org/packages/9c/87/c85d147b53323c7eb4d850920c8901377323c2a0ff8d79c262d4fee89aa2/cryptography-48.0.1-cp311-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:f0d27a5696721ef7a672b8c810f6aded391058e0b9486e63e6d93baf765da691", size = 4713235, upload-time = "2026-06-09T22:31:40.141Z" },
-    { url = "https://files.pythonhosted.org/packages/79/58/67cbf8cf1ee7c54b439ca07bbecf8362c07afc11a3724fea70f745784add/cryptography-48.0.1-cp311-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:eb86ce1af36fe65041b6db9a8bb064ee621a7e5fded0f80d475ec243477cd242", size = 4702323, upload-time = "2026-06-09T22:31:42.191Z" },
-    { url = "https://files.pythonhosted.org/packages/89/c6/24266ac10c47f6cd2a865f4446062b466da1d1f10b27189eac00e61bf0c9/cryptography-48.0.1-cp311-abi3-manylinux_2_28_ppc64le.whl", hash = "sha256:b024e784ad6c077ee0147b35ea9cbfc1e34e1fd4c1dcca214c2794d73a12df08", size = 5300085, upload-time = "2026-06-09T22:31:58.703Z" },
-    { url = "https://files.pythonhosted.org/packages/d2/bb/cc4b78784f97efc8c5874c2a9743708d172be6663024b34a0467885ae0c8/cryptography-48.0.1-cp311-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:3752f2dbc8f07a30aad2932c986cea495b03bb554887828225da104f732852b6", size = 4746137, upload-time = "2026-06-09T22:31:31.01Z" },
-    { url = "https://files.pythonhosted.org/packages/1f/52/0c44de3f5267f8fbe8e835138017522a333436166e406f0db9b9e6e3033f/cryptography-48.0.1-cp311-abi3-manylinux_2_31_armv7l.whl", hash = "sha256:bd81490cd5801d755cf97bb68ac191f14b708470b1c7cf4580f669b9c9264cd8", size = 4333867, upload-time = "2026-06-09T22:32:28.096Z" },
-    { url = "https://files.pythonhosted.org/packages/9a/2e/772d7adbfa931537bc401640b7cac9976bff689bda187833e5d63b428e49/cryptography-48.0.1-cp311-abi3-manylinux_2_34_aarch64.whl", hash = "sha256:66fd0771e7b9c6dcd44cf1120690d2338d16d72795cf40cae2786a39eba65429", size = 4701805, upload-time = "2026-06-09T22:31:38.284Z" },
-    { url = "https://files.pythonhosted.org/packages/f8/a3/b06844f303873493c963caf581c04df31c7035e0c1b0f02c4814d319ec80/cryptography-48.0.1-cp311-abi3-manylinux_2_34_ppc64le.whl", hash = "sha256:3fd2ca57062b241c856670b073487d2e86c4637937ca5601e48f97bf8e11fc8f", size = 5258461, upload-time = "2026-06-09T22:31:04.187Z" },
-    { url = "https://files.pythonhosted.org/packages/9f/13/8b765e2e12b07c74941caadb9d1c8fdc006c4dfbf2b8f2d610519758954d/cryptography-48.0.1-cp311-abi3-manylinux_2_34_x86_64.whl", hash = "sha256:0ee6ea481db1ab889cba043ec1eda17bb9c1ea79db6722f779c3667f9f70322f", size = 4745488, upload-time = "2026-06-09T22:32:30.07Z" },
-    { url = "https://files.pythonhosted.org/packages/2e/aa/48972bce55049b32a94f4907eda4d75fa385aad8a39506cc2fc72196ecf0/cryptography-48.0.1-cp311-abi3-musllinux_1_2_aarch64.whl", hash = "sha256:f2ceef93cb096aa3c4cc4b5c94ca6131f9196d28c64d6111533402a9b2054d41", size = 4830256, upload-time = "2026-06-09T22:31:43.868Z" },
-    { url = "https://files.pythonhosted.org/packages/47/a2/e5079a032fb85cf6005046ca92bbd78b0c82dad2b5751ab8c311659da06f/cryptography-48.0.1-cp311-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:9bd3f92d76217892b15df84ca256c2c113d386fdda7a7d8691aeeced976507c6", size = 4979117, upload-time = "2026-06-09T22:31:05.845Z" },
-    { url = "https://files.pythonhosted.org/packages/b7/a0/8f50cae9c74e718ed769d63ed5c74bd0ea830c9550a74629cebd1b9c7bc7/cryptography-48.0.1-cp311-abi3-win32.whl", hash = "sha256:b9a32b876490d66c8bcc9963ef220199569748434ab01a9d6aaeabf88e7f5158", size = 3304154, upload-time = "2026-06-09T22:32:16.845Z" },
-    { url = "https://files.pythonhosted.org/packages/c5/69/0572c77dbace6fef72f33755bd52ea399c71367250d366237f8691826b9e/cryptography-48.0.1-cp311-abi3-win_amd64.whl", hash = "sha256:39489bfca54c7a1f6b297efcd8bc608ab92d16c4ca631b0cad4da46724588b24", size = 3817138, upload-time = "2026-06-09T22:32:00.388Z" },
-    { url = "https://files.pythonhosted.org/packages/ca/6c/00fa2a95997164c8b2072ce327c23d4ab20809ccc323ea5fab91e53a4bba/cryptography-48.0.1-cp39-abi3-macosx_10_9_universal2.whl", hash = "sha256:4fdc69f8e4316bcf0c8c8ec1f26f285d12e8142d88d96c876a59a03be3f6ae67", size = 7987408, upload-time = "2026-06-09T22:32:20.777Z" },
-    { url = "https://files.pythonhosted.org/packages/b0/d9/45f309a7e4e5f3f8f121d6d3be9e94024a7726ec598d6e08ae04edb2f04d/cryptography-48.0.1-cp39-abi3-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:48fe40804d4caa2288f24e70ca8c64c42dd826da0ad7e4f1b41b2128d679e6c8", size = 4690196, upload-time = "2026-06-09T22:31:54.74Z" },
-    { url = "https://files.pythonhosted.org/packages/5f/9f/a1bc8bcc798811b8527eb374bbccf30a3f3e806829d967118222bf1125eb/cryptography-48.0.1-cp39-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:86be3b1b0b6bf09482fb50a979c508d2950ed95f5621ec77f4e385962006b83a", size = 4696782, upload-time = "2026-06-09T22:31:45.615Z" },
-    { url = "https://files.pythonhosted.org/packages/66/c2/81a4fb4e4373c500bb526bc337ac5719dd31dd15b970b84a238168c6aa08/cryptography-48.0.1-cp39-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:4ab0a343c807bbcd90c971cd1ecf072937cd01847a9e002bef88fb47ac6be577", size = 4696618, upload-time = "2026-06-09T22:31:11.564Z" },
-    { url = "https://files.pythonhosted.org/packages/e5/0b/aa68b221dde92d09cb29a024ede17550ee21e77a404e59fc093c82bb51e1/cryptography-48.0.1-cp39-abi3-manylinux_2_28_ppc64le.whl", hash = "sha256:9621de99d2da096006b629979efd8ae7eb2d8b822488d0c89ee4000c306c59b1", size = 5289970, upload-time = "2026-06-09T22:31:20.368Z" },
-    { url = "https://files.pythonhosted.org/packages/78/13/fba657f958d2af66ea959a4ba01212632089249d34af1ae48054136344d7/cryptography-48.0.1-cp39-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:88c852a0ae366e262e5a1744b685e6a433dc8788dd2a277e418bf4904203609d", size = 4731873, upload-time = "2026-06-09T22:31:22.253Z" },
-    { url = "https://files.pythonhosted.org/packages/4c/4c/9a964756d24a26b3e34dfcb16f961b89838786e6700b635b0d1e3adff4b6/cryptography-48.0.1-cp39-abi3-manylinux_2_31_armv7l.whl", hash = "sha256:43c5835e2cb98c8733d86f57d6fc879b613f5c3478607281c3e36daffc6dd8a6", size = 4330804, upload-time = "2026-06-09T22:31:36.56Z" },
-    { url = "https://files.pythonhosted.org/packages/4b/0f/a10f3a6eb12950a10e3a874070283aa2dd5875b2bfd15fad8a3e17b3f13e/cryptography-48.0.1-cp39-abi3-manylinux_2_34_aarch64.whl", hash = "sha256:fe0180af5bf9236518a087e35bf2d9a347d5f5f51e63c579d683ddff424e3d46", size = 4696217, upload-time = "2026-06-09T22:31:13.351Z" },
-    { url = "https://files.pythonhosted.org/packages/f3/6f/5cd12f951165ea73ef85266775d97e4c763b2474ccfd816dd69d3a18d6f8/cryptography-48.0.1-cp39-abi3-manylinux_2_34_ppc64le.whl", hash = "sha256:b7a2d1a937a738a881737cec135a38bb61470589b17515b9f73f571d0ae10401", size = 5245252, upload-time = "2026-06-09T22:32:02.193Z" },
-    { url = "https://files.pythonhosted.org/packages/68/ab/8aaa12e4516ec4464033ab79b6f3b592bd5a92102467c4ace8a0d970203f/cryptography-48.0.1-cp39-abi3-manylinux_2_34_x86_64.whl", hash = "sha256:b74ca3b8e5ecdd833bf6a002ca41b4793bb27fb8f1c06ffaf2643c9e9140e31b", size = 4731388, upload-time = "2026-06-09T22:32:04.019Z" },
-    { url = "https://files.pythonhosted.org/packages/1b/24/50027ea4dca85ec1f40688f3c24fb32ccacd520583c9592c3cc95628e6fb/cryptography-48.0.1-cp39-abi3-musllinux_1_2_aarch64.whl", hash = "sha256:2c37f2461406063b417837f5f3daab668652acd82423efcd7f0a9f04be972de1", size = 4824186, upload-time = "2026-06-09T22:32:18.707Z" },
-    { url = "https://files.pythonhosted.org/packages/52/41/04cb5eb17085ade6f50cc611fb657df6a0f5885350de8764ece89c050197/cryptography-48.0.1-cp39-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:86fe77abb1bd87afb251d4d02ada7ecf53a32cee9b67d976abb2e45a13297475", size = 4964539, upload-time = "2026-06-09T22:31:18.793Z" },
-    { url = "https://files.pythonhosted.org/packages/36/bf/ed70785c496e89d7e73b7cda2d21f2447fd6d4e821714b8d04ff217fed92/cryptography-48.0.1-cp39-abi3-win32.whl", hash = "sha256:6b2c0c3e6ccf3ade7750f836ef3ee36eea250cc467d45c256895573ac08cc6f1", size = 3282307, upload-time = "2026-06-09T22:30:53.162Z" },
-    { url = "https://files.pythonhosted.org/packages/b3/ff/371ea7d252656ee1eb6d83eeeef3d1d0c6baf1d6497687d081ea03814670/cryptography-48.0.1-cp39-abi3-win_amd64.whl", hash = "sha256:9a49ca6c81417f6a5edb50375a60cccdd70fa0a91a5211829dbea74eba94d2ac", size = 3793408, upload-time = "2026-06-09T22:32:15.191Z" },
-]
-
-[[package]]
-name = "cryptography"
 version = "49.0.0"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "sys_platform == 'darwin'",
-    "sys_platform == 'win32'",
-    "sys_platform == 'emscripten'",
-    "sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-]
 dependencies = [
     { name = "cffi", marker = "platform_python_implementation != 'PyPy'" },
 ]
@@ -593,7 +541,7 @@ name = "cuda-bindings"
 version = "13.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "cuda-pathfinder" },
+    { name = "cuda-pathfinder", marker = "(sys_platform != 'emscripten' and sys_platform != 'win32') or (sys_platform == 'emscripten' and extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support') or (sys_platform == 'emscripten' and extra == 'group-11-virex-bench-vllm-v0-20') or (sys_platform == 'win32' and extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support') or (sys_platform == 'win32' and extra == 'group-11-virex-bench-vllm-v0-20')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ce/67/5e7dba1ba576dd73da5dee894ca076ca5e959450dfff66d6d510a255d1f7/cuda_bindings-13.3.1-cp312-cp312-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:c7855c4868aabc0cfae28abbe83d56734bdfbd08f08fc234ac1912a12858bf49", size = 6025351, upload-time = "2026-05-29T23:11:49.685Z" },
@@ -680,37 +628,37 @@ wheels = [
 
 [package.optional-dependencies]
 cublas = [
-    { name = "nvidia-cublas", marker = "sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20')" },
+    { name = "nvidia-cublas", marker = "sys_platform == 'linux' or (extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20')" },
 ]
 cudart = [
-    { name = "nvidia-cuda-runtime", marker = "sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20')" },
+    { name = "nvidia-cuda-runtime", marker = "sys_platform == 'linux' or (extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20')" },
 ]
 cufft = [
-    { name = "nvidia-cufft", marker = "sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20')" },
+    { name = "nvidia-cufft", marker = "sys_platform == 'linux' or (extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20')" },
 ]
 cufile = [
     { name = "nvidia-cufile", marker = "sys_platform == 'linux' or (extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20')" },
 ]
 cupti = [
-    { name = "nvidia-cuda-cupti", marker = "sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20')" },
+    { name = "nvidia-cuda-cupti", marker = "sys_platform == 'linux' or (extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20')" },
 ]
 curand = [
-    { name = "nvidia-curand", marker = "sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20')" },
+    { name = "nvidia-curand", marker = "sys_platform == 'linux' or (extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20')" },
 ]
 cusolver = [
-    { name = "nvidia-cusolver", marker = "sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20')" },
+    { name = "nvidia-cusolver", marker = "sys_platform == 'linux' or (extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20')" },
 ]
 cusparse = [
-    { name = "nvidia-cusparse", marker = "sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20')" },
+    { name = "nvidia-cusparse", marker = "sys_platform == 'linux' or (extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20')" },
 ]
 nvjitlink = [
-    { name = "nvidia-nvjitlink", marker = "sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20')" },
+    { name = "nvidia-nvjitlink", marker = "sys_platform == 'linux' or (extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20')" },
 ]
 nvrtc = [
-    { name = "nvidia-cuda-nvrtc", marker = "sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20')" },
+    { name = "nvidia-cuda-nvrtc", marker = "sys_platform == 'linux' or (extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20')" },
 ]
 nvtx = [
-    { name = "nvidia-nvtx", marker = "sys_platform == 'linux' or sys_platform == 'win32' or (extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20')" },
+    { name = "nvidia-nvtx", marker = "sys_platform == 'linux' or (extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20')" },
 ]
 
 [[package]]
@@ -765,7 +713,7 @@ name = "decord2"
 version = "3.4.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "numpy" },
+    { name = "numpy", marker = "sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32'" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/1b/33/3c32e83a8c35b9ae05ba84798ba0e1edaf18b535a397738a9c404cc90881/decord2-3.4.0-cp312-cp312-macosx_14_0_arm64.whl", hash = "sha256:5efd5ce71b371f8c40c891cf4bfc8f0bf27fcec6832acbb4f01b9abb228eaeae", size = 16829805, upload-time = "2026-05-30T13:23:37.608Z" },
@@ -1369,18 +1317,6 @@ wheels = [
 ]
 
 [[package]]
-name = "id"
-version = "1.6.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "urllib3" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/6d/04/c2156091427636080787aac190019dc64096e56a23b7364d3c1764ee3a06/id-1.6.1.tar.gz", hash = "sha256:d0732d624fb46fd4e7bc4e5152f00214450953b9e772c182c1c22964def1a069", size = 18088, upload-time = "2026-02-04T16:19:41.26Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/42/77/de194443bf38daed9452139e960c632b0ef9f9a5dd9ce605fdf18ca9f1b1/id-1.6.1-py3-none-any.whl", hash = "sha256:f5ec41ed2629a508f5d0988eda142e190c9c6da971100612c4de9ad9f9b237ca", size = 14689, upload-time = "2026-02-04T16:19:40.051Z" },
-]
-
-[[package]]
 name = "idna"
 version = "3.18"
 source = { registry = "https://pypi.org/simple" }
@@ -1842,19 +1778,18 @@ wheels = [
 
 [[package]]
 name = "kernels"
-version = "0.16.0"
+version = "0.14.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "huggingface-hub" },
     { name = "kernels-data" },
     { name = "packaging" },
     { name = "pyyaml" },
-    { name = "sigstore" },
     { name = "tomlkit" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/11/e2/2a6cc28c75c85725fa1b4025cc6544fe2a0aaa01624411664b29fc697537/kernels-0.16.0.tar.gz", hash = "sha256:5a4118396b9866209e767973d697d3f2ee76f6ed1b2f72269b72f8cd4dc90a7f", size = 70898, upload-time = "2026-06-26T07:27:42.769Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/cd/16/d9c473289d72d07a5c8e00367e5de9326bf0135e65ba74a235e2eb2510f2/kernels-0.14.1.tar.gz", hash = "sha256:ba21b7b509b7a0c2d2c7a0efd546e9dda2b1022ed5ff2b8fde8e94d7637754d3", size = 62800, upload-time = "2026-05-14T06:42:36.234Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0b/f5/ec0e49e5a6f28a346f94a7c5a8a90bc192da4d456e9b06ca5ed57c4e028d/kernels-0.16.0-py3-none-any.whl", hash = "sha256:794af6a10fd888bb4f46ad1b9b2f4f61b5b0b104475a6415c5322b58a7bf02ed", size = 63577, upload-time = "2026-06-26T07:27:41.486Z" },
+    { url = "https://files.pythonhosted.org/packages/94/94/fb8cbf1427af4b520ad08a458b6696f1958732761bc284b55273fa3aa684/kernels-0.14.1-py3-none-any.whl", hash = "sha256:be1a91116e14be1e012fc8f47afb51173ee052586a570fba3d594ef0d1b38920", size = 57977, upload-time = "2026-05-14T06:42:35.002Z" },
 ]
 
 [[package]]
@@ -2502,7 +2437,7 @@ name = "nvidia-cudnn-cu13"
 version = "9.19.0.56"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-cublas" },
+    { name = "nvidia-cublas", marker = "(sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32') or (sys_platform == 'darwin' and extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20') or (sys_platform == 'darwin' and extra != 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra != 'group-11-virex-bench-vllm-v0-20') or (sys_platform == 'emscripten' and extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20') or (sys_platform == 'win32' and extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f1/84/26025437c1e6b61a707442184fa0c03d083b661adf3a3eecfd6d21677740/nvidia_cudnn_cu13-9.19.0.56-py3-none-manylinux_2_27_aarch64.whl", hash = "sha256:6ed29ffaee1176c612daf442e4dd6cfeb6a0caa43ddcbeb59da94953030b1be4", size = 433781201, upload-time = "2026-02-03T20:40:53.805Z" },
@@ -2525,7 +2460,7 @@ name = "nvidia-cufft"
 version = "12.0.0.61"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-nvjitlink", marker = "sys_platform != 'darwin' or (extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20') or (extra != 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra != 'group-11-virex-bench-vllm-v0-20')" },
+    { name = "nvidia-nvjitlink", marker = "(sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32') or (sys_platform == 'darwin' and extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20') or (sys_platform == 'darwin' and extra != 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra != 'group-11-virex-bench-vllm-v0-20') or (sys_platform == 'emscripten' and extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20') or (sys_platform == 'win32' and extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/8b/ae/f417a75c0259e85c1d2f83ca4e960289a5f814ed0cea74d18c353d3e989d/nvidia_cufft-12.0.0.61-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:2708c852ef8cd89d1d2068bdbece0aa188813a0c934db3779b9b1faa8442e5f5", size = 214053554, upload-time = "2025-09-04T08:31:38.196Z" },
@@ -2557,9 +2492,9 @@ name = "nvidia-cusolver"
 version = "12.0.4.66"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-cublas", marker = "sys_platform != 'darwin' or (extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20') or (extra != 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra != 'group-11-virex-bench-vllm-v0-20')" },
-    { name = "nvidia-cusparse", marker = "sys_platform != 'darwin' or (extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20') or (extra != 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra != 'group-11-virex-bench-vllm-v0-20')" },
-    { name = "nvidia-nvjitlink", marker = "sys_platform != 'darwin' or (extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20') or (extra != 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra != 'group-11-virex-bench-vllm-v0-20')" },
+    { name = "nvidia-cublas", marker = "(sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32') or (sys_platform == 'darwin' and extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20') or (sys_platform == 'darwin' and extra != 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra != 'group-11-virex-bench-vllm-v0-20') or (sys_platform == 'emscripten' and extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20') or (sys_platform == 'win32' and extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20')" },
+    { name = "nvidia-cusparse", marker = "(sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32') or (sys_platform == 'darwin' and extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20') or (sys_platform == 'darwin' and extra != 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra != 'group-11-virex-bench-vllm-v0-20') or (sys_platform == 'emscripten' and extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20') or (sys_platform == 'win32' and extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20')" },
+    { name = "nvidia-nvjitlink", marker = "(sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32') or (sys_platform == 'darwin' and extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20') or (sys_platform == 'darwin' and extra != 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra != 'group-11-virex-bench-vllm-v0-20') or (sys_platform == 'emscripten' and extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20') or (sys_platform == 'win32' and extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c8/c3/b30c9e935fc01e3da443ec0116ed1b2a009bb867f5324d3f2d7e533e776b/nvidia_cusolver-12.0.4.66-py3-none-manylinux_2_27_aarch64.whl", hash = "sha256:02c2457eaa9e39de20f880f4bd8820e6a1cfb9f9a34f820eb12a155aa5bc92d2", size = 223467760, upload-time = "2025-09-04T08:33:04.222Z" },
@@ -2572,7 +2507,7 @@ name = "nvidia-cusparse"
 version = "12.6.3.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-nvjitlink", marker = "sys_platform != 'darwin' or (extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20') or (extra != 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra != 'group-11-virex-bench-vllm-v0-20')" },
+    { name = "nvidia-nvjitlink", marker = "(sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32') or (sys_platform == 'darwin' and extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20') or (sys_platform == 'darwin' and extra != 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra != 'group-11-virex-bench-vllm-v0-20') or (sys_platform == 'emscripten' and extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20') or (sys_platform == 'win32' and extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f8/94/5c26f33738ae35276672f12615a64bd008ed5be6d1ebcb23579285d960a9/nvidia_cusparse-12.6.3.3-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:80bcc4662f23f1054ee334a15c72b8940402975e0eab63178fc7e670aa59472c", size = 162155568, upload-time = "2025-09-04T08:33:42.864Z" },
@@ -2750,14 +2685,14 @@ resolution-markers = [
     "sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra != 'group-11-virex-bench-vllm-v0-20'",
 ]
 dependencies = [
-    { name = "anyio" },
-    { name = "distro" },
-    { name = "httpx" },
-    { name = "jiter" },
-    { name = "pydantic" },
-    { name = "sniffio" },
-    { name = "tqdm" },
-    { name = "typing-extensions" },
+    { name = "anyio", marker = "extra == 'group-11-virex-bench-vllm-v0-20' or extra != 'group-11-virex-bench-sglang-spec-v2-dflash-support'" },
+    { name = "distro", marker = "extra == 'group-11-virex-bench-vllm-v0-20' or extra != 'group-11-virex-bench-sglang-spec-v2-dflash-support'" },
+    { name = "httpx", marker = "extra == 'group-11-virex-bench-vllm-v0-20' or extra != 'group-11-virex-bench-sglang-spec-v2-dflash-support'" },
+    { name = "jiter", marker = "extra == 'group-11-virex-bench-vllm-v0-20' or extra != 'group-11-virex-bench-sglang-spec-v2-dflash-support'" },
+    { name = "pydantic", marker = "extra == 'group-11-virex-bench-vllm-v0-20' or extra != 'group-11-virex-bench-sglang-spec-v2-dflash-support'" },
+    { name = "sniffio", marker = "extra == 'group-11-virex-bench-vllm-v0-20' or extra != 'group-11-virex-bench-sglang-spec-v2-dflash-support'" },
+    { name = "tqdm", marker = "extra == 'group-11-virex-bench-vllm-v0-20' or extra != 'group-11-virex-bench-sglang-spec-v2-dflash-support'" },
+    { name = "typing-extensions", marker = "extra == 'group-11-virex-bench-vllm-v0-20' or extra != 'group-11-virex-bench-sglang-spec-v2-dflash-support'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/49/f5/7c7cb955305cb41f7f3c5fd7e0e38bf6bbf2658468863d4b7b868a5cb8df/openai-2.44.0.tar.gz", hash = "sha256:68a5a5ffad82b8ff7d451c437529fb64f7c3b8123aaf0c021966a882d9e3947d", size = 988753, upload-time = "2026-06-24T20:56:02.293Z" }
 wheels = [
@@ -3125,7 +3060,7 @@ name = "pexpect"
 version = "4.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "ptyprocess", marker = "(sys_platform != 'emscripten' and sys_platform != 'win32') or (sys_platform == 'emscripten' and extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support') or (sys_platform == 'win32' and extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support')" },
+    { name = "ptyprocess", marker = "(sys_platform != 'emscripten' and sys_platform != 'win32') or (sys_platform == 'emscripten' and extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20') or (sys_platform == 'win32' and extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/42/92/cc564bf6381ff43ce1f4d06852fc19a2f11d180f23dc32d9588bee2f149d/pexpect-4.9.0.tar.gz", hash = "sha256:ee7d41123f3c9911050ea2c2dac107568dc43b2d3b0c7557a33212c398ead30f", size = 166450, upload-time = "2023-11-25T09:07:26.339Z" }
 wheels = [
@@ -3336,15 +3271,6 @@ wheels = [
 ]
 
 [[package]]
-name = "pyasn1"
-version = "0.6.3"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/5c/5f/6583902b6f79b399c9c40674ac384fd9cd77805f9e6205075f828ef11fb2/pyasn1-0.6.3.tar.gz", hash = "sha256:697a8ecd6d98891189184ca1fa05d1bb00e2f84b5977c481452050549c8a72cf", size = 148685, upload-time = "2026-03-17T01:06:53.382Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/5d/a0/7d793dce3fa811fe047d6ae2431c672364b462850c6235ae306c0efd025f/pyasn1-0.6.3-py3-none-any.whl", hash = "sha256:a80184d120f0864a52a073acc6fc642847d0be408e7c7252f31390c0f4eadcde", size = 83997, upload-time = "2026-03-17T01:06:52.036Z" },
-]
-
-[[package]]
 name = "pybase64"
 version = "1.4.3"
 source = { registry = "https://pypi.org/simple" }
@@ -3515,20 +3441,7 @@ wheels = [
 
 [package.optional-dependencies]
 crypto = [
-    { name = "cryptography", version = "49.0.0", source = { registry = "https://pypi.org/simple" } },
-]
-
-[[package]]
-name = "pyopenssl"
-version = "26.2.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "cryptography", version = "48.0.1", source = { registry = "https://pypi.org/simple" } },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/1a/51/27a5ad5f939d08f690a326ef9582cda7140555180db71695f6fb747d6a36/pyopenssl-26.2.0.tar.gz", hash = "sha256:8c6fcecd1183a7fc897548dfe388b0cdb7f37e018200d8409cf33959dbe35387", size = 182195, upload-time = "2026-05-04T23:06:09.72Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/73/b8/a0e2790ae249d6f38c9f66de7a211621a7ab2650217bcd04e1262f578a56/pyopenssl-26.2.0-py3-none-any.whl", hash = "sha256:4f9d971bc5298b8bc1fab282803da04bf000c755d4ad9d99b52de2569ca19a70", size = 55823, upload-time = "2026-05-04T23:06:08.395Z" },
+    { name = "cryptography" },
 ]
 
 [[package]]
@@ -3736,29 +3649,6 @@ wheels = [
 ]
 
 [[package]]
-name = "rfc3161-client"
-version = "1.0.6"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "cryptography", version = "48.0.1", source = { registry = "https://pypi.org/simple" } },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/66/a7/be3b086133a87d595e7b11564931d5e5283edeeabba05dfee636a34b4dab/rfc3161_client-1.0.6.tar.gz", hash = "sha256:9969262fe6c08ecce39f9fe3996cf412187793834a022a643803090db5aae6b4", size = 106710, upload-time = "2026-04-08T14:15:05.66Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/57/b1/262af0901e1507a4e21d268091f1f7b738b44bca424b9bd481981828a7e8/rfc3161_client-1.0.6-cp39-abi3-macosx_10_12_x86_64.whl", hash = "sha256:9a98e9c7ff632d9571fcea25fb70bde0e8339b86368aef67a65f6a301f125733", size = 474975, upload-time = "2026-04-08T14:14:31.559Z" },
-    { url = "https://files.pythonhosted.org/packages/8a/b6/da7caa10c2a3e01f244ad116ffe2cc87056fa71a7dd76453faab2fc2c6ad/rfc3161_client-1.0.6-cp39-abi3-macosx_11_0_arm64.whl", hash = "sha256:0b3920334f7334ec3bb9c319d53a5d08cd43b6883f75e2669cfd869cd264d53a", size = 467442, upload-time = "2026-04-08T14:14:33.556Z" },
-    { url = "https://files.pythonhosted.org/packages/64/dd/5c92004ca167ae182f543aedc7a7a8bebeb0668ade7263b82212e4b4c59d/rfc3161_client-1.0.6-cp39-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:1671b1be16480ea54c0d36239efd0fb62c13dd572a9865a5e91fea39f1b95303", size = 2435049, upload-time = "2026-04-08T14:14:35.062Z" },
-    { url = "https://files.pythonhosted.org/packages/c4/19/c44702336aed367c6513493c4df9e880db8c4df37d5cd8d525aac9aad827/rfc3161_client-1.0.6-cp39-abi3-manylinux_2_17_armv7l.manylinux2014_armv7l.whl", hash = "sha256:63355099d932851eac507806bb9d0937dab546a66d5857d888168799ec635f6d", size = 1850399, upload-time = "2026-04-08T14:14:36.707Z" },
-    { url = "https://files.pythonhosted.org/packages/64/fa/5af9bbfd4dcd9926463a95c4de6ea137176252d7a1d0b96533f6c85f2742/rfc3161_client-1.0.6-cp39-abi3-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:2bc9835467f6166edd6f876470484e5b294ee141add6eff6a59f5047937aaa75", size = 2174593, upload-time = "2026-04-08T14:14:38.764Z" },
-    { url = "https://files.pythonhosted.org/packages/53/3c/32a0c7de4d63a69eb97e2564e5f1d51879ec93232b0c5ac1ec444843acba/rfc3161_client-1.0.6-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:e3caffaebf43242b000c4a6659d60eaf19c3b161ccbe05b15634a856c9ea7e61", size = 2177997, upload-time = "2026-04-08T14:14:40.641Z" },
-    { url = "https://files.pythonhosted.org/packages/e5/8d/4253affe1d1e221369ad3043f5d697fc3f5d7fcb439d21add84c65cafc53/rfc3161_client-1.0.6-cp39-abi3-musllinux_1_2_aarch64.whl", hash = "sha256:b7ad54288a49379b01b1d0d9d15167d2b7c6c7f940332ab85eeb4a6e844da8c7", size = 2745033, upload-time = "2026-04-08T14:14:42.82Z" },
-    { url = "https://files.pythonhosted.org/packages/1c/f0/eed22d6ed52d36b1eab3dfe56b9f507e22a328e3d018b84d48877ad7abe7/rfc3161_client-1.0.6-cp39-abi3-musllinux_1_2_armv7l.whl", hash = "sha256:85a1d71d1eb2c9bced2b3eb75e96f9fe49732ec2567b5dafa1dd889fff42b7fe", size = 2145631, upload-time = "2026-04-08T14:14:44.901Z" },
-    { url = "https://files.pythonhosted.org/packages/a2/bb/feeacd1859e364080729b9cded1129b740eeea54c6d61ff12daceed4b7dd/rfc3161_client-1.0.6-cp39-abi3-musllinux_1_2_i686.whl", hash = "sha256:1be4e1133f0f7fe875629f2c358285503c1cfc79cebfbc3fb4e28b8a57d6f1a4", size = 2328742, upload-time = "2026-04-08T14:14:46.743Z" },
-    { url = "https://files.pythonhosted.org/packages/6a/f5/2df8e402f069a6af2db1f21d1c88d5a929398923265189a0141709a6f25c/rfc3161_client-1.0.6-cp39-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:bc379167238df32cbcc1dc9c324088559c1734331030f5293d75f4fd37b5f4f6", size = 2386899, upload-time = "2026-04-08T14:14:48.59Z" },
-    { url = "https://files.pythonhosted.org/packages/a5/1b/f78c75c6c92a0f5de46a86b7f39cf9bb8fb5980fbd684a56f46f031dbce6/rfc3161_client-1.0.6-cp39-abi3-win32.whl", hash = "sha256:8631f7db7c1327bf87ee6a9a8681b4cd6bc2a90aae651388f29d045cd9ff1ac9", size = 1966796, upload-time = "2026-04-08T14:14:50.215Z" },
-    { url = "https://files.pythonhosted.org/packages/26/10/6e54860ae82e4ed5665fd3f1d798a8f68f7bac321431f444640da6f93600/rfc3161_client-1.0.6-cp39-abi3-win_amd64.whl", hash = "sha256:4ef4b096abe7d55b020526e39932c2721939a6c55e9a5cd3b3e77897a0942937", size = 2386738, upload-time = "2026-04-08T14:14:52.364Z" },
-]
-
-[[package]]
 name = "rfc3339-validator"
 version = "0.1.4"
 source = { registry = "https://pypi.org/simple" }
@@ -3789,15 +3679,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/2c/06/37c1a5557acf449e8e406a830a05bf885ac47d33270aec454ef78675008d/rfc3987_syntax-1.1.0.tar.gz", hash = "sha256:717a62cbf33cffdd16dfa3a497d81ce48a660ea691b1ddd7be710c22f00b4a0d", size = 14239, upload-time = "2025-07-18T01:05:05.015Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7e/71/44ce230e1b7fadd372515a97e32a83011f906ddded8d03e3c6aafbdedbb7/rfc3987_syntax-1.1.0-py3-none-any.whl", hash = "sha256:6c3d97604e4c5ce9f714898e05401a0445a641cfa276432b0a648c80856f6a3f", size = 8046, upload-time = "2025-07-18T01:05:03.843Z" },
-]
-
-[[package]]
-name = "rfc8785"
-version = "0.1.4"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/ef/2f/fa1d2e740c490191b572d33dbca5daa180cb423c24396b856f5886371d8b/rfc8785-0.1.4.tar.gz", hash = "sha256:e545841329fe0eee4f6a3b44e7034343100c12b4ec566dc06ca9735681deb4da", size = 14321, upload-time = "2024-09-27T16:33:31.206Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/4d/78/119878110660b2ad709888c8a1614fce7e2fab39080ab960656dc8605bf6/rfc8785-0.1.4-py3-none-any.whl", hash = "sha256:520d690b448ecf0703691c76e1a34a24ddcd4fc5bc41d589cb7c58ec651bcd48", size = 9240, upload-time = "2024-09-27T16:33:29.683Z" },
 ]
 
 [[package]]
@@ -3944,15 +3825,6 @@ wheels = [
 ]
 
 [[package]]
-name = "securesystemslib"
-version = "1.4.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/b8/11/9623c61604f9b8955248d43fc6a75658bb687c0d3ab65b032b2e43613bd5/securesystemslib-1.4.0.tar.gz", hash = "sha256:faea87be0f9c4b4277a5fa1b54bf9bfd807be9a94ab11be6c557dc8b75c43285", size = 934332, upload-time = "2026-05-27T08:01:53.21Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/f9/29/3ff76b9d90ce4482dc8e8d216dc3a6b6d0c934c52f68b0738e2c99ca685f/securesystemslib-1.4.0-py3-none-any.whl", hash = "sha256:a0743a3d978cf26e98a70a57e3fbd5a18e0a74c20cabe615f6a55b02ef0272b3", size = 871457, upload-time = "2026-05-27T08:01:51.093Z" },
-]
-
-[[package]]
 name = "send2trash"
 version = "2.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -4095,7 +3967,7 @@ dependencies = [
     { name = "torchcodec", marker = "(platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'armv7l') or sys_platform != 'linux'" },
     { name = "torchvision" },
     { name = "tqdm" },
-    { name = "transformers", version = "5.6.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "transformers" },
     { name = "uvicorn" },
     { name = "uvloop" },
     { name = "watchfiles" },
@@ -4241,56 +4113,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/58/15/8b3609fd3830ef7b27b655beb4b4e9c62313a4e8da8c676e142cc210d58e/shellingham-1.5.4.tar.gz", hash = "sha256:8dbca0739d487e5bd35ab3ca4b36e11c4078f3a234bfce294b0a0291363404de", size = 10310, upload-time = "2023-10-24T04:13:40.426Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e0/f9/0595336914c5619e5f28a1fb793285925a8cd4b432c9da0a987836c7f822/shellingham-1.5.4-py2.py3-none-any.whl", hash = "sha256:7ecfff8f2fd72616f7481040475a65b2bf8af90a56c89140852d1120324e8686", size = 9755, upload-time = "2023-10-24T04:13:38.866Z" },
-]
-
-[[package]]
-name = "sigstore"
-version = "4.3.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "cryptography", version = "48.0.1", source = { registry = "https://pypi.org/simple" } },
-    { name = "id" },
-    { name = "platformdirs" },
-    { name = "pyasn1" },
-    { name = "pydantic" },
-    { name = "pyjwt" },
-    { name = "pyopenssl" },
-    { name = "requests" },
-    { name = "rfc3161-client" },
-    { name = "rfc8785" },
-    { name = "rich" },
-    { name = "sigstore-models" },
-    { name = "sigstore-rekor-types" },
-    { name = "tuf" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/d6/63/1e44d9964d4f47617e641bdf6ce1b883b893d95b29ff07f97a8901df6b1c/sigstore-4.3.0.tar.gz", hash = "sha256:3c4b566bddfcc53e73d3adc06acf4311d72be0d907a167133abdc815a472a59b", size = 90550, upload-time = "2026-06-03T16:08:58.503Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b7/fd/78f361dbe410dac4b4fe091aa3c7be13b711ba0ced7d6961c1d8264f8d6d/sigstore-4.3.0-py3-none-any.whl", hash = "sha256:0f60c46c92fd4e871fbec979c9ae2aa381d7a93fbb774e49c9964550e5e16856", size = 111351, upload-time = "2026-06-03T16:08:57.125Z" },
-]
-
-[[package]]
-name = "sigstore-models"
-version = "0.0.6"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "pydantic" },
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/c6/ed/5c0ff809f90b19f4e971e17c1ed11f4df60082c6010b32a82054087e91e0/sigstore_models-0.0.6.tar.gz", hash = "sha256:c766c09470c2a7e8a4a333c893f07e2001c56a3ff1757b1a246119f53169a849", size = 7037, upload-time = "2025-11-26T19:18:12.61Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/12/dc/7a19864a7bc9f43121ab459e12768ab0080590e3e1b60a29b2f2eb01fb85/sigstore_models-0.0.6-py3-none-any.whl", hash = "sha256:5201a68f4d7d0f8bec1e2f4378eb646b084c52609a4e31db8c385095fff68b2e", size = 13213, upload-time = "2025-11-26T19:18:11.365Z" },
-]
-
-[[package]]
-name = "sigstore-rekor-types"
-version = "0.0.18"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "pydantic", extra = ["email"], marker = "extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/b4/54/102e772445c5e849b826fbdcd44eb9ad7b3d10fda17b08964658ec7027dc/sigstore_rekor_types-0.0.18.tar.gz", hash = "sha256:19aef25433218ebf9975a1e8b523cc84aaf3cd395ad39a30523b083ea7917ec5", size = 15687, upload-time = "2024-11-22T13:59:54.009Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/45/7c/f0b4e19fd424df4cc964f5d454e1d814fd2dc3b386342e6040441024318f/sigstore_rekor_types-0.0.18-py3-none-any.whl", hash = "sha256:b62bf38c5b1a62bc0d7fe0ee51a0709e49311d137c7880c329882a8f4b2d1d78", size = 20610, upload-time = "2024-11-22T13:59:52.684Z" },
 ]
 
 [[package]]
@@ -4743,55 +4565,20 @@ wheels = [
 name = "transformers"
 version = "5.6.0"
 source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "sys_platform == 'darwin'",
-    "sys_platform == 'win32'",
-    "sys_platform == 'emscripten'",
-    "sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-]
 dependencies = [
-    { name = "huggingface-hub", marker = "extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support'" },
-    { name = "numpy", marker = "extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support'" },
-    { name = "packaging", marker = "extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support'" },
-    { name = "pyyaml", marker = "extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support'" },
-    { name = "regex", marker = "extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support'" },
-    { name = "safetensors", marker = "extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support'" },
-    { name = "tokenizers", marker = "extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support'" },
-    { name = "tqdm", marker = "extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support'" },
-    { name = "typer", marker = "extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support'" },
+    { name = "huggingface-hub" },
+    { name = "numpy" },
+    { name = "packaging" },
+    { name = "pyyaml" },
+    { name = "regex" },
+    { name = "safetensors" },
+    { name = "tokenizers" },
+    { name = "tqdm" },
+    { name = "typer" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/88/14/e3eb58bd4c9df45af154f9de59a6e66a2ece30dd64434c710e40e5a4b1f1/transformers-5.6.0.tar.gz", hash = "sha256:291951976b79a6f93ec06d6ab14489a99aecdbc8f05aaabab538ea1d508c9a97", size = 8311711, upload-time = "2026-04-22T15:42:03.393Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/e8/80/ac700df26a83969d2cf8d09d3dd191bb9bbe8156fa4607e614438b1da8c8/transformers-5.6.0-py3-none-any.whl", hash = "sha256:def5aac47b28e2f1386fa64f2f458a5474ba7733ab74c1765e7c67a79d1f1cbd", size = 10364790, upload-time = "2026-04-22T15:41:58.723Z" },
-]
-
-[[package]]
-name = "transformers"
-version = "5.11.0"
-source = { registry = "https://pypi.org/simple" }
-resolution-markers = [
-    "sys_platform == 'darwin' and extra != 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20'",
-    "sys_platform == 'win32' and extra != 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20'",
-    "sys_platform == 'emscripten' and extra != 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20'",
-    "sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20'",
-    "sys_platform == 'win32' and extra != 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra != 'group-11-virex-bench-vllm-v0-20'",
-    "sys_platform == 'emscripten' and extra != 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra != 'group-11-virex-bench-vllm-v0-20'",
-    "sys_platform != 'emscripten' and sys_platform != 'win32' and extra != 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra != 'group-11-virex-bench-vllm-v0-20'",
-]
-dependencies = [
-    { name = "huggingface-hub", marker = "extra == 'group-11-virex-bench-vllm-v0-20' or extra != 'group-11-virex-bench-sglang-spec-v2-dflash-support'" },
-    { name = "numpy", marker = "extra == 'group-11-virex-bench-vllm-v0-20' or extra != 'group-11-virex-bench-sglang-spec-v2-dflash-support'" },
-    { name = "packaging", marker = "extra == 'group-11-virex-bench-vllm-v0-20' or extra != 'group-11-virex-bench-sglang-spec-v2-dflash-support'" },
-    { name = "pyyaml", marker = "extra == 'group-11-virex-bench-vllm-v0-20' or extra != 'group-11-virex-bench-sglang-spec-v2-dflash-support'" },
-    { name = "regex", marker = "extra == 'group-11-virex-bench-vllm-v0-20' or extra != 'group-11-virex-bench-sglang-spec-v2-dflash-support'" },
-    { name = "safetensors", marker = "extra == 'group-11-virex-bench-vllm-v0-20' or extra != 'group-11-virex-bench-sglang-spec-v2-dflash-support'" },
-    { name = "tokenizers", marker = "extra == 'group-11-virex-bench-vllm-v0-20' or extra != 'group-11-virex-bench-sglang-spec-v2-dflash-support'" },
-    { name = "tqdm", marker = "extra == 'group-11-virex-bench-vllm-v0-20' or extra != 'group-11-virex-bench-sglang-spec-v2-dflash-support'" },
-    { name = "typer", marker = "extra == 'group-11-virex-bench-vllm-v0-20' or extra != 'group-11-virex-bench-sglang-spec-v2-dflash-support'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/7d/4a/2ee05f9a06bb2dd34cac951548553738a826762fb7adfa7ce256daeaeac8/transformers-5.11.0.tar.gz", hash = "sha256:1dbecade5b8a09bdf3e9e8fdfc9d312cb9eccf5a201080dc894b373f0f3eb5f4", size = 8874363, upload-time = "2026-06-10T16:31:52.441Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/9b/40/30fdefda9b8aff8d36054dbb37d8e1464cc1130c29623403c3c2147bdee1/transformers-5.11.0-py3-none-any.whl", hash = "sha256:06d0a34eab529955f8e704b530663c7d6bd6f9c7a9e47a05cddb4a44e7b6566b", size = 11094597, upload-time = "2026-06-10T16:31:49.08Z" },
 ]
 
 [[package]]
@@ -4801,19 +4588,6 @@ source = { registry = "https://pypi.org/simple" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/17/5d/08201db32823bdf77a0e2b9039540080b2e5c23a20706ddba942924ebcd6/triton-3.6.0-cp312-cp312-manylinux_2_27_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:374f52c11a711fd062b4bfbb201fd9ac0a5febd28a96fb41b4a0f51dde3157f4", size = 176128243, upload-time = "2026-01-20T16:16:07.857Z" },
     { url = "https://files.pythonhosted.org/packages/ab/a8/cdf8b3e4c98132f965f88c2313a4b493266832ad47fb52f23d14d4f86bb5/triton-3.6.0-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:74caf5e34b66d9f3a429af689c1c7128daba1d8208df60e81106b115c00d6fca", size = 188266850, upload-time = "2026-01-20T16:00:43.041Z" },
-]
-
-[[package]]
-name = "tuf"
-version = "7.0.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "securesystemslib" },
-    { name = "urllib3" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/aa/40/25ceaf7f02e18b0d99150d94e200929351a542479c54abb7b92e1fd74b10/tuf-7.0.0.tar.gz", hash = "sha256:9d2e6723538e0d5a3e482b6de805fcfe64481448d5853039ba6b06ba541efd7f", size = 272032, upload-time = "2026-05-18T08:28:57.408Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/43/c7/301f699ad9427bb0e06935ed56850dd26eecb2b3e8e07b80311875eae676/tuf-7.0.0-py3-none-any.whl", hash = "sha256:572bdbdc9ff4a82278a0d4773e6100863b9b33023f27575e84ca65b486dd0d79", size = 55277, upload-time = "2026-05-18T08:28:56.123Z" },
 ]
 
 [[package]]
@@ -4936,12 +4710,12 @@ source = { editable = "." }
 dependencies = [
     { name = "datasets" },
     { name = "dspy" },
+    { name = "kernels" },
     { name = "loguru" },
     { name = "pydantic" },
     { name = "torch" },
     { name = "torchvision" },
-    { name = "transformers", version = "5.6.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support'" },
-    { name = "transformers", version = "5.11.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-virex-bench-vllm-v0-20' or extra != 'group-11-virex-bench-sglang-spec-v2-dflash-support'" },
+    { name = "transformers" },
 ]
 
 [package.dev-dependencies]
@@ -4970,11 +4744,12 @@ vllm-v0-20 = [
 requires-dist = [
     { name = "datasets", specifier = ">=5.0.0" },
     { name = "dspy", specifier = ">=3.2.1,<3.3.0" },
+    { name = "kernels", specifier = ">=0.14.1,<0.15.0" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "pydantic", specifier = ">=2.10.0" },
     { name = "torch", specifier = "==2.11.0" },
     { name = "torchvision", specifier = "==0.26.0" },
-    { name = "transformers", specifier = ">=5.6.0,<5.12.0" },
+    { name = "transformers", specifier = ">=5.6.0,<5.7.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -5065,7 +4840,7 @@ dependencies = [
     { name = "tilelang", version = "0.1.9", source = { registry = "https://pypi.org/simple" } },
     { name = "tokenizers" },
     { name = "tqdm" },
-    { name = "transformers", version = "5.11.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "transformers" },
     { name = "typing-extensions" },
     { name = "watchfiles" },
     { name = "xgrammar", version = "0.2.2", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine == 'aarch64' or platform_machine == 'arm64' or platform_machine == 'ppc64le' or platform_machine == 's390x' or platform_machine == 'x86_64'" },
@@ -5277,7 +5052,7 @@ dependencies = [
     { name = "numpy" },
     { name = "pydantic" },
     { name = "torch" },
-    { name = "transformers", version = "5.6.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "transformers" },
     { name = "triton", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "typing-extensions" },
 ]
@@ -5305,7 +5080,7 @@ dependencies = [
     { name = "numpy" },
     { name = "pydantic" },
     { name = "torch" },
-    { name = "transformers", version = "5.11.0", source = { registry = "https://pypi.org/simple" } },
+    { name = "transformers" },
     { name = "triton", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
     { name = "typing-extensions" },
 ]
