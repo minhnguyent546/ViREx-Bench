@@ -34,7 +34,7 @@ echo "Using SPEC_DECODING_METHOD=${SPEC_DECODING_METHOD} with SPECULATIVE_CONFIG
 
 echo "PORT=$PORT MAX_NUM_BATCHED_TOKENS=$MAX_NUM_BATCHED_TOKENS MAX_MODEL_LEN=$MAX_MODEL_LEN GPU_MEMORY_UTILIZATION=$GPU_MEMORY_UTILIZATION MAX_NUM_SEQS=$MAX_NUM_SEQS"
 
-uv run vllm serve "$MODEL_ID" \
+uv run --no-sync vllm serve "$MODEL_ID" \
   --port "$PORT" \
   --trust-remote-code \
   --async-scheduling \

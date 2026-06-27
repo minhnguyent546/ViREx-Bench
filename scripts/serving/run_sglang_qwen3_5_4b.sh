@@ -55,7 +55,7 @@ else
 fi
 
 # python -m sglang.compile_deep_gemm
-uv run sglang serve \
+uv run --no-sync sglang serve \
   --model-path "$MODEL_ID" \
   --port "$PORT" \
   --tp-size 1 \
