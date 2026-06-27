@@ -1,5 +1,6 @@
+import dspy
+
 from virex_bench.strategies.base import ReasoningStrategy
-from virex_bench.tasks.base import ReasoningExample
 
 
 class DirectStrategy(ReasoningStrategy):
@@ -7,5 +8,12 @@ class DirectStrategy(ReasoningStrategy):
 
     name = "direct"
 
-    def build_prompt(self, example: ReasoningExample) -> str:
-        return super().build_prompt(example) + "\nTrả lời ngắn gọn. Câu trả lời:"
+    def __init__(self, signature: type[dspy.Signature]) -> None:
+        super().__init__(signature)
+        self.predict = dspy.Predict(signature)
+
+    def forward(self, **inputs: object) -> dspy.Prediction:
+        return self.predict(**inputs)
+
+    async def aforward(self, **input: object) -> dspy.Prediction:
+        return await self.predict.acall(**input)

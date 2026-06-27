@@ -1,5 +1,8 @@
+import dspy
+from pydantic.fields import FieldInfo
+
 from virex_bench.strategies.base import ReasoningStrategy
-from virex_bench.tasks.base import ReasoningExample
+from virex_bench.strategies.modules import ChainOfThought
 
 
 class CoTStrategy(ReasoningStrategy):
@@ -7,8 +10,19 @@ class CoTStrategy(ReasoningStrategy):
 
     name = "cot"
 
-    def build_prompt(self, example: ReasoningExample) -> str:
-        return (
-            super().build_prompt(example)
-            + "\nHãy suy luận từng bước, sau đó đưa ra kết luận.\nCâu trả lời:"
+    def __init__(
+        self,
+        signature: type[dspy.Signature],
+        rationale_field: FieldInfo | None = None,
+        rationale_field_type: type = str,
+    ) -> None:
+        super().__init__(signature)
+        self.predict = ChainOfThought(
+            signature, rationale_field=rationale_field, rationale_field_type=rationale_field_type
         )
+
+    def forward(self, **inputs: object) -> dspy.Prediction:
+        return self.predict(**inputs)
+
+    async def aforward(self, **input: object) -> dspy.Prediction:
+        return await self.predict.acall(**input)
