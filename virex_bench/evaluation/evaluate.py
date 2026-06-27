@@ -58,8 +58,8 @@ def evaluate(
     )
 
     def process_example(example: ReasoningExample) -> TaskResult:
+        inputs = task.example_to_inputs(example)
         try:
-            inputs = task.example_to_inputs(example)
             prediction = strategy(**inputs)
             predicted = str(prediction.answer)
             extra: dict[str, object] = {}
@@ -83,6 +83,7 @@ def evaluate(
             logger.warning(f"Example {example.example_id} failed: {error!r}")
             return TaskResult(
                 example_id=example.example_id,
+                inputs=inputs,
                 predicted="",
                 gold=example.answer,
                 score=0.0,
@@ -90,6 +91,7 @@ def evaluate(
             )
         return TaskResult(
             example_id=example.example_id,
+            inputs=inputs,
             predicted=predicted,
             gold=example.answer,
             score=score,

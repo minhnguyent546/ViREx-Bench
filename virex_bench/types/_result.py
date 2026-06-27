@@ -5,6 +5,7 @@ class TaskResult(BaseModel):
     """Per-example prediction record produced during evaluation."""
 
     example_id: str
+    inputs: dict[str, object] = {}
     predicted: str
     gold: str
     score: float
