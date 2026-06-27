@@ -14,3 +14,6 @@ class DirectStrategy(ReasoningStrategy):
 
     def forward(self, **inputs: object) -> dspy.Prediction:
         return self.predict(**inputs)
+
+    async def aforward(self, **input: object) -> dspy.Prediction:
+        return await self.predict.acall(**input)

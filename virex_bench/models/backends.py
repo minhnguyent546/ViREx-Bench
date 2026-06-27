@@ -7,6 +7,8 @@ def load_backend(
     model: str,
     api_base: str | None = None,
     api_key: str | None = None,
+    cache: bool = False,
+    **kwargs,
 ) -> BaseLM:
     """Build a `BaseLM` for an OpenAI-compatible endpoint.
 
@@ -20,4 +22,6 @@ def load_backend(
         model=f"{backend}/{model}",
         api_base=resolved_api_base,
         api_key=resolved_api_key,
+        cache=cache,
+        **kwargs,
     )

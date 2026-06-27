@@ -32,6 +32,10 @@ if TYPE_CHECKING:
     # API key for the OpenAI-compatible endpoint.
     OPENAI_API_KEY: str | None = None
 
+    # Access token for the HuggingFace Hub (used to load task datasets). Optional for
+    # public datasets; required for gated or private ones.
+    HF_TOKEN: str | None = None
+
 
 def get_bool(env_name: str, default: str) -> bool:
     """Parse a boolean env var. Truthy values: 1, true, yes, on (case-insensitive)."""
@@ -48,6 +52,8 @@ environment_variables: dict[str, Callable[[], Any]] = {
     # --- Model endpoint (OpenAI-compatible) ---
     "OPENAI_BASE_URL": lambda: os.environ.get("OPENAI_BASE_URL"),
     "OPENAI_API_KEY": lambda: os.environ.get("OPENAI_API_KEY"),
+    # --- HuggingFace Hub (task datasets) ---
+    "HF_TOKEN": lambda: os.environ.get("HF_TOKEN"),
 }
 
 

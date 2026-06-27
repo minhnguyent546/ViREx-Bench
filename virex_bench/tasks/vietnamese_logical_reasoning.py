@@ -1,6 +1,14 @@
+from collections.abc import Mapping
+from typing import Any
+
 import dspy
 
-from virex_bench.tasks.base import ReasoningExample, ReasoningTask, TaskMetadata
+from virex_bench.tasks.base import (
+    DatasetConfig,
+    ReasoningExample,
+    ReasoningTask,
+    TaskMetadata,
+)
 
 
 class VietnameseLogicalReasoningSignature(dspy.Signature):
@@ -8,7 +16,9 @@ class VietnameseLogicalReasoningSignature(dspy.Signature):
 
     Given a set of premises and a question, reason over the premises to produce
     the correct answer to the question. Use only the information stated in the
-    given premises. The premises, question, and answer are written in Vietnamese.
+    given premises. The premises and question are written in Vietnamese; the
+    answer is one of the options offered in the question, or a short value such
+    as a label, a number, or a name.
     """
 
     premises: list[str] = dspy.InputField(desc="The list of premises.")
@@ -16,46 +26,30 @@ class VietnameseLogicalReasoningSignature(dspy.Signature):
     answer: str = dspy.OutputField(desc="The final answer to the question.")
 
 
-# A handful of toy Vietnamese logical-reasoning examples so the CLI is runnable
-# end-to-end before the real dataset lands under `data/`.
-_TOY_EXAMPLES: list[ReasoningExample] = [
-    ReasoningExample(
-        example_id="toy-001",
-        premises=[
-            "Tất cả các con mèo đều là động vật.",
-            "Kitty là một con mèo.",
-        ],
-        question="Kitty có phải là động vật không?",
-        answer="Có",
-    ),
-    ReasoningExample(
-        example_id="toy-002",
-        premises=[
-            "Nếu trời mưa thì đường ướt.",
-            "Trời đang mưa.",
-        ],
-        question="Đường có ướt không?",
-        answer="Có",
-    ),
-    ReasoningExample(
-        example_id="toy-003",
-        premises=[
-            "An cao hơn Bình.",
-            "Bình cao hơn Cường.",
-        ],
-        question="An có cao hơn Cường không?",
-        answer="Có",
-    ),
-]
-
-
 class VietnameseLogicalReasoning(ReasoningTask):
     metadata = TaskMetadata(
         name="vietnamese-logical-reasoning",
-        description="Vietnamese logical-reasoning task: premises + a question with a gold answer.",
+        description=(
+            "Vietnamese logical-reasoning task: given a set of premises and a "
+            "question, derive the answer that is logically supported by the "
+            "premises. Covers multiple-choice, yes/no/uncertain, numeric, and "
+            "short free-text answers."
+        ),
         language="vie",
+        dataset=DatasetConfig(
+            path="minhnguyent546/virex-bench-datasets",
+            name="logical-reasoning",
+            split="test",
+            revision="b55afc3316bd905b33523e4c9af2e36d9dd012b3",
+            num_proc=2,
+        ),
     )
     signatures = {"default": VietnameseLogicalReasoningSignature}
 
-    def load_examples(self) -> list[ReasoningExample]:
-        return list(_TOY_EXAMPLES)
+    def _row_to_example(self, row: Mapping[str, Any]) -> ReasoningExample:
+        return ReasoningExample(
+            example_id=str(row["query_id"]),
+            premises=[str(premise) for premise in row["premises"]],
+            question=str(row["query"]),
+            answer=str(row["answer"]),
+        )

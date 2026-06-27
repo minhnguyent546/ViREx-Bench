@@ -7,8 +7,17 @@ def get_model(
     backend: str = "openai",
     api_base: str | None = None,
     api_key: str | None = None,
+    cache: bool = False,
+    **kwargs,
 ) -> BaseLM:
-    return load_backend(backend, model, api_base=api_base, api_key=api_key)
+    return load_backend(
+        backend,
+        model,
+        api_base=api_base,
+        api_key=api_key,
+        cache=cache,
+        **kwargs,
+    )
 
 
 __all__ = [

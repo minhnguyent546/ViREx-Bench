@@ -8,3 +8,5 @@ class BaseLM(dspy.LM):
     endpoint through litellm. Owning this thin wrapper keeps `dspy.LM` from leaking
     across the codebase and gives us a single place to add custom behavior later.
     """
+
+    pass
