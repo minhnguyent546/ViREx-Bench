@@ -35,7 +35,7 @@ def evaluate(
     strategy: ReasoningStrategy,
     model_name: str,
     backend: str,
-    num_threads: int = 4,
+    num_threads: int = 8,
 ) -> EvaluationReport:
     """Run `strategy` with `lm` over every example in `task` and score with the task's metric.
 

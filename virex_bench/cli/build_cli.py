@@ -123,7 +123,7 @@ def _add_run_opts(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--num-threads",
         type=int,
-        default=4,
+        default=8,
         help="Number of worker threads for concurrent example evaluation",
     )
     parser.add_argument(
