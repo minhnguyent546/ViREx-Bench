@@ -156,9 +156,11 @@ def evaluate(
 
 
 def save_report(report: EvaluationReport, output_dir: str) -> str:
-    os.makedirs(output_dir, exist_ok=True)
-    filename = f"{report.task}__{report.strategy}.json"
-    output_path = os.path.join(output_dir, filename)
+    dataset_name = report.task.replace("/", "--")
+    model_name = report.model.replace("/", "--")
+    nested_dir = os.path.join(output_dir, dataset_name, model_name, report.strategy)
+    os.makedirs(nested_dir, exist_ok=True)
+    output_path = os.path.join(nested_dir, "results.json")
     exclude: set[str] = {"judge", "judge_model"} if report.judge is None else set()
     with open(output_path, "w", encoding="utf-8") as output_file:
         output_file.write(report.model_dump_json(indent=2, exclude=exclude))
