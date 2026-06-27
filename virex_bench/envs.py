@@ -23,6 +23,14 @@ if TYPE_CHECKING:
     # Logging verbosity for the `virex_bench` logger (matched case-insensitively).
     VIREX_BENCH_LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
 
+    # Controls ANSI color in log output: "auto" colors only when the stream is a TTY,
+    # "1" always colors, "0" never colors.
+    VIREX_BENCH_LOG_COLOR: Literal["auto", "0", "1"] = "auto"
+
+    # Standard cross-tool opt-out (https://no-color.org): when set to any non-empty
+    # value, disables colored output regardless of VIREX_BENCH_LOG_COLOR.
+    NO_COLOR: bool = False
+
     # Default directory benchmark results are written into when `--output-dir` is unset.
     VIREX_BENCH_OUTPUT_DIR: str = "results"
 
@@ -97,6 +105,13 @@ environment_variables: dict[str, Callable[[], Any]] = {
         ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
         case_sensitive=False,
     )().upper(),
+    "VIREX_BENCH_LOG_COLOR": env_with_choices(
+        "VIREX_BENCH_LOG_COLOR",
+        "auto",
+        ["auto", "0", "1"],
+        case_sensitive=False,
+    ),
+    "NO_COLOR": lambda: len(os.environ.get("NO_COLOR", "")) > 0,
     # --- Paths ---
     "VIREX_BENCH_OUTPUT_DIR": lambda: os.environ.get("VIREX_BENCH_OUTPUT_DIR", "results"),
     # --- Model endpoint (OpenAI-compatible) ---
