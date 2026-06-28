@@ -56,6 +56,12 @@ _LANGUAGE_NAMES = {
     "vi": "Vietnamese",
 }
 
+_YES_NO_UNCERTAIN_LABEL_TRANSLATIONS = {
+    "Yes": "Có",
+    "No": "Không",
+    "Uncertain": "Không chắc chắn",
+}
+
 # Domain-aware translation instruction, sent through TranslateGemma's `<<<custom>>>` chat
 # template mode. It tells the model the text is logic-based educational content (so domain
 # terminology is translated consistently), injects the exact premise count so the model
@@ -124,6 +130,12 @@ def parse_bundle(translated: str, num_premises: int) -> tuple[str, list[str], st
     return query, premises, answer
 
 
+def translate_answer_label(answer: str, category: str) -> str:
+    if category != "yes_no_uncertain":
+        return answer
+    return _YES_NO_UNCERTAIN_LABEL_TRANSLATIONS.get(answer, answer)
+
+
 def translate_dataset(args: argparse.Namespace) -> None:
     run_start_time = time.perf_counter()
     os.makedirs(args.output_dir, exist_ok=True)
@@ -188,9 +200,8 @@ def translate_dataset(args: argparse.Namespace) -> None:
     )
 
     # Build output rows, parsing each translated bundle back into (query, premises, answer).
-    # For text (open-ended) answers we keep the model's translated answer; for all other
-    # categories (mcq, yes_no_uncertain, number) we keep the original answer — "A", "Yes",
-    # "12" gain nothing from translation, and "Có"/"Không" would be worse than "Yes"/"No".
+    # For text (open-ended) answers we keep the model's translated answer. For deterministic
+    # label categories, keep stable labels while mapping yes/no/uncertain to Vietnamese.
     output_rows: list[dict[str, Any]] = []
     failed_query_ids: list[str] = []
     for row, translated_bundle in zip(rows, translated_bundles, strict=True):
@@ -204,7 +215,7 @@ def translate_dataset(args: argparse.Namespace) -> None:
             logger.debug(f"{translated_bundle = }")
             output_row["query_vi"] = row["query"]
             output_row["premises_vi"] = list(row["premises"])
-            output_row["answer_vi"] = row["answer"]
+            output_row["answer_vi"] = translate_answer_label(row["answer"], row["category"])
             failed_query_ids.append(row["query_id"])
         else:
             query_vi, premises_vi, answer_vi = parsed
@@ -214,7 +225,11 @@ def translate_dataset(args: argparse.Namespace) -> None:
             )
             output_row["query_vi"] = query_vi
             output_row["premises_vi"] = premises_vi
-            output_row["answer_vi"] = answer_vi if row["category"] == "text" else row["answer"]
+            output_row["answer_vi"] = (
+                answer_vi
+                if row["category"] == "text"
+                else translate_answer_label(row["answer"], row["category"])
+            )
         output_rows.append(output_row)
 
     output_file_path = os.path.join(
