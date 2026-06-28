@@ -1,6 +1,7 @@
 import os
 from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 
 import dspy
 from tqdm.auto import tqdm
@@ -14,6 +15,60 @@ from virex_bench.tasks.base import ReasoningTask
 from virex_bench.types import EvaluationReport, ReasoningExample, ReasoningMetric, TaskResult
 
 logger = init_logger(__name__)
+
+
+def _process_example(
+    example: ReasoningExample,
+    *,
+    task: ReasoningTask,
+    strategy: ReasoningStrategy,
+    judge_module: LLMJudge | None = None,
+    metric_func: ReasoningMetric | None = None,
+) -> TaskResult:
+    if (judge_module is None) == (metric_func is None):
+        raise ValueError("Exactly one of judge_module or metric_func must be provided")
+
+    inputs = task.example_to_inputs(example)
+    try:
+        prediction = strategy(**inputs)
+        predicted = str(prediction.answer)
+        extra: dict[str, object] = {}
+        reasoning = getattr(prediction, "reasoning", None)
+        if reasoning is not None:
+            extra["reasoning"] = reasoning
+        if judge_module is not None:
+            outcome = judge_example(
+                example=example, prediction=prediction, judge_module=judge_module
+            )
+            extra["judge_result"] = {
+                "verdict": outcome.verdict,
+                "error_type": outcome.error_type,
+                "feedback": outcome.feedback,
+            }
+            score = outcome.score
+        else:
+            assert metric_func is not None
+            score = float(metric_func(example, prediction))
+    except Exception as error:  # noqa: BLE001
+        logger.warning(f"Example {example.example_id} failed: {error!r}")
+        return TaskResult(
+            example_id=example.example_id,
+            inputs=inputs,
+            predicted="",
+            gold=example.answer,
+            score=0.0,
+            category=example.category,
+            extra={"error": f"{type(error).__name__}: {error}"},
+        )
+    return TaskResult(
+        example_id=example.example_id,
+        inputs=inputs,
+        predicted=predicted,
+        gold=example.answer,
+        score=score,
+        category=example.category,
+        extra=extra,
+    )
 
 
 def evaluate(
@@ -47,8 +102,7 @@ def evaluate(
     else:
         metric_func = get_metric(metric_name)
 
-    if judge_module is None:
-        assert metric_func is not None
+    assert (judge_module is not None) ^ (metric_func is not None)
 
     logger.info(
         f"Evaluating task={task.name} model={model_name} "
@@ -57,55 +111,22 @@ def evaluate(
         + f"on {len(examples)} examples (num_threads={num_threads})"
     )
 
-    def process_example(example: ReasoningExample) -> TaskResult:
-        inputs = task.example_to_inputs(example)
-        try:
-            prediction = strategy(**inputs)
-            predicted = str(prediction.answer)
-            extra: dict[str, object] = {}
-            reasoning = getattr(prediction, "reasoning", None)
-            if reasoning is not None:
-                extra["reasoning"] = reasoning
-            if judge_module is not None:
-                outcome = judge_example(
-                    example=example, prediction=prediction, judge_module=judge_module
-                )
-                extra["judge_result"] = {
-                    "verdict": outcome.verdict,
-                    "error_type": outcome.error_type,
-                    "feedback": outcome.feedback,
-                }
-                score = outcome.score
-            else:
-                assert metric_func is not None
-                score = float(metric_func(example, prediction))
-        except Exception as error:  # noqa: BLE001
-            logger.warning(f"Example {example.example_id} failed: {error!r}")
-            return TaskResult(
-                example_id=example.example_id,
-                inputs=inputs,
-                predicted="",
-                gold=example.answer,
-                score=0.0,
-                extra={"error": f"{type(error).__name__}: {error}"},
-            )
-        return TaskResult(
-            example_id=example.example_id,
-            inputs=inputs,
-            predicted=predicted,
-            gold=example.answer,
-            score=score,
-            extra=extra,
-        )
+    _process_example_fn = partial(
+        _process_example,
+        task=task,
+        strategy=strategy,
+        judge_module=judge_module,
+        metric_func=metric_func,
+    )
 
     progress_desc = f"Eval [{task.name}/{strategy.name}]"
     dspy.configure(lm=lm)
     if num_threads > 1:
         executor = ThreadPoolExecutor(max_workers=num_threads)
-        result_iter: Iterable[TaskResult] = executor.map(process_example, examples)
+        result_iter: Iterable[TaskResult] = executor.map(_process_example, examples)
     else:
         executor = None
-        result_iter = (process_example(example) for example in examples)
+        result_iter = (_process_example_fn(example) for example in examples)
 
     results: list[TaskResult] = []
     running_score = 0.0
@@ -125,10 +146,27 @@ def evaluate(
     total_score = running_score
     num_failed = sum(1 for result in results if "error" in result.extra)
     score = total_score / len(results) if results else 0.0
+    category_totals: dict[str, float] = {}
+    category_counts: dict[str, int] = {}
+    for result in results:
+        if result.category is None:
+            continue
+        category_totals[result.category] = category_totals.get(result.category, 0.0) + result.score
+        category_counts[result.category] = category_counts.get(result.category, 0) + 1
+    category_scores = {
+        category: category_totals[category] / category_counts[category]
+        for category in category_totals
+    }
     logger.info(
         f"Done: {metric_name}={score:.4f} ({total_score:.4f}/{len(results)})"
         + (f", {num_failed} failed" if num_failed else "")
     )
+    if category_scores:
+        breakdown = ", ".join(
+            f"{category}={category_score:.4f}"
+            for category, category_score in sorted(category_scores.items())
+        )
+        logger.info(f"Per-category {metric_name}: {breakdown}")
 
     return EvaluationReport(
         task=task.name,
@@ -140,6 +178,7 @@ def evaluate(
         judge_model=judge_model_name,
         score=score,
         num_examples=len(results),
+        category_scores=category_scores,
         results=results,
     )
 
