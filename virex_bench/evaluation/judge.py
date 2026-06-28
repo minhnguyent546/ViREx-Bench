@@ -286,7 +286,7 @@ class LogicalReasoningJudge(LLMJudge):
             )
             verdict = "NO"
 
-        error_type = str(getattr(result, "error_type", "")).strip().lower()
+        error_type = str(getattr(result, "error_type", "")).strip().lower().replace("-", "_")
         if error_type not in self.error_types:
             logger.warning(
                 f"Unexpected error_type '{error_type}' from judge. Defaulting to 'unknown'."
