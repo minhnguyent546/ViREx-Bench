@@ -50,6 +50,16 @@ if TYPE_CHECKING:
     # DeepSeek model used by the LLM-as-a-judge metric.
     VIREX_BENCH_JUDGE_MODEL: Literal["deepseek-v4-pro", "deepseek-v4-flash"] = "deepseek-v4-pro"
 
+    # Maximum number of attempts (including the first call) for transient LM
+    # connection errors (timeouts, connection resets, HTTP 429/500/503).
+    VIREX_BENCH_LM_MAX_RETRIES: int = 3
+    # Initial wait between LM retries, in seconds.
+    VIREX_BENCH_LM_RETRY_MIN_WAIT: float = 1.0
+    # Maximum (capped) wait between LM retries, in seconds.
+    VIREX_BENCH_LM_RETRY_MAX_WAIT: float = 30.0
+    # Maximum random jitter added to each LM retry wait, in seconds.
+    VIREX_BENCH_LM_RETRY_JITTER: float = 1.0
+
 
 def get_bool(env_name: str, default: str) -> bool:
     """Parse a boolean env var. Truthy values: 1, true, yes, on (case-insensitive)."""
@@ -126,6 +136,17 @@ environment_variables: dict[str, Callable[[], Any]] = {
         "deepseek-v4-pro",
         ["deepseek-v4-pro", "deepseek-v4-flash"],
         case_sensitive=False,
+    ),
+    # --- LM retry (transient connection / HTTP errors) ---
+    "VIREX_BENCH_LM_MAX_RETRIES": lambda: int(os.environ.get("VIREX_BENCH_LM_MAX_RETRIES", "3")),
+    "VIREX_BENCH_LM_RETRY_MIN_WAIT": lambda: float(
+        os.environ.get("VIREX_BENCH_LM_RETRY_MIN_WAIT", "1.0")
+    ),
+    "VIREX_BENCH_LM_RETRY_MAX_WAIT": lambda: float(
+        os.environ.get("VIREX_BENCH_LM_RETRY_MAX_WAIT", "30.0")
+    ),
+    "VIREX_BENCH_LM_RETRY_JITTER": lambda: float(
+        os.environ.get("VIREX_BENCH_LM_RETRY_JITTER", "1.0")
     ),
 }
 

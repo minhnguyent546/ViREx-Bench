@@ -3,6 +3,7 @@ from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from functools import partial
+from typing import cast
 
 import dspy
 from tqdm.auto import tqdm
