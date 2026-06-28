@@ -21,6 +21,8 @@ _*
 /.code-review
 /results
 /slides
+/notebooks
+/tmp/
 
 # datasets
 /data
