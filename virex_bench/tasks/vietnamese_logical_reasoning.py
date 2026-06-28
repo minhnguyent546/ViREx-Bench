@@ -95,7 +95,7 @@ class VietnameseLogicalReasoning(ReasoningTask):
             path="minhnguyent546/virex-bench-datasets",
             name="logical-reasoning",
             split="test",
-            revision="b55afc3316bd905b33523e4c9af2e36d9dd012b3",
+            revision="712522ef946b72b6d1d7a34d5fbab98696feac54",
             num_proc=2,
         ),
         main_metric="llm_judge",
