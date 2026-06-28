@@ -12,7 +12,13 @@ from virex_bench.logger import init_logger
 from virex_bench.models import BaseLM
 from virex_bench.strategies.base import ReasoningStrategy
 from virex_bench.tasks.base import ReasoningTask
-from virex_bench.types import EvaluationReport, ReasoningExample, ReasoningMetric, TaskResult
+from virex_bench.types import (
+    CategoryScore,
+    EvaluationReport,
+    ReasoningExample,
+    ReasoningMetric,
+    TaskResult,
+)
 
 logger = init_logger(__name__)
 
@@ -71,6 +77,29 @@ def _process_example(
     )
 
 
+def _aggregate_scores(
+    results: list[TaskResult],
+) -> tuple[float, int, dict[str, CategoryScore]]:
+    """Compute total score, failure count, and per-category score breakdowns."""
+    total_score = sum(result.score for result in results)
+    num_failed = sum(1 for result in results if "error" in result.extra)
+    category_totals: dict[str, float] = {}
+    category_counts: dict[str, int] = {}
+    for result in results:
+        if result.category is None:
+            continue
+        category_totals[result.category] = category_totals.get(result.category, 0.0) + result.score
+        category_counts[result.category] = category_counts.get(result.category, 0) + 1
+    category_scores = {
+        category: CategoryScore(
+            score=category_totals[category] / category_counts[category],
+            num_examples=category_counts[category],
+        )
+        for category in category_totals
+    }
+    return total_score, num_failed, category_scores
+
+
 def evaluate(
     task: ReasoningTask,
     lm: BaseLM,
@@ -123,7 +152,7 @@ def evaluate(
     dspy.configure(lm=lm)
     if num_threads > 1:
         executor = ThreadPoolExecutor(max_workers=num_threads)
-        result_iter: Iterable[TaskResult] = executor.map(_process_example, examples)
+        result_iter: Iterable[TaskResult] = executor.map(_process_example_fn, examples)
     else:
         executor = None
         result_iter = (_process_example_fn(example) for example in examples)
@@ -143,28 +172,16 @@ def evaluate(
         if executor is not None:
             executor.shutdown(wait=True)
 
-    total_score = running_score
-    num_failed = sum(1 for result in results if "error" in result.extra)
+    total_score, num_failed, category_scores = _aggregate_scores(results)
     score = total_score / len(results) if results else 0.0
-    category_totals: dict[str, float] = {}
-    category_counts: dict[str, int] = {}
-    for result in results:
-        if result.category is None:
-            continue
-        category_totals[result.category] = category_totals.get(result.category, 0.0) + result.score
-        category_counts[result.category] = category_counts.get(result.category, 0) + 1
-    category_scores = {
-        category: category_totals[category] / category_counts[category]
-        for category in category_totals
-    }
     logger.info(
         f"Done: {metric_name}={score:.4f} ({total_score:.4f}/{len(results)})"
         + (f", {num_failed} failed" if num_failed else "")
     )
     if category_scores:
         breakdown = ", ".join(
-            f"{category}={category_score:.4f}"
-            for category, category_score in sorted(category_scores.items())
+            f"{category}={entry.score:.4f} ({entry.num_examples})"
+            for category, entry in sorted(category_scores.items())
         )
         logger.info(f"Per-category {metric_name}: {breakdown}")
 

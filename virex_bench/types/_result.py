@@ -9,7 +9,15 @@ class TaskResult(BaseModel):
     predicted: str
     gold: str
     score: float
+    category: str | None = None
     extra: dict[str, object] = {}
+
+
+class CategoryScore(BaseModel):
+    """Mean score and supporting count for a single example category."""
+
+    score: float
+    num_examples: int
 
 
 class EvaluationReport(BaseModel):
@@ -22,6 +30,7 @@ class EvaluationReport(BaseModel):
     judge_model: str | None = None
     score: float
     num_examples: int
+    category_scores: dict[str, CategoryScore] = {}
     results: list[TaskResult] = []
 
 

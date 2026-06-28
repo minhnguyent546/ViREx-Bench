@@ -8,6 +8,7 @@ class ReasoningExample(BaseModel):
     question: str
     answer: str
     example_id: str = ""
+    category: str | None = None
 
 
 class DatasetConfig(BaseModel):
