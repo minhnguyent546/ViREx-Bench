@@ -194,10 +194,17 @@ def evaluate(
         )
         logger.info(f"Per-category {metric_name}: {breakdown}")
 
+    model_kwargs = {
+        key: value
+        for key, value in cast("dict[str, object]", lm.kwargs).items()
+        if key != "api_key"
+    }
+
     return EvaluationReport(
         task=task.name,
         model=model_name,
         backend=backend,
+        model_kwargs=model_kwargs,
         strategy=strategy.name,
         metric=metric_name,
         judge=judge_name,

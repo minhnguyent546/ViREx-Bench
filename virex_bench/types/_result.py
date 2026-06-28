@@ -42,6 +42,7 @@ class EvaluationReport(BaseModel):
     task: str
     model: str
     backend: str
+    model_kwargs: dict[str, object] = {}
     strategy: str
     metric: str
     judge: str | None = None
