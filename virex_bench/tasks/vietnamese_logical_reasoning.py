@@ -3,8 +3,9 @@ from typing import Any, Literal
 
 import dspy
 
+from virex_bench.evaluation.metrics import predicted_premise_indices, premises_f1
 from virex_bench.tasks.base import ReasoningTask
-from virex_bench.types import DatasetConfig, ReasoningExample, TaskMetadata
+from virex_bench.types import DatasetConfig, ReasoningExample, ScoreComponents, TaskMetadata
 
 
 class VietnameseLogicalReasoningSignature(dspy.Signature):
@@ -53,6 +54,21 @@ class VietnameseLogicalReasoningSignature(dspy.Signature):
     - open_ended: return a concise answer in Vietnamese (a short phrase or
       sentence) stating the entity, fact, or conclusion entailed by the premises.
       If no requested fact is entailed, return "Không chắc chắn".
+
+    Premises used (final-answer evidence):
+    - Alongside the answer, report the MINIMAL set of premises that actually
+      justify it. This is the final-answer evidence, NOT every premise you
+      inspected: exclude premises used only as background, to reject distractor
+      options, or that lead to unrelated consequences. Include the full positive
+      dependency chain — if a rule fires only because of some fact premises,
+      include both the rule and those fact premises.
+    - `supporting_premise_indices` is the primary output: the 1-based indices of
+      that minimal set (premise 1 is the first premise in the list), sorted
+      ascending and deduplicated.
+    - `relevant_premises` is a fallback: the EXACT original text of those same
+      premises, copied verbatim (do not rephrase or shorten). The two fields must
+      describe the same set.
+    - Return both empty only when no premise participates in deriving the answer.
     """
 
     premises: list[str] = dspy.InputField(desc="The list of premises. The only source of truth.")
@@ -77,6 +93,22 @@ class VietnameseLogicalReasoningSignature(dspy.Signature):
             "when truly needed, e.g. '3 người'.\n"
             "- open_ended: a concise Vietnamese phrase or sentence; "
             "'Không chắc chắn' if nothing is entailed."
+        )
+    )
+    supporting_premise_indices: list[int] = dspy.OutputField(
+        desc=(
+            "PRIMARY source of premises_used: the 1-based indices of the minimal set of "
+            "premises that justify `answer` (premise 1 is the first premise). Include the "
+            "full dependency chain (rules AND the fact premises that activate them); exclude "
+            "premises used only as background or to reject other options. Sort ascending, "
+            "deduplicate, e.g. [1, 3, 4]. Empty only if no premise is used."
+        )
+    )
+    relevant_premises: list[str] = dspy.OutputField(
+        desc=(
+            "FALLBACK for premises_used: the EXACT original text of the SAME premises listed "
+            "in `supporting_premise_indices`, copied verbatim from the premise list (do not "
+            "rephrase, shorten, or add numbering). Same order, same set."
         )
     )
 
@@ -124,4 +156,30 @@ class VietnameseLogicalReasoning(ReasoningTask):
             premises=[str(premise) for premise in row["premises"]],
             question=str(row["query"]),
             answer=str(row["answer"]),
+            premises_used=[int(index) for index in row.get("premises_used", [])],
+        )
+
+    def recorded_inputs(
+        self, example: ReasoningExample, model_inputs: dict[str, object]
+    ) -> dict[str, object]:
+        # Record the gold premises alongside the model inputs so the results file
+        # carries the premise-level supervision without leaking it to the model.
+        return {**model_inputs, "premises_used": example.premises_used}
+
+    def compute_score(
+        self,
+        example: ReasoningExample,
+        prediction: dspy.Prediction,
+        answer_score: float,
+    ) -> ScoreComponents:
+        # Blend answer correctness with premise-selection F1 only when the example
+        # carries gold premise supervision: final = 0.5 * answer + 0.5 * premises_f1.
+        if len(example.premises_used) == 0:
+            return ScoreComponents(score=answer_score)
+        premises_f1_score = premises_f1(example, prediction)
+        return ScoreComponents(
+            score=0.5 * answer_score + 0.5 * premises_f1_score,
+            llm_judge_score=answer_score,
+            premises_f1=premises_f1_score,
+            predicted_premises_used=sorted(predicted_premise_indices(example, prediction)),
         )

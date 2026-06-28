@@ -8,7 +8,10 @@ import dspy
 from tqdm.auto import tqdm
 
 from virex_bench.evaluation.judge import LLMJudge, build_judge
-from virex_bench.evaluation.metrics import get_metric, judge_example
+from virex_bench.evaluation.metrics import (
+    get_metric,
+    judge_example,
+)
 from virex_bench.logger import init_logger
 from virex_bench.models import BaseLM
 from virex_bench.strategies.base import ReasoningStrategy
@@ -36,6 +39,7 @@ def _process_example(
         raise ValueError("Exactly one of judge_module or metric_func must be provided")
 
     inputs = task.example_to_inputs(example)
+    recorded_inputs = task.recorded_inputs(example, inputs)
     try:
         prediction = strategy(**inputs)
         predicted = str(prediction.answer)
@@ -52,15 +56,16 @@ def _process_example(
                 "error_type": outcome.error_type,
                 "feedback": outcome.feedback,
             }
-            score = outcome.score
+            answer_score = outcome.score
         else:
             assert metric_func is not None
-            score = float(metric_func(example, prediction))
+            answer_score = float(metric_func(example, prediction))
+        score_components = task.compute_score(example, prediction, answer_score)
     except Exception as error:  # noqa: BLE001
         logger.warning(f"Example {example.example_id} failed: {error!r}")
         return TaskResult(
             example_id=example.example_id,
-            inputs=inputs,
+            inputs=recorded_inputs,
             predicted="",
             gold=example.answer,
             score=0.0,
@@ -69,10 +74,13 @@ def _process_example(
         )
     return TaskResult(
         example_id=example.example_id,
-        inputs=inputs,
+        inputs=recorded_inputs,
         predicted=predicted,
         gold=example.answer,
-        score=score,
+        score=score_components.score,
+        llm_judge_score=score_components.llm_judge_score,
+        premises_f1=score_components.premises_f1,
+        predicted_premises_used=score_components.predicted_premises_used,
         category=example.category,
         extra=extra,
     )

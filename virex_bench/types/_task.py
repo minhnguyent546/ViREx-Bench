@@ -9,6 +9,9 @@ class ReasoningExample(BaseModel):
     answer: str
     example_id: str = ""
     category: str | None = None
+    # Gold set of 0-based premise indices required to derive the answer. Empty when
+    # the task does not provide premise-level supervision.
+    premises_used: list[int] = []
 
 
 class DatasetConfig(BaseModel):

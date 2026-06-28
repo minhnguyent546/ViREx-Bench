@@ -9,8 +9,26 @@ class TaskResult(BaseModel):
     predicted: str
     gold: str
     score: float
+    llm_judge_score: float | None = None
+    premises_f1: float | None = None
+    predicted_premises_used: list[int] | None = None
     category: str | None = None
     extra: dict[str, object] = {}
+
+
+class ScoreComponents(BaseModel):
+    """Final score plus optional auxiliary components a task may report per example.
+
+    ``score`` is the value the evaluator aggregates. The remaining fields are
+    recorded on :class:`TaskResult` for inspection and are populated only by tasks
+    that blend extra signals into the score (e.g. premise-selection F1); tasks
+    without such signals leave them ``None``.
+    """
+
+    score: float
+    llm_judge_score: float | None = None
+    premises_f1: float | None = None
+    predicted_premises_used: list[int] | None = None
 
 
 class CategoryScore(BaseModel):

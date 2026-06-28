@@ -7,7 +7,7 @@ from pydantic.fields import FieldInfo
 
 from virex_bench import envs
 from virex_bench.logger import init_logger
-from virex_bench.types import ReasoningExample, TaskMetadata
+from virex_bench.types import ReasoningExample, ScoreComponents, TaskMetadata
 
 logger = init_logger(__name__)
 
@@ -77,6 +77,32 @@ class ReasoningTask:
     def example_to_inputs(self, example: ReasoningExample) -> dict[str, object]:
         """Convert an example into the dict of input kwargs for the signature."""
         return {"premises": example.premises, "question": example.question}
+
+    def recorded_inputs(
+        self, example: ReasoningExample, model_inputs: dict[str, object]
+    ) -> dict[str, object]:
+        """Fields to store under ``TaskResult.inputs`` for one example.
+
+        Defaults to exactly the inputs given to the model. Override to additionally
+        record gold supervision that should appear in the results file but must NOT
+        be passed to the model (e.g. the gold premises a task expects to be used).
+        """
+        return dict(model_inputs)
+
+    def compute_score(
+        self,
+        example: ReasoningExample,
+        prediction: dspy.Prediction,
+        answer_score: float,
+    ) -> ScoreComponents:
+        """Turn the answer-correctness score into the final per-example score components.
+
+        ``answer_score`` is the primary correctness signal (an LLM-judge verdict or
+        a registry metric). The default uses it unchanged. Override to blend in
+        task-specific signals and report their components on the result so that the
+        generic evaluator stays free of any task-specific scoring logic.
+        """
+        return ScoreComponents(score=answer_score)
 
     @property
     def name(self) -> str:

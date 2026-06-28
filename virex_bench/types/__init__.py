@@ -1,5 +1,11 @@
 from virex_bench.types._metric import ReasoningMetric
-from virex_bench.types._result import CategoryScore, EvaluationReport, JudgeOutcome, TaskResult
+from virex_bench.types._result import (
+    CategoryScore,
+    EvaluationReport,
+    JudgeOutcome,
+    ScoreComponents,
+    TaskResult,
+)
 from virex_bench.types._task import DatasetConfig, ReasoningExample, TaskMetadata
 
 __all__ = [
@@ -9,6 +15,7 @@ __all__ = [
     "JudgeOutcome",
     "ReasoningExample",
     "ReasoningMetric",
+    "ScoreComponents",
     "TaskMetadata",
     "TaskResult",
 ]
