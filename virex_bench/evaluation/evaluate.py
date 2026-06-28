@@ -1,6 +1,7 @@
 import os
 from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 from functools import partial
 
 import dspy
@@ -205,7 +206,8 @@ def save_report(report: EvaluationReport, output_dir: str) -> str:
     model_name = report.model.replace("/", "--")
     nested_dir = os.path.join(output_dir, dataset_name, model_name, report.strategy)
     os.makedirs(nested_dir, exist_ok=True)
-    output_path = os.path.join(nested_dir, "results.json")
+    timestamp = datetime.now().strftime("%Y_%m_%d-%H_%M_%S")
+    output_path = os.path.join(nested_dir, f"results-{timestamp}.json")
     exclude: set[str] = {"judge", "judge_model"} if report.judge is None else set()
     with open(output_path, "w", encoding="utf-8") as output_file:
         output_file.write(report.model_dump_json(indent=2, exclude=exclude))
