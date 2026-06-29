@@ -70,6 +70,10 @@ vllm-v0-20 = [
     "flashinfer-python>=0.6.8.post1",
     "vllm",
 ]
+vllm-v0-23 = [
+    "flashinfer-python>=0.6.11",
+    "vllm==0.23.0",
+]
 sglang-spec-v2-dflash-support = [
     "flashinfer-python>=0.6.8.post1",
     "sglang",
@@ -79,6 +83,7 @@ sglang-spec-v2-dflash-support = [
 conflicts = [
   [
     { group = "vllm-v0-20" },
+    { group = "vllm-v0-23" },
     { group = "sglang-spec-v2-dflash-support" },
   ]
 ]
