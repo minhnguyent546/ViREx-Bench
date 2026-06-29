@@ -35,6 +35,11 @@ class DecodingStrategy(dspy.Module):
         """Configuration parameters to record in the evaluation report."""
         return {}
 
+    @property
+    def display_name(self) -> str:
+        """Human-readable name for logging. May include key parameters (e.g. ``@N``)."""
+        return self.name
+
     def forward(self, **inputs: object) -> dspy.Prediction:
         raise NotImplementedError
 

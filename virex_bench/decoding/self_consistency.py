@@ -1,4 +1,5 @@
 import copy
+import difflib
 import json
 import re
 import time
@@ -16,6 +17,9 @@ from virex_bench.strategies.modules import ChainOfThought
 from virex_bench.tasks.base import ReasoningTask
 
 logger = init_logger(__name__)
+
+_OPEN_ANSWER_TYPES = frozenset({"numeric", "open_ended"})
+_FUZZY_MATCH_THRESHOLD = 0.65
 
 
 class SelfConsistency(DecodingStrategy):
@@ -113,7 +117,9 @@ class SelfConsistency(DecodingStrategy):
             "use_aggregator": self.use_aggregator,
         }
 
-    # -- public interface --------------------------------------------------
+    @property
+    def display_name(self) -> str:
+        return f"{self.name}@{self.num_samples}"
 
     def forward(self, **inputs: object) -> dspy.Prediction:
         start_time = time.perf_counter()
@@ -129,22 +135,55 @@ class SelfConsistency(DecodingStrategy):
         representative = results[winner_indices[0]]
         confidence = len(winner_indices) / len(results)
 
+        # Validate the aggregator's output before merging it onto the representative.
+        # The vote winner is always the fallback if the aggregator fails, returns
+        # an empty/hallucinated answer, or diverges too far from the candidates.
         if self.use_aggregator:
             overrides = self._aggregate(inputs, results)
             if overrides is not None:
                 agg_answer = str(overrides.get("answer", ""))
-                matching = self._find_matching_result(results, agg_answer) if agg_answer else None
-                if matching is not None:
-                    merged: dict[str, Any] = {**representative, **overrides}
-                else:
+                agg_answer_type = str(overrides.get("answer_type", ""))
+                if not agg_answer:
+                    # Aggregator produced nothing usable — pure fallback.
                     logger.warning(
-                        f"Aggregator answer '{agg_answer}' matched no candidate or was empty; "
-                        f"falling back to vote winner '{winning_answer}'."
+                        "Aggregator returned empty answer; falling back to vote winner."
                     )
                     merged = {**representative}
+                elif agg_answer_type in _OPEN_ANSWER_TYPES:
+                    # For open-ended / numeric answers, the aggregator may legitimately
+                    # rephrase or merge candidates, so we accept it if the output is
+                    # sufficiently similar (SequenceMatcher ratio >= threshold) to at
+                    # least one candidate. Otherwise it's likely hallucinated.
+                    best_ratio = self._best_answer_similarity(results, agg_answer)
+                    if best_ratio >= _FUZZY_MATCH_THRESHOLD:
+                        merged = {**representative, **overrides}
+                    else:
+                        logger.warning(
+                            f"Aggregator answer '{agg_answer}' (best similarity "
+                            f"{best_ratio:.2f}, threshold {_FUZZY_MATCH_THRESHOLD}) "
+                            f"matched no candidate; falling back to vote winner "
+                            f"'{winning_answer}'."
+                        )
+                        merged = {**representative}
+                else:
+                    # For closed-answer types (multiple_choice, yes_no_uncertain) the
+                    # aggregator's answer must exactly match (after normalization) one
+                    # of the candidates — any deviation is a hallucination.
+                    matching = self._find_matching_result(results, agg_answer)
+                    if matching is not None:
+                        merged = {**representative, **overrides}
+                    else:
+                        logger.warning(
+                            f"Aggregator answer '{agg_answer}' for closed type "
+                            f"'{agg_answer_type}' matched no candidate; "
+                            f"falling back to vote winner '{winning_answer}'."
+                        )
+                        merged = {**representative}
             else:
+                # Aggregator call itself failed (timeout, exception, or empty result).
                 merged = {**representative}
         else:
+            # Aggregator disabled — use the vote winner as-is.
             merged = {**representative}
 
         merged["self_consistency_confidence"] = confidence
@@ -157,8 +196,6 @@ class SelfConsistency(DecodingStrategy):
             f"(answer={merged.get('answer', '?')}, confidence={confidence:.2f})"
         )
         return dspy.Prediction(**merged)
-
-    # -- internals ---------------------------------------------------------
 
     def _run_parallel_paths(self, inputs: dict[str, object]) -> list[dspy.Prediction]:
         """Run ``num_samples`` paths in parallel with a per-path wall-clock timeout."""
@@ -245,6 +282,21 @@ class SelfConsistency(DecodingStrategy):
             if self._normalize_answer(str(getattr(result, "answer", ""))) == target_norm:
                 return result
         return None
+
+    def _best_answer_similarity(
+        self,
+        results: Sequence[dspy.Prediction],
+        target_answer: str,
+    ) -> float:
+        """Return the highest SequenceMatcher ratio between *target_answer* and any candidate."""
+        target_norm = self._normalize_answer(target_answer)
+        best_ratio = 0.0
+        for result in results:
+            candidate_norm = self._normalize_answer(str(getattr(result, "answer", "")))
+            ratio = difflib.SequenceMatcher(None, target_norm, candidate_norm).ratio()
+            if ratio > best_ratio:
+                best_ratio = ratio
+        return best_ratio
 
     def _aggregate(
         self,
