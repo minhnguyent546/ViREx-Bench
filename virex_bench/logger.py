@@ -3,7 +3,7 @@ import sys
 
 from virex_bench import envs
 
-_LOG_FORMAT = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
+_LOG_FORMAT = "%(asctime)s | %(levelname)-8s | %(name)s:%(lineno)d | %(message)s"
 _DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 _LEVELNAME_WIDTH = 8
 _configured = False
@@ -28,8 +28,11 @@ class ColoredFormatter(logging.Formatter):
 
     def __init__(self, fmt: str, datefmt: str | None = None) -> None:
         # The base format pads the level name itself; this formatter pads + colors it
-        # manually, so strip the width spec to avoid double-padding.
-        super().__init__(fmt.replace("%(levelname)-8s", "%(levelname)s"), datefmt=datefmt)
+        # manually, so strip the width spec to avoid double-padding. The line number is
+        # merged into the colored `name` field, so strip the lineno spec from the format
+        # to avoid printing it twice.
+        colored_fmt = fmt.replace("%(levelname)-8s", "%(levelname)s").replace(":%(lineno)d", "")
+        super().__init__(colored_fmt, datefmt=datefmt)
 
     def format(self, record: logging.LogRecord) -> str:
         original_levelname = record.levelname
@@ -39,7 +42,7 @@ class ColoredFormatter(logging.Formatter):
         level_color = self._LEVEL_COLORS.get(record.levelname, "")
         padded_levelname = f"{record.levelname:<{_LEVELNAME_WIDTH}}"
         record.levelname = f"{level_color}{padded_levelname}{self._RESET}"
-        record.name = f"{self._GREY}{record.name}{self._RESET}"
+        record.name = f"{self._GREY}{record.name}:{record.lineno}{self._RESET}"
         try:
             message = super().format(record)
         finally:
