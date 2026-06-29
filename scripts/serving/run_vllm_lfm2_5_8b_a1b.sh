@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+# NEEDS vLLM>=0.23.0
+
 export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
 export SAFETENSORS_FAST_GPU=1
 
