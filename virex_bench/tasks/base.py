@@ -39,6 +39,7 @@ class ReasoningTask:
             f"Loading dataset {dataset_config.path}"
             f"{f' [{dataset_config.name}]' if dataset_config.name else ''}"
             f" split={dataset_config.split}"
+            f" revision={dataset_config.revision[:7] if dataset_config.revision is not None else 'latest'}"
         )
         loaded = datasets.load_dataset(
             dataset_config.path,

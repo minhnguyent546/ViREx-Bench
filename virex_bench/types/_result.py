@@ -1,5 +1,7 @@
 from pydantic import BaseModel
 
+from virex_bench.types._task import DatasetConfig
+
 
 class TaskResult(BaseModel):
     """Per-example prediction record produced during evaluation."""
@@ -40,6 +42,7 @@ class CategoryScore(BaseModel):
 
 class EvaluationReport(BaseModel):
     task: str
+    dataset: DatasetConfig
     model: str
     backend: str
     model_kwargs: dict[str, object] = {}
@@ -49,6 +52,8 @@ class EvaluationReport(BaseModel):
     judge_model: str | None = None
     score: float
     num_examples: int
+    num_failed: int = 0
+    total_time: float = 0.0
     category_scores: dict[str, CategoryScore] = {}
     results: list[TaskResult] = []
 

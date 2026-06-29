@@ -22,6 +22,7 @@ def _parse_model_kwargs(raw: str) -> dict[str, object]:
 
 
 def _run(args: argparse.Namespace) -> None:
+    set_level(args.log_level)
     task = get_task(args.task)
     lm = get_model(
         args.model,
@@ -193,5 +194,4 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
-    set_level(args.log_level)
     args.func(args)

@@ -1,4 +1,5 @@
 import os
+import time
 from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -170,6 +171,7 @@ def evaluate(
     results: list[TaskResult] = []
     running_score = 0.0
     progress_bar = tqdm(total=len(examples), desc=progress_desc, unit="example")
+    start_time = time.perf_counter()
     try:
         for result in result_iter:
             results.append(result)
@@ -181,12 +183,14 @@ def evaluate(
         progress_bar.close()
         if executor is not None:
             executor.shutdown(wait=True)
+    total_time = time.perf_counter() - start_time
 
     total_score, num_failed, category_scores = _aggregate_scores(results)
     score = total_score / len(results) if results else 0.0
     logger.info(
         f"Done: {metric_name}={score:.4f} ({total_score:.4f}/{len(results)})"
         + (f", {num_failed} failed" if num_failed else "")
+        + f", total_time={total_time:.2f}s"
     )
     if category_scores:
         breakdown = ", ".join(
@@ -203,6 +207,7 @@ def evaluate(
 
     return EvaluationReport(
         task=task.name,
+        dataset=task.metadata.dataset,
         model=model_name,
         backend=backend,
         model_kwargs=model_kwargs,
@@ -212,6 +217,8 @@ def evaluate(
         judge_model=judge_model_name,
         score=score,
         num_examples=len(results),
+        num_failed=num_failed,
+        total_time=total_time,
         category_scores=category_scores,
         results=results,
     )

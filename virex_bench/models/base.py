@@ -13,6 +13,7 @@ logger = init_logger(__name__)
 # errors (400/401/403/404/422) are excluded so the retry budget isn't wasted.
 _RETRYABLE_EXCEPTIONS: tuple[type[BaseException], ...] = (
     litellm.exceptions.APIConnectionError,
+    litellm.exceptions.Timeout,
     litellm.exceptions.RateLimitError,
     litellm.exceptions.InternalServerError,
     litellm.exceptions.BadGatewayError,

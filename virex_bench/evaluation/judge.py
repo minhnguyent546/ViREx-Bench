@@ -70,6 +70,7 @@ class LogicalReasoningJudgeSignature(dspy.Signature):
        separators, and surrounding text are irrelevant).
        correct="C", predicted="C" or "chọn C" => YES.
        correct="A,C", predicted="C và A" => YES (same set).
+       correct="A, C", predicted="A,C" => YES (spaces are no matter here).
        correct="A,C", predicted="A" => NO (missing label — incomplete).
 
     2. YES_NO_UNCERTAIN: The correct answer is a yes/no/uncertain judgement. The
