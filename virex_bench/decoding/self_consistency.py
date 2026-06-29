@@ -12,6 +12,7 @@ import dspy
 from virex_bench import envs
 from virex_bench.decoding.base import DecodingStrategy
 from virex_bench.logger import init_logger
+from virex_bench.models.base import BaseLM
 from virex_bench.strategies.base import ReasoningStrategy
 from virex_bench.strategies.modules import ChainOfThought
 from virex_bench.tasks.base import ReasoningTask
@@ -198,7 +199,7 @@ class SelfConsistency(DecodingStrategy):
         return dspy.Prediction(**merged)
 
     def _run_parallel_paths(self, inputs: dict[str, object]) -> list[dspy.Prediction]:
-        """Run ``num_samples`` paths in parallel with a per-path wall-clock timeout."""
+        """Run ``num_samples`` paths in parallel and return successful paths in index order."""
         executor = ThreadPoolExecutor(max_workers=self.max_workers)
         try:
             future_to_index: dict[Future[dspy.Prediction], int] = {
@@ -211,7 +212,7 @@ class SelfConsistency(DecodingStrategy):
                 return_when=ALL_COMPLETED,
             )
 
-            results: list[dspy.Prediction] = []
+            results_by_index: dict[int, dspy.Prediction] = {}
             for future in done:
                 path_index = future_to_index[future]
                 try:
@@ -220,17 +221,28 @@ class SelfConsistency(DecodingStrategy):
                     logger.warning(f"Self-consistency path {path_index} raised: {error!r}")
                     path_result = None
                 if path_result is not None:
-                    results.append(path_result)
+                    results_by_index[path_index] = path_result
 
             for future in not_done:
                 path_index = future_to_index[future]
-                logger.warning(
-                    f"Self-consistency path {path_index} timed out after {self.solve_timeout}s"
+                was_cancelled = future.cancel()
+                cancel_status = (
+                    "cancelled before start"
+                    if was_cancelled
+                    else "already running; it may continue until the LM request timeout"
                 )
-                future.cancel()
+                logger.warning(
+                    f"Self-consistency path {path_index} did not finish within "
+                    f"{self.solve_timeout}s ({cancel_status})."
+                )
+
+            return [
+                results_by_index[path_index]
+                for path_index in range(self.num_samples)
+                if path_index in results_by_index
+            ]
         finally:
             executor.shutdown(wait=False, cancel_futures=True)
-        return results
 
     def _run_single_path(
         self,
@@ -238,9 +250,12 @@ class SelfConsistency(DecodingStrategy):
         path_index: int,
     ) -> dspy.Prediction:
         base_lm = dspy.settings.lm
-        assert base_lm is not None  # set by the evaluator via dspy.configure(lm=...)
-        sampling_lm = copy.copy(base_lm)
-        sampling_lm.cache = False  # type: ignore[attr-defined]
+        assert isinstance(base_lm, BaseLM)  # set by the evaluator via dspy.configure(lm=...)
+        sampling_lm = self._copy_lm_with_request_timeout(
+            base_lm,
+            self.solve_timeout,
+            cache=False,
+        )
         with dspy.context(lm=sampling_lm):
             result = self.strategy(**inputs)
         logger.debug(
@@ -338,7 +353,16 @@ class SelfConsistency(DecodingStrategy):
                     return_when=ALL_COMPLETED,
                 )
                 if future not in done:
-                    logger.warning(f"Aggregator LM timed out after {self.aggregate_timeout}s")
+                    was_cancelled = future.cancel()
+                    cancel_status = (
+                        "cancelled before start"
+                        if was_cancelled
+                        else "already running; it may continue until the LM request timeout"
+                    )
+                    logger.warning(
+                        f"Aggregator LM did not finish within {self.aggregate_timeout}s "
+                        f"({cancel_status})."
+                    )
                     return None
                 agg_result = future.result()
             finally:
@@ -378,4 +402,25 @@ class SelfConsistency(DecodingStrategy):
     def _call_aggregator(self, **kwargs: object) -> dspy.Prediction:
         """Call the aggregator module — extracted so it can run in a timed thread."""
         assert self._aggregator is not None  # set by configure_from_task
-        return self._aggregator(**kwargs)
+        base_lm = dspy.settings.lm
+        assert isinstance(base_lm, BaseLM)  # set by the evaluator via dspy.configure(lm=...)
+        aggregation_lm = self._copy_lm_with_request_timeout(base_lm, self.aggregate_timeout)
+        with dspy.context(lm=aggregation_lm):
+            return self._aggregator(**kwargs)
+
+    @staticmethod
+    def _copy_lm_with_request_timeout(
+        base_lm: BaseLM,
+        request_timeout: int | None,
+        *,
+        cache: bool | None = None,
+    ) -> BaseLM:
+        copied_lm = copy.copy(base_lm)
+        if cache is not None:
+            copied_lm.cache = cache
+
+        lm_kwargs = dict(copied_lm.kwargs)
+        if request_timeout is not None:
+            lm_kwargs["timeout"] = request_timeout
+        copied_lm.kwargs = lm_kwargs
+        return copied_lm
