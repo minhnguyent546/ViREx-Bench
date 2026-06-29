@@ -47,6 +47,8 @@ class EvaluationReport(BaseModel):
     backend: str
     model_kwargs: dict[str, object] = {}
     strategy: str
+    decoding: str = "single-pass"
+    decoding_kwargs: dict[str, object] = {}
     metric: str
     judge: str | None = None
     judge_model: str | None = None

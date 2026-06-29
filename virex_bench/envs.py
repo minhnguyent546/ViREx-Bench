@@ -60,6 +60,18 @@ if TYPE_CHECKING:
     # Maximum random jitter added to each LM retry wait, in seconds.
     VIREX_BENCH_LM_RETRY_JITTER: float = 1.0
 
+    # --- Self-consistency decoding ---
+    # Number of independent reasoning paths sampled per example.
+    VIREX_BENCH_SC_NUM_SAMPLES: int = 5
+    # Maximum parallel workers for the path thread pool.
+    VIREX_BENCH_SC_MAX_WORKERS: int = 5
+    # Per-path wall-clock timeout in seconds.
+    VIREX_BENCH_SC_SOLVE_TIMEOUT: int = 360
+    # Aggregator LM call timeout in seconds.
+    VIREX_BENCH_SC_AGGREGATE_TIMEOUT: int = 120
+    # Whether to use the LLM aggregator (False = deterministic vote only).
+    VIREX_BENCH_SC_USE_AGGREGATOR: bool = True
+
 
 def get_bool(env_name: str, default: str) -> bool:
     """Parse a boolean env var. Truthy values: 1, true, yes, on (case-insensitive)."""
@@ -148,6 +160,16 @@ environment_variables: dict[str, Callable[[], Any]] = {
     "VIREX_BENCH_LM_RETRY_JITTER": lambda: float(
         os.environ.get("VIREX_BENCH_LM_RETRY_JITTER", "1.0")
     ),
+    # --- Self-consistency decoding ---
+    "VIREX_BENCH_SC_NUM_SAMPLES": lambda: int(os.environ.get("VIREX_BENCH_SC_NUM_SAMPLES", "5")),
+    "VIREX_BENCH_SC_MAX_WORKERS": lambda: int(os.environ.get("VIREX_BENCH_SC_MAX_WORKERS", "5")),
+    "VIREX_BENCH_SC_SOLVE_TIMEOUT": lambda: int(
+        os.environ.get("VIREX_BENCH_SC_SOLVE_TIMEOUT", "360")
+    ),
+    "VIREX_BENCH_SC_AGGREGATE_TIMEOUT": lambda: int(
+        os.environ.get("VIREX_BENCH_SC_AGGREGATE_TIMEOUT", "120")
+    ),
+    "VIREX_BENCH_SC_USE_AGGREGATOR": lambda: get_bool("VIREX_BENCH_SC_USE_AGGREGATOR", "1"),
 }
 
 

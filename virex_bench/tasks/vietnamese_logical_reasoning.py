@@ -113,6 +113,93 @@ class VietnameseLogicalReasoningSignature(dspy.Signature):
     )
 
 
+class VietnameseLogicalReasoningAggregationSignature(dspy.Signature):
+    """Aggregate multiple candidate answers for a Vietnamese logical-reasoning problem.
+
+    You are an aggregation oracle. You receive N candidate answers produced by
+    independent reasoning paths for the same premises and question. Each candidate
+    includes the inferred answer type, the answer, the reasoning, the supporting
+    premise indices, and the relevant premise texts.
+
+    Your job:
+    1. Determine the majority answer using the voting rules below.
+    2. Pick the answer_type that is most consistent with the majority answer.
+    3. Select the supporting_premise_indices that appear most often among the
+       majority candidates.
+    4. Synthesize a single explanation that directly justifies the majority answer.
+
+    ## VOTING RULES:
+
+    ### Closed answer types (option labels, yes/no/uncertain, numeric):
+    - Match answers exactly after normalization (case-insensitive, whitespace-collapsed).
+    - The majority is the value that appears most often.
+
+    ### Open-ended answers (free-form text):
+    - Use **semantic equivalence** to group answers, not exact text matching.
+    - After grouping, pick the group with the most members.
+
+    ## OUTPUT RULES:
+    - ``answer`` MUST exactly match one of the candidate answer values (use the
+      original text from the majority candidate, not a paraphrase).
+    - ``answer_type`` must match the type inferred by the majority of candidates.
+    - ``supporting_premise_indices`` should be the union (deduplicated, sorted) of
+      premise indices from the majority candidates, or the most common set if there
+      is a clear majority.
+    - ``relevant_premises`` must be the EXACT original text of those same premises,
+      copied verbatim from the premise list (do not rephrase).
+    - ``explanation`` must be synthesized from the majority candidates' reasoning.
+      Write it as step-by-step reasoning over the premises that leads to the answer —
+      the same style and depth as the individual candidates' ``reasoning`` fields, not
+      a concise summary. Cite only what the premises state and avoid outside knowledge.
+      Write in the SAME language as the candidate reasoning (Vietnamese). Do not
+      mention voting or aggregation.
+    """
+
+    premises: list[str] = dspy.InputField(desc="The original premises. The only source of truth.")
+    question: str = dspy.InputField(desc="The original question.")
+    candidate_answers: str = dspy.InputField(
+        desc=(
+            "JSON array of candidate results. Each entry is an object containing: "
+            '"answer" (str), "reasoning" (str), "answer_type" (str), '
+            '"supporting_premise_indices" (list[int]), "relevant_premises" (list[str]). '
+            'Example: [{"answer": "Có", "reasoning": "...", "answer_type": "yes_no_uncertain", '
+            '"supporting_premise_indices": [1, 3], "relevant_premises": ["..."]}, ...].'
+        ),
+    )
+    answer: str = dspy.OutputField(
+        desc="The majority-voted final answer. Must exactly match one of the candidate values."
+    )
+    answer_type: Literal["multiple_choice", "yes_no_uncertain", "numeric", "open_ended"] = (
+        dspy.OutputField(
+            desc=(
+                "The answer type most consistent with the majority answer. Exactly one of: "
+                "multiple_choice, yes_no_uncertain, numeric, open_ended."
+            ),
+        )
+    )
+    supporting_premise_indices: list[int] = dspy.OutputField(
+        desc=(
+            "The 1-based indices of the minimal set of premises that justify the majority "
+            "answer. Union of the majority candidates' indices, sorted ascending, deduplicated."
+        ),
+    )
+    relevant_premises: list[str] = dspy.OutputField(
+        desc=(
+            "The EXACT original text of the same premises listed in "
+            "supporting_premise_indices, copied verbatim from the premise list."
+        ),
+    )
+    explanation: str = dspy.OutputField(
+        desc=(
+            "Step-by-step reasoning over the premises that leads to the answer, "
+            "synthesized from the majority candidates' reasoning. Same style and depth "
+            "as the candidates' reasoning fields — not a concise summary. Cite only "
+            "what the premises state, avoid outside knowledge, write in Vietnamese. "
+            "Do not mention voting or aggregation."
+        ),
+    )
+
+
 class VietnameseLogicalReasoning(ReasoningTask):
     metadata = TaskMetadata(
         name="vietnamese-logical-reasoning",
@@ -127,7 +214,9 @@ class VietnameseLogicalReasoning(ReasoningTask):
             path="minhnguyent546/virex-bench-datasets",
             name="logical-reasoning",
             split="test",
-            revision="712522ef946b72b6d1d7a34d5fbab98696feac54",
+            # revision="712522ef946b72b6d1d7a34d5fbab98696feac54",
+            # revision="b7b189fcf8b40c4e12863fce850ba42d37598ca8",
+            revision="d7842200648b2de86711017251c6fb206bf289d5",
             num_proc=2,
         ),
         main_metric="llm_judge",
@@ -137,7 +226,7 @@ class VietnameseLogicalReasoning(ReasoningTask):
         "default": VietnameseLogicalReasoningSignature,
         "direct": VietnameseLogicalReasoningSignature,
         "cot": VietnameseLogicalReasoningSignature,
-        # 'tot': TODO,
+        "tot": VietnameseLogicalReasoningSignature,
         # 'pot_z3': TODO,
     }
     rationale_fields = {
@@ -149,6 +238,7 @@ class VietnameseLogicalReasoning(ReasoningTask):
             )
         ),
     }
+    aggregation_signature = VietnameseLogicalReasoningAggregationSignature
 
     def _row_to_example(self, row: Mapping[str, Any]) -> ReasoningExample:
         return ReasoningExample(

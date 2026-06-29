@@ -18,6 +18,14 @@ class ReasoningTask:
     metadata: TaskMetadata
     signatures: dict[str, type[dspy.Signature]]
     rationale_fields: dict[str, FieldInfo] = {}
+    # Optional: a custom signature for the self-consistency LLM aggregator. When
+    # set, the aggregator receives all candidate prediction fields (not just
+    # answer + reasoning) and can produce task-specific output fields (e.g.
+    # ``supporting_premise_indices``). When ``None``, the decoding layer falls
+    # back to its built-in generic aggregator signature (answer + explanation
+    # only). The signature must NOT have an output field named ``reasoning``
+    # (ChainOfThought prepends one); use ``explanation`` instead.
+    aggregation_signature: type[dspy.Signature] | None = None
     # Name of the dataset column to derive `ReasoningExample.category` from. When
     # set, per-category score breakdowns are produced automatically for any task;
     # set to None to opt out, or override per task to point at a different column.
