@@ -11,14 +11,8 @@ export SGLANG_ENABLE_SPEC_V2=1
 export SGLANG_ENABLE_DFLASH_SPEC_V2=1
 export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1
 
-# Qwen/Qwen3.5-4B
-# OrionLLM/GRM-2.5
-# unsloth/Qwen3.5-4B-GGUF:UD-Q8_K_XL
-# W4A16: cyankiwi/Qwen3.5-4B-AWQ-BF16-INT4
-# W8A16: cyankiwi/Qwen3.5-4B-AWQ-BF16-INT8
-# FP8: surogate/Qwen3.5-4B-FP8
 PORT=${PORT:-8124}
-MODEL_ID='Qwen/Qwen3.5-4B'
+MODEL_ID='Qwen/Qwen3.5-27B'
 CHUNKED_PREFILL_SIZE=8192
 CONTEXT_LENGTH=49152
 MEM_FRACTION_STATIC=0.9
@@ -43,7 +37,7 @@ if [ "$SPEC_DECODING_METHOD" = "MTP" ]; then
 elif [ "$SPEC_DECODING_METHOD" = "DFLASH" ]; then
   SPEC_ARGS=(
     --speculative-algorithm DFLASH
-    --speculative-draft-model-path z-lab/Qwen3.5-4B-DFlash
+    --speculative-draft-model-path z-lab/Qwen3.5-27B-DFlash
     --speculative-num-draft-tokens 8
     --attention-backend fa3
     --speculative-draft-attention-backend fa4
