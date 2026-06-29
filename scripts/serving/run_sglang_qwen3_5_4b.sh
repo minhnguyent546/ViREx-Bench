@@ -26,11 +26,13 @@ CHUNKED_PREFILL_SIZE=8192
 CONTEXT_LENGTH=49152
 MEM_FRACTION_STATIC=0.9
 SPEC_DECODING_METHOD=${SPEC_DECODING_METHOD:-MTP}
+TP="${TP:-1}"
+DP="${DP:-1}"
 
 echo "Using model: $MODEL_ID"
 echo "Spec decoding method: $SPEC_DECODING_METHOD"
 
-echo "PORT=$PORT CHUNKED_PREFILL_SIZE=$CHUNKED_PREFILL_SIZE CONTEXT_LENGTH=$CONTEXT_LENGTH MEM_FRACTION_STATIC=$MEM_FRACTION_STATIC"
+echo "PORT=${PORT}, TP=${TP}, DP=${DP}, CHUNKED_PREFILL_SIZE=${CHUNKED_PREFILL_SIZE}, CONTEXT_LENGTH=${CONTEXT_LENGTH}, MEM_FRACTION_STATIC=${MEM_FRACTION_STATIC}"
 
 if [ "$SPEC_DECODING_METHOD" = "MTP" ]; then
   export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=0
@@ -58,8 +60,8 @@ fi
 uv run --no-sync sglang serve \
   --model-path "$MODEL_ID" \
   --port "$PORT" \
-  --tp-size 1 \
-  --dp-size 1 \
+  --tp-size "$TP" \
+  --dp-size "$DP" \
   --mem-fraction-static "$MEM_FRACTION_STATIC" \
   --chunked-prefill-size "$CHUNKED_PREFILL_SIZE" \
   --context-length "$CONTEXT_LENGTH" \
