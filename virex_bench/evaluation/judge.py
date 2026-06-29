@@ -15,6 +15,7 @@ import dspy
 
 from virex_bench import envs
 from virex_bench.logger import init_logger
+from virex_bench.models.base import BaseLM
 from virex_bench.strategies.modules import ChainOfThought
 
 logger = init_logger(__name__)
@@ -167,7 +168,7 @@ class LogicalReasoningJudgeSignature(dspy.Signature):
     )
 
 
-def build_judge_lm() -> dspy.LM:
+def build_judge_lm() -> BaseLM:
     """Build the fixed DeepSeek reasoning LM used by the judge.
 
     The model (``deepseek-v4-pro`` by default, or ``deepseek-v4-flash``) is chosen via
@@ -181,7 +182,7 @@ def build_judge_lm() -> dspy.LM:
                 "DEEPSEEK_API_KEY is not set. The llm_judge metric requires a DeepSeek API "
                 "key — set it via the DEEPSEEK_API_KEY environment variable."
             )
-        return dspy.LM(
+        return BaseLM(
             model=f"deepseek/{judge_model_name}",
             base_url="https://api.deepseek.com",
             api_key=api_key,
@@ -207,7 +208,7 @@ class LLMJudge(dspy.Module):
 
     def __init__(
         self,
-        judge_lm: dspy.LM | None = None,
+        judge_lm: BaseLM | None = None,
         max_attempts: int = 3,
         retry_wait_seconds: float = 0.5,
     ) -> None:

@@ -61,6 +61,9 @@ class BaseLM(dspy.LM):
     (`forward`) and async (`aforward`) share identical semantics.
     """
 
+    cache: bool
+    kwargs: dict[str, Any]
+
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         kwargs.pop("num_retries", None)
         super().__init__(*args, num_retries=0, **kwargs)
