@@ -60,6 +60,35 @@ if TYPE_CHECKING:
     # Maximum random jitter added to each LM retry wait, in seconds.
     VIREX_BENCH_LM_RETRY_JITTER: float = 1.0
 
+    # --- Tree-of-Thoughts (ToT) strategy tuning ---
+    # All ToT knobs are optional; when unset the defaults below are used. Tune a
+    # run with e.g. `VIREX_BENCH_TOT_MAX_DEPTH=4 uv run vb run --strategy tot ...`.
+
+    # Number of reasoning steps (tree depth) explored before committing an answer.
+    VIREX_BENCH_TOT_MAX_DEPTH: int = 3
+    # Candidate next-thoughts requested per node per step (proposer branching factor).
+    VIREX_BENCH_TOT_BRANCHING_FACTOR: int = 3
+    # Survivors kept per tree layer after evaluation (beam width).
+    VIREX_BENCH_TOT_BEAM_WIDTH: int = 2
+    # Independent evaluator votes averaged to score each candidate path.
+    VIREX_BENCH_TOT_EVAL_SAMPLES: int = 1
+    # Sampling temperature for the proposer (higher -> more diverse thoughts).
+    VIREX_BENCH_TOT_PROPOSE_TEMPERATURE: float = 0.7
+    # Sampling temperature for the evaluator (0.0 -> deterministic scoring).
+    VIREX_BENCH_TOT_EVALUATE_TEMPERATURE: float = 0.0
+    # Stop expanding once a path scores >= this (1..10). Unset/empty disables it.
+    VIREX_BENCH_TOT_EARLY_STOP_THRESHOLD: float | None = None
+    # Search algorithm for the bare `tot` strategy (CLI composite names like
+    # `tot-beam` override this). Choices: beam. Add dfs/mcts here when registered.
+    VIREX_BENCH_TOT_SEARCH_ALGORITHM: str = "beam"
+    # Fuzzy dedupe threshold for proposed thoughts. Higher is more conservative.
+    VIREX_BENCH_TOT_DEDUPE_SIMILARITY_THRESHOLD: float = 0.9
+    # UCB1 exploration constant (c_puct) for MCTS. Ignored by beam/DFS.
+    VIREX_BENCH_TOT_MCTS_EXPLORATION_CONSTANT: float = 1.414
+    # Hard budget cap (number of iterations) for MCTS / DFS. Unset/empty = no cap
+    # (beam does not use this).
+    VIREX_BENCH_TOT_MAX_ITERATIONS: int | None = None
+
     # --- Self-consistency decoding ---
     # Number of independent reasoning paths sampled per example.
     VIREX_BENCH_SC_NUM_SAMPLES: int = 5
@@ -159,6 +188,43 @@ environment_variables: dict[str, Callable[[], Any]] = {
     ),
     "VIREX_BENCH_LM_RETRY_JITTER": lambda: float(
         os.environ.get("VIREX_BENCH_LM_RETRY_JITTER", "1.0")
+    ),
+    # --- Tree-of-Thoughts (ToT) strategy ---
+    "VIREX_BENCH_TOT_MAX_DEPTH": lambda: int(os.environ.get("VIREX_BENCH_TOT_MAX_DEPTH", "3")),
+    "VIREX_BENCH_TOT_BRANCHING_FACTOR": lambda: int(
+        os.environ.get("VIREX_BENCH_TOT_BRANCHING_FACTOR", "3")
+    ),
+    "VIREX_BENCH_TOT_BEAM_WIDTH": lambda: int(os.environ.get("VIREX_BENCH_TOT_BEAM_WIDTH", "2")),
+    "VIREX_BENCH_TOT_EVAL_SAMPLES": lambda: int(
+        os.environ.get("VIREX_BENCH_TOT_EVAL_SAMPLES", "1")
+    ),
+    "VIREX_BENCH_TOT_PROPOSE_TEMPERATURE": lambda: float(
+        os.environ.get("VIREX_BENCH_TOT_PROPOSE_TEMPERATURE", "0.7")
+    ),
+    "VIREX_BENCH_TOT_EVALUATE_TEMPERATURE": lambda: float(
+        os.environ.get("VIREX_BENCH_TOT_EVALUATE_TEMPERATURE", "0.0")
+    ),
+    "VIREX_BENCH_TOT_EARLY_STOP_THRESHOLD": lambda: (
+        float(value)
+        if (value := os.environ.get("VIREX_BENCH_TOT_EARLY_STOP_THRESHOLD")) not in (None, "")
+        else None
+    ),
+    "VIREX_BENCH_TOT_SEARCH_ALGORITHM": lambda: env_with_choices(
+        "VIREX_BENCH_TOT_SEARCH_ALGORITHM",
+        "beam",
+        ["beam"],
+        case_sensitive=False,
+    )().lower(),
+    "VIREX_BENCH_TOT_DEDUPE_SIMILARITY_THRESHOLD": lambda: float(
+        os.environ.get("VIREX_BENCH_TOT_DEDUPE_SIMILARITY_THRESHOLD", "0.9")
+    ),
+    "VIREX_BENCH_TOT_MCTS_EXPLORATION_CONSTANT": lambda: float(
+        os.environ.get("VIREX_BENCH_TOT_MCTS_EXPLORATION_CONSTANT", "1.414")
+    ),
+    "VIREX_BENCH_TOT_MAX_ITERATIONS": lambda: (
+        int(value)
+        if (value := os.environ.get("VIREX_BENCH_TOT_MAX_ITERATIONS")) not in (None, "")
+        else None
     ),
     # --- Self-consistency decoding ---
     "VIREX_BENCH_SC_NUM_SAMPLES": lambda: int(os.environ.get("VIREX_BENCH_SC_NUM_SAMPLES", "5")),

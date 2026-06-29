@@ -2,10 +2,12 @@ import argparse
 import json
 
 from virex_bench import envs
+from virex_bench.decoding import get_decoding
 from virex_bench.evaluation import evaluate, save_report
 from virex_bench.logger import init_logger, set_level
 from virex_bench.models import get_model
 from virex_bench.strategies import get_strategy, list_strategies
+from virex_bench.strategies.registry import parse_strategy_name
 from virex_bench.tasks import get_task, list_tasks
 
 logger = init_logger(__name__)
@@ -34,9 +36,15 @@ def _run(args: argparse.Namespace) -> None:
     logger.debug(
         f"Loaded model {args.model} with backend {args.backend} and kwargs {args.model_kwargs}"
     )
-    signature = task.get_signature(args.strategy)
-    rationale_field = task.get_rationale_field(args.strategy)
+    base_strategy, _variant = parse_strategy_name(args.strategy)
+    signature = task.get_signature(base_strategy)
+    rationale_field = task.get_rationale_field(base_strategy)
     strategy = get_strategy(args.strategy, signature, rationale_field=rationale_field)
+
+    decoding_kwargs: dict[str, object] = {}
+    if args.num_samples is not None:
+        decoding_kwargs["num_samples"] = args.num_samples
+    decoding_strategy = get_decoding(args.decoding, strategy, **decoding_kwargs)
 
     report = evaluate(
         task,
@@ -45,11 +53,12 @@ def _run(args: argparse.Namespace) -> None:
         model_name=args.model,
         backend=args.backend,
         num_threads=args.num_threads,
+        decoding=decoding_strategy,
     )
 
     print(
         f"task={report.task} model={report.model} backend={report.backend} "
-        f"strategy={report.strategy}"
+        f"strategy={report.strategy} decoding={report.decoding}"
     )
     print(f"{report.metric}={report.score:.4f} ({report.num_examples} examples)")
 
@@ -127,6 +136,18 @@ def _add_run_opts(parser: argparse.ArgumentParser) -> None:
         type=int,
         default=8,
         help="Number of worker threads for concurrent example evaluation",
+    )
+    parser.add_argument(
+        "--decoding",
+        type=str,
+        default="single-pass",
+        help="Decoding strategy name (single-pass, self-consistency)",
+    )
+    parser.add_argument(
+        "--num-samples",
+        type=int,
+        default=None,
+        help="Number of samples for self-consistency (overrides VIREX_BENCH_SC_NUM_SAMPLES)",
     )
     parser.add_argument(
         "--log-level",

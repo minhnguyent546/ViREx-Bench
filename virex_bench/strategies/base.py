@@ -19,6 +19,8 @@ class ReasoningStrategy(dspy.Module):
     """
 
     name: str = "base"
+    # Strategies that expose a CLI variant axis (e.g. ``tot-beam``) override this.
+    accepts_variant: bool = False
 
     def __init__(
         self,
@@ -36,3 +38,8 @@ class ReasoningStrategy(dspy.Module):
 
     async def aforward(self, **input: object) -> dspy.Prediction:
         raise NotImplementedError()
+
+    @property
+    def report_config(self) -> dict[str, object]:
+        """Configuration parameters to record in the evaluation report."""
+        return {}

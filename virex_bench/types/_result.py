@@ -46,14 +46,18 @@ class EvaluationReport(BaseModel):
     model: str
     backend: str
     model_kwargs: dict[str, object] = {}
+    lm_retry_kwargs: dict[str, object] = {}
     strategy: str
+    strategy_kwargs: dict[str, object] = {}
     decoding: str = "single-pass"
     decoding_kwargs: dict[str, object] = {}
     metric: str
     judge: str | None = None
     judge_model: str | None = None
+    judge_kwargs: dict[str, object] = {}
     score: float
     num_examples: int
+    num_threads: int = 8
     num_failed: int = 0
     total_time: float = 0.0
     category_scores: dict[str, CategoryScore] = {}

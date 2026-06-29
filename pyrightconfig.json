@@ -7,6 +7,7 @@
   "include": [
     "virex_bench",
     "scripts"
+    "tests",
   ],
 
   "typeCheckingMode": "strict",
