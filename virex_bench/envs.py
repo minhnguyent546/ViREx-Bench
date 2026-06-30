@@ -106,9 +106,9 @@ if TYPE_CHECKING:
     # DFS: hard cap on node expansions (one proposer call each). Unset/empty lets
     # DFSSearch auto-derive max_depth * branching_factor. Beam ignores this.
     VIREX_BENCH_TOT_DFS_MAX_ITERATIONS: int | None = None
-    # MCTS: UCB1 exploration constant (c_puct). Forward-declared (Phase 3).
+    # MCTS: UCT exploration constant (c). Forward-declared.
     VIREX_BENCH_TOT_MCTS_EXPLORATION_CONSTANT: float = 1.414
-    # MCTS: hard cap on iterations. Forward-declared (Phase 3). Ignored by beam/DFS.
+    # MCTS: hard cap on iterations. Forward-declared. Ignored by beam/DFS.
     VIREX_BENCH_TOT_MCTS_MAX_ITERATIONS: int | None = None
 
     # --- Self-consistency decoding ---
@@ -223,7 +223,7 @@ environment_variables: dict[str, Callable[[], Any]] = {
     "VIREX_BENCH_TOT_PROPOSE_TEMPERATURE": lambda: float(
         os.environ.get("VIREX_BENCH_TOT_PROPOSE_TEMPERATURE", "0.7")
     ),
-"VIREX_BENCH_TOT_EVALUATE_TEMPERATURE": lambda: float(
+    "VIREX_BENCH_TOT_EVALUATE_TEMPERATURE": lambda: float(
         os.environ.get("VIREX_BENCH_TOT_EVALUATE_TEMPERATURE", "0.0")
     ),
     "VIREX_BENCH_TOT_BEAM_EARLY_STOP_THRESHOLD": lambda: (
