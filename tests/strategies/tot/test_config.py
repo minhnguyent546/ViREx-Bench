@@ -19,6 +19,7 @@ _VARIANT_ENVS = [
     "VIREX_BENCH_TOT_BEAM_WIDTH",
     "VIREX_BENCH_TOT_BEAM_EARLY_STOP_THRESHOLD",
     "VIREX_BENCH_TOT_DFS_PRUNE_THRESHOLD",
+    "VIREX_BENCH_TOT_DFS_STOP_THRESHOLD",
     "VIREX_BENCH_TOT_DFS_MAX_ITERATIONS",
     "VIREX_BENCH_TOT_MCTS_EXPLORATION_CONSTANT",
     "VIREX_BENCH_TOT_MCTS_MAX_ITERATIONS",
@@ -53,17 +54,32 @@ def test_beam_default_early_stop_threshold(monkeypatch: pytest.MonkeyPatch) -> N
     assert config.max_iterations is None
 
 
-def test_dfs_default_prune_threshold_is_five(monkeypatch: pytest.MonkeyPatch) -> None:
-    """DFS defaults to a v_th pruning threshold of 5.0 (midpoint of the 1-10 band)."""
+def test_dfs_default_prune_threshold_is_three(monkeypatch: pytest.MonkeyPatch) -> None:
+    """DFS defaults to a v_th pruning threshold of 3.0 (the 'dead end' boundary)."""
     _clear_variant_envs(monkeypatch)
     config = _get_tot_config("tot-dfs")
-    assert config.early_stop_threshold == 5.0
+    assert config.early_stop_threshold == 3.0
     # Unset -> None here; DFSSearch auto-derives max_depth * branching_factor.
     assert config.max_iterations is None
 
 
+def test_dfs_default_stop_threshold(monkeypatch: pytest.MonkeyPatch) -> None:
+    """DFS defaults to a stop-on-success threshold of 9.0 (analogous to beam)."""
+    _clear_variant_envs(monkeypatch)
+    config = _get_tot_config("tot-dfs")
+    assert config.success_threshold == 9.0
+
+
+def test_dfs_stop_threshold_env_override(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``VIREX_BENCH_TOT_DFS_STOP_THRESHOLD`` overrides the 9.0 default."""
+    _clear_variant_envs(monkeypatch)
+    monkeypatch.setenv("VIREX_BENCH_TOT_DFS_STOP_THRESHOLD", "8.0")
+    config = _get_tot_config("tot-dfs")
+    assert config.success_threshold == 8.0
+
+
 def test_dfs_prune_threshold_env_override(monkeypatch: pytest.MonkeyPatch) -> None:
-    """``VIREX_BENCH_TOT_DFS_PRUNE_THRESHOLD`` overrides the 5.0 default."""
+    """``VIREX_BENCH_TOT_DFS_PRUNE_THRESHOLD`` overrides the 3.0 default."""
     _clear_variant_envs(monkeypatch)
     monkeypatch.setenv("VIREX_BENCH_TOT_DFS_PRUNE_THRESHOLD", "7.0")
     config = _get_tot_config("tot-dfs")
@@ -104,6 +120,7 @@ def test_beam_ignores_other_algorithm_envs(monkeypatch: pytest.MonkeyPatch) -> N
     config = _get_tot_config("tot-beam")
     assert config.max_iterations is None
     assert config.exploration_constant is None
+    assert config.success_threshold is None
 
 
 def test_dfs_threshold_does_not_leak_into_beam(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -119,4 +136,4 @@ def test_beam_threshold_does_not_leak_into_dfs(monkeypatch: pytest.MonkeyPatch) 
     _clear_variant_envs(monkeypatch)
     monkeypatch.setenv("VIREX_BENCH_TOT_BEAM_EARLY_STOP_THRESHOLD", "9.0")
     config = _get_tot_config("tot-dfs")
-    assert config.early_stop_threshold == 5.0  # DFS default, unaffected
+    assert config.early_stop_threshold == 3.0  # DFS default, unaffected

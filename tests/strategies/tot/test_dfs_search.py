@@ -86,6 +86,7 @@ def _make_config(**overrides: Any) -> SearchConfig:
         "evaluate_temperature": 0.0,
         "early_stop_threshold": None,
         "max_iterations": 20,
+        "success_threshold": None,
     }
     defaults.update(overrides)
     return SearchConfig(**defaults)
@@ -295,15 +296,26 @@ def test_dfs_empty_proposals_stall_immediately() -> None:
     assert result.evaluate_calls == 0
 
 
-def test_dfs_returns_best_path_on_context_overflow() -> None:
-    """A context-window overflow mid-search returns the best path found so far
-    instead of crashing. The overflowing expansion is not counted."""
-    config = _make_config(max_depth=3, branching_factor=2, max_iterations=20)
+def test_dfs_context_overflow_on_branch_continues_to_sibling() -> None:
+    """A context-window overflow on expanding one branch is caught per-branch:
+    DFS treats it as a dead-end and backtracks to the next sibling instead of
+    aborting the entire search. The overflowing expansion is not counted."""
+    config = _make_config(max_depth=2, branching_factor=2, max_iterations=20)
     proposer = _OverflowProposer(
-        thoughts_before_overflow=[["A", "B"]],  # root expansion succeeds
-        overflow_on_call=2,  # descending into best child overflows (path too long)
+        thoughts_before_overflow=[
+            ["A", "B"],  # root (call 1): A(8), B(6)
+            ["B1", "B2"],  # B (call 3, after A overflowed on call 2)
+        ],
+        overflow_on_call=2,  # expanding A overflows
     )
-    evaluator = _FakeEvaluator([["5"], ["8"]])  # A -> 5, B -> 8 (B is best survivor)
+    evaluator = _FakeEvaluator(
+        [
+            ["8"],  # A
+            ["6"],  # B
+            ["4"],  # B1
+            ["3"],  # B2
+        ]
+    )
     search = DFSSearch(config)
     result = search.search(
         premises=["p1"],
@@ -312,8 +324,66 @@ def test_dfs_returns_best_path_on_context_overflow() -> None:
         evaluate=evaluator,  # type: ignore[arg-type]
     )
 
-    assert result.best_path == ["B"]
+    # A was evaluated (best) but its expansion overflowed; DFS tried B next.
+    assert result.best_path == ["A"]
     assert result.best_score == 8.0
-    assert result.depth_reached == 1
-    assert result.propose_calls == 1  # the overflowing expansion did not complete
-    assert result.evaluate_calls == 2
+    assert result.depth_reached == 2  # B's children reached depth 2
+    assert result.propose_calls == 2  # root + B; A's expansion did not complete
+    assert result.evaluate_calls == 4  # A, B from root; B1, B2 from B
+
+
+def test_dfs_context_overflow_at_root_returns_empty() -> None:
+    """An overflow on the root expansion returns the initial empty best path;
+    the overflowing call is not counted."""
+    config = _make_config(max_depth=3, branching_factor=2, max_iterations=20)
+    proposer = _OverflowProposer(
+        thoughts_before_overflow=[],
+        overflow_on_call=1,  # root expansion overflows
+    )
+    evaluator = _FakeEvaluator([])
+    search = DFSSearch(config)
+    result = search.search(
+        premises=["p1"],
+        question="q",
+        propose=proposer,  # type: ignore[arg-type]
+        evaluate=evaluator,  # type: ignore[arg-type]
+    )
+
+    assert result.best_path == []
+    assert result.best_score == 0.0
+    assert result.depth_reached == 0
+    assert result.propose_calls == 0
+    assert result.evaluate_calls == 0
+
+
+def test_dfs_stop_on_success() -> None:
+    """DFS halts the entire search once best_leaf reaches the success threshold,
+    even when budget remains."""
+    config = _make_config(
+        max_depth=5, branching_factor=2, max_iterations=20, success_threshold=9.0
+    )
+    proposer = _FakeProposer(
+        [
+            ["A", "B"],  # root -> A(9), B(5); A hits the threshold
+            ["A1"],  # never reached — search stops before expanding A
+        ]
+    )
+    evaluator = _FakeEvaluator(
+        [
+            ["9"],  # A
+            ["5"],  # B
+        ]
+    )
+    search = DFSSearch(config)
+    result = search.search(
+        premises=["p1"],
+        question="q",
+        propose=proposer,  # type: ignore[arg-type]
+        evaluate=evaluator,  # type: ignore[arg-type]
+    )
+
+    assert result.best_path == ["A"]
+    assert result.best_score == 9.0
+    assert result.propose_calls == 1  # only root expansion
+    assert result.evaluate_calls == 2  # A and B
+    assert proposer.call_count == 1
