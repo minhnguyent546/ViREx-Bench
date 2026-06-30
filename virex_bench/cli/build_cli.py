@@ -2,7 +2,7 @@ import argparse
 import json
 
 from virex_bench import envs
-from virex_bench.decoding import get_decoding
+from virex_bench.decoding import get_decoding, list_decoding
 from virex_bench.evaluation import evaluate, save_report
 from virex_bench.logger import init_logger, set_level
 from virex_bench.models import get_model
@@ -21,6 +21,16 @@ def _parse_model_kwargs(raw: str) -> dict[str, object]:
     if not isinstance(parsed, dict):
         raise argparse.ArgumentTypeError("--model-kwargs must be a JSON object")
     return parsed
+
+
+def _parse_positive_int(raw: str) -> int:
+    try:
+        value = int(raw)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("value must be an integer") from error
+    if value <= 0:
+        raise argparse.ArgumentTypeError("value must be greater than 0")
+    return value
 
 
 def _run(args: argparse.Namespace) -> None:
@@ -42,8 +52,8 @@ def _run(args: argparse.Namespace) -> None:
     strategy = get_strategy(args.strategy, signature, rationale_field=rationale_field)
 
     decoding_kwargs: dict[str, object] = {}
-    if args.num_samples is not None:
-        decoding_kwargs["num_samples"] = args.num_samples
+    if args.decoding_num_samples is not None:
+        decoding_kwargs["num_samples"] = args.decoding_num_samples
     decoding_strategy = get_decoding(args.decoding, strategy, **decoding_kwargs)
 
     report = evaluate(
@@ -54,6 +64,7 @@ def _run(args: argparse.Namespace) -> None:
         backend=args.backend,
         num_threads=args.num_threads,
         decoding=decoding_strategy,
+        max_examples=args.max_examples,
     )
 
     print(
@@ -94,6 +105,7 @@ def _add_run_opts(parser: argparse.ArgumentParser) -> None:
         "--strategy",
         type=str,
         default="direct",
+        choices=list_strategies(),
         help="Prompting strategy name",
     )
     parser.add_argument(
@@ -138,16 +150,28 @@ def _add_run_opts(parser: argparse.ArgumentParser) -> None:
         help="Number of worker threads for concurrent example evaluation",
     )
     parser.add_argument(
+        "--max-examples",
+        type=_parse_positive_int,
+        default=None,
+        help="Maximum number of dataset examples to evaluate for quick test runs",
+    )
+    parser.add_argument(
         "--decoding",
         type=str,
         default="single-pass",
+        choices=list_decoding(),
         help="Decoding strategy name (single-pass, self-consistency)",
     )
     parser.add_argument(
-        "--num-samples",
-        type=int,
+        "--self-consistency-num-samples",
+        dest="decoding_num_samples",
+        metavar="SELF_CONSISTENCY_NUM_SAMPLES",
+        type=_parse_positive_int,
         default=None,
-        help="Number of samples for self-consistency (overrides VIREX_BENCH_SC_NUM_SAMPLES)",
+        help=(
+            "Number of candidate generations for self-consistency decoding "
+            "(overrides VIREX_BENCH_SC_NUM_SAMPLES)"
+        ),
     )
     parser.add_argument(
         "--log-level",

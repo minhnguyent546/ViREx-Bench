@@ -62,6 +62,7 @@ def test_search_stats_flow_into_extra() -> None:
     task = _FakeTask()
     strategy = _FakeStrategy(_FakeSignature)
     decoding_strategy = SinglePass(strategy)
+
     def metric_func(_example: ReasoningExample, _prediction: dspy.Prediction) -> float:
         return 1.0
 
@@ -96,6 +97,7 @@ def test_no_search_stats_when_strategy_does_not_emit_them() -> None:
     task = _FakeTask()
     strategy = _PlainStrategy(_FakeSignature)
     decoding_strategy = SinglePass(strategy)
+
     def metric_func(_example: ReasoningExample, _prediction: dspy.Prediction) -> float:
         return 1.0
 

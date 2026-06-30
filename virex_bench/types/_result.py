@@ -57,6 +57,7 @@ class EvaluationReport(BaseModel):
     judge_kwargs: dict[str, object] = {}
     score: float
     num_examples: int
+    max_examples: int | None = None
     num_threads: int = 8
     num_failed: int = 0
     total_time: float = 0.0

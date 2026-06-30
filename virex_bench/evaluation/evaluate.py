@@ -125,6 +125,7 @@ def evaluate(
     backend: str,
     num_threads: int = 8,
     decoding: DecodingStrategy | None = None,
+    max_examples: int | None = None,
 ) -> EvaluationReport:
     """Run `strategy` with `lm` over every example in `task` and score with the task's metric.
 
@@ -132,11 +133,14 @@ def evaluate(
     and is resolved against the metric registry. The reported score is the mean
     per-example metric score.
 
+    When `max_examples` is set, only the first N loaded examples are evaluated.
     Examples are evaluated concurrently across `num_threads` worker threads. A
     failure on a single example (e.g. an API, parsing, or metric error) is logged
     and recorded with a score of ``0.0`` instead of aborting the whole run.
     """
     examples = task.load_examples()
+    if max_examples is not None:
+        examples = examples[:max_examples]
     metric_name = task.metadata.main_metric
     judge_name = task.metadata.judge
     judge_module: LLMJudge | None = None
@@ -159,6 +163,7 @@ def evaluate(
         f"strategy={strategy.name} decoding={decoding_strategy.display_name} "
         f"metric={metric_name} "
         + (f"judge={judge_name} [{judge_model_name}] " if judge_name is not None else "")
+        + (f"max_examples={max_examples} " if max_examples is not None else "")
         + f"on {len(examples)} examples (num_threads={num_threads})"
     )
 
@@ -259,6 +264,7 @@ def evaluate(
         judge_kwargs=judge_kwargs,
         score=score,
         num_examples=len(results),
+        max_examples=max_examples,
         num_threads=num_threads,
         num_failed=num_failed,
         total_time=total_time,
@@ -276,9 +282,7 @@ def save_report(report: EvaluationReport, output_dir: str) -> str:
     os.makedirs(nested_dir, exist_ok=True)
     timestamp = datetime.now().strftime("%Y_%m_%d-%H_%M_%S")
     output_path = os.path.join(nested_dir, f"results-{timestamp}.json")
-    exclude: set[str] = (
-        {"judge", "judge_model", "judge_kwargs"} if report.judge is None else set()
-    )
+    exclude: set[str] = {"judge", "judge_model", "judge_kwargs"} if report.judge is None else set()
     with open(output_path, "w", encoding="utf-8") as output_file:
         output_file.write(report.model_dump_json(indent=2, exclude=exclude))
     logger.info(f"Saved results to {output_path}")

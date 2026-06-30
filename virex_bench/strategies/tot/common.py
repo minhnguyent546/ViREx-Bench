@@ -136,8 +136,7 @@ def dedupe_thoughts(
         if not tokens:
             continue
         if any(
-            jaccard_similarity(tokens, existing) >= threshold
-            for existing in accepted_token_sets
+            jaccard_similarity(tokens, existing) >= threshold for existing in accepted_token_sets
         ):
             continue
         accepted_token_sets.append(tokens)
