@@ -17,7 +17,7 @@ _*
 !/virex_bench/types/_*
 /checkpoints
 *.local
-/.plans
+# /.plans
 /.code-review
 /results
 /slides
