@@ -40,12 +40,19 @@ def test_list_strategies_includes_variants() -> None:
     assert "direct" in names
     assert "tot" in names
     assert "tot-beam" in names
+    assert "tot-dfs" in names
 
 
 def test_get_strategy_tot_beam_yields_correct_name_and_algorithm() -> None:
     strategy = get_strategy("tot-beam", _TestSignature)
     assert strategy.name == "tot-beam"
     assert strategy.search_algorithm == "beam"  # type: ignore[attr-defined]
+
+
+def test_get_strategy_tot_dfs_yields_correct_name_and_algorithm() -> None:
+    strategy = get_strategy("tot-dfs", _TestSignature)
+    assert strategy.name == "tot-dfs"
+    assert strategy.search_algorithm == "dfs"  # type: ignore[attr-defined]
 
 
 def test_get_strategy_bare_tot_uses_env_default_algorithm() -> None:
