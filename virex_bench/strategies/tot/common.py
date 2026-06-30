@@ -53,16 +53,26 @@ class ThoughtProposerSignature(dspy.Signature):
 
 
 class ThoughtEvaluatorSignature(dspy.Signature):
-    """Rate how promising a partial reasoning path is.
+    """Rate how close a partial reasoning path is to a correct, final answer.
 
-    Judge how likely `reasoning_path` is to lead to a correct, well-supported
-    answer to `question`, using ONLY the `premises`. Penalize: unsound steps not
-    entailed by the premises, circularity, no forward progress, reliance on
-    outside knowledge, and premature commitment. Reward: sound entailment, clear
-    citation of premise indices, and incremental progress.
+    Judge `reasoning_path` against `question` using ONLY the `premises`. Be
+    STRICT and discriminating -- do not hand out high scores generously.
 
-    Output an integer between 1 (a dead end) and 10 (certain to yield the
-    correct, well-justified answer).
+    Hard penalties (cap the score at 4 regardless of other strengths):
+      - any step not entailed by the premises, or relying on outside knowledge;
+      - circular reasoning, or a step that merely restates an earlier step;
+      - no forward progress toward answering the question;
+      - a missing or incorrect premise citation.
+
+    Score bands:
+       1-3  Dead end / mostly unsound or stalled.
+       4-6  On track but incomplete; the answer is NOT yet derived.
+       7-8  Nearly there; one or two sound steps short of the answer.
+       9-10 RESERVED for a path that has ALREADY derived a correct, complete,
+            well-supported answer. Reserve 10 for an airtight, fully-cited
+            derivation. If any step remains to be done, the score must be <= 8.
+
+    Output an integer in 1..10.
     """
 
     premises: list[str] = dspy.InputField(desc="The premises; the only source of truth.")
@@ -70,7 +80,12 @@ class ThoughtEvaluatorSignature(dspy.Signature):
     reasoning_path: str = dspy.InputField(
         desc="The reasoning accumulated so far, ending at the thought being scored."
     )
-    score: int = dspy.OutputField(desc="Integer promise score from 1 (dead end) to 10 (certain).")
+    score: int = dspy.OutputField(
+        desc=(
+            "Integer in 1..10. Use 9-10 ONLY if the path already derives the final "
+            "answer; cap at 8 if any reasoning remains."
+        )
+    )
 
 
 @dataclass
@@ -185,8 +200,11 @@ def completion_values(prediction: dspy.Prediction, field: str) -> list[Any]:
 def is_better(candidate: ThoughtNode, current: ThoughtNode) -> bool:
     """Whether `candidate` should replace `current` as the best leaf.
 
-    Higher score wins; ties prefer the deeper (more complete) path.
+    Higher score wins; ties prefer the SHORTER path -- among equally-promising
+    derivations the more concise one wins (parsimony), which also keeps a
+    score-saturating evaluator from inflating the winner with redundant filler
+    steps.
     """
     if candidate.score != current.score:
         return candidate.score > current.score
-    return len(candidate.path) > len(current.path)
+    return len(candidate.path) < len(current.path)

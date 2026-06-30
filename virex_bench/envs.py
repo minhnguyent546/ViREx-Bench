@@ -86,8 +86,11 @@ if TYPE_CHECKING:
     # --- Per-variant knobs (semantics differ by algorithm; resolved by
     # _build_search_config in strategies/tot/strategy.py). ---
     # Beam: stop the WHOLE search once the best path scores >= this (stop-on-success).
-    # Unset/empty disables it. DFS uses TOT_DFS_PRUNE_THRESHOLD instead.
-    VIREX_BENCH_TOT_BEAM_EARLY_STOP_THRESHOLD: float | None = None
+    # Defaults to 9.0: the evaluator reserves 9-10 for paths that have already
+    # derived the answer, so a score >= 9 means further expansion only pads the
+    # chain with redundant steps. Lower it for more aggressive budget control, or
+    # unset/empty to disable. DFS uses TOT_DFS_PRUNE_THRESHOLD instead.
+    VIREX_BENCH_TOT_BEAM_EARLY_STOP_THRESHOLD: float | None = 9.0
     # DFS: ToT's value-pruning threshold (v_th). Children scored below this are
     # evaluated & counted but NOT expanded. Defaults to 5.0 (midpoint of the 1-10
     # band) so long chains prune dead-ends without starving correct-but-incomplete
@@ -219,7 +222,7 @@ environment_variables: dict[str, Callable[[], Any]] = {
     "VIREX_BENCH_TOT_BEAM_EARLY_STOP_THRESHOLD": lambda: (
         float(value)
         if (value := os.environ.get("VIREX_BENCH_TOT_BEAM_EARLY_STOP_THRESHOLD")) not in (None, "")
-        else None
+        else 9.0
     ),
     "VIREX_BENCH_TOT_DFS_PRUNE_THRESHOLD": lambda: (
         float(value)

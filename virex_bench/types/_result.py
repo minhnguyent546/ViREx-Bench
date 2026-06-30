@@ -58,10 +58,12 @@ class EvaluationReport(BaseModel):
     score: float
     num_examples: int
     max_examples: int | None = None
+    num_evaluated_examples: int | None = None
     num_threads: int = 8
     num_failed: int = 0
     total_time: float = 0.0
     category_scores: dict[str, CategoryScore] = {}
+    search_stats: dict[str, float] | None = None
     results: list[TaskResult] = []
 
 

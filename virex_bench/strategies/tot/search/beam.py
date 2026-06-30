@@ -101,6 +101,12 @@ class BeamSearch(ThoughtSearch):
                     f">= threshold {config.early_stop_threshold}"
                 )
                 break
+            # TODO: plateau/stall detection -- break when best_leaf.score does not
+            # strictly improve for `patience` consecutive depths. This catches
+            # chains that flatline below early_stop_threshold (e.g. the proposer
+            # emitting "no further reasoning needed" filler the evaluator scores
+            # identically to real progress). Needs a `patience` knob on
+            # SearchConfig + a VIREX_BENCH_TOT_BEAM_PATIENCE env var.
             if not candidates:
                 logger.debug(f"ToT search stalled at depth {depth + 1} (no candidates)")
                 break
