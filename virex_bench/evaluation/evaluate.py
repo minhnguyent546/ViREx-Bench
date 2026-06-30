@@ -8,6 +8,7 @@ from typing import cast
 
 import dspy
 from dspy.adapters.chat_adapter import ChatAdapter
+from dspy.utils.usage_tracker import UsageTracker
 from tqdm.auto import tqdm
 
 from virex_bench import envs
@@ -46,7 +47,12 @@ def _process_example(
     inputs = task.example_to_inputs(example)
     recorded_inputs = task.recorded_inputs(example, inputs)
     try:
-        prediction = decoding_strategy(**inputs)
+        # Scope a usage tracker to the STRATEGY call only -- the judge runs after
+        # the `with` exits so its tokens are excluded. dspy.settings is thread-local,
+        # so each worker thread's tracker stays isolated to its own example.
+        with dspy.track_usage() as usage_tracker:
+            prediction = decoding_strategy(**inputs)
+        token_usage = _summarize_usage(usage_tracker)
         predicted = str(prediction.answer)
         extra: dict[str, object] = {}
         reasoning = getattr(prediction, "reasoning", None)
@@ -90,6 +96,7 @@ def _process_example(
         premises_f1=score_components.premises_f1,
         predicted_premises_used=score_components.predicted_premises_used,
         category=example.category,
+        token_usage=token_usage,
         extra=extra,
     )
 
@@ -117,6 +124,88 @@ def _aggregate_scores(
     return total_score, num_failed, category_scores
 
 
+def _aggregate_search_stats(results: list[TaskResult]) -> dict[str, float] | None:
+    """Mean of the per-example ``search_stats`` (nodes/calls/depth/score).
+
+    Returns ``None`` when no example carried search stats -- i.e. for non
+    search-based strategies such as direct and cot, in which case the field is
+    omitted from the report. Search strategies (tot-beam, tot-dfs, ...) attach
+    ``search_stats`` on every successful prediction.
+    """
+    numeric_keys = (
+        "nodes_visited",
+        "propose_calls",
+        "evaluate_calls",
+        "depth_reached",
+        "best_score",
+        "total_llm_calls",
+        "total_completions",
+    )
+    sums: dict[str, float] = dict.fromkeys(numeric_keys, 0.0)
+    num_search_examples = 0
+    for result in results:
+        stats_raw = result.extra.get("search_stats")
+        if not isinstance(stats_raw, dict):
+            continue
+        stats = cast("dict[str, object]", stats_raw)
+        num_search_examples += 1
+        for key in numeric_keys:
+            value = stats.get(key)
+            if isinstance(value, (int, float)):
+                sums[key] += value
+    if num_search_examples == 0:
+        return None
+    return {key: total / num_search_examples for key, total in sums.items()}
+
+
+def _summarize_usage(usage_tracker: UsageTracker) -> dict[str, int] | None:
+    """Flatten a per-example ``UsageTracker`` into prompt/completion/total tokens.
+
+    Returns ``None`` when the tracker captured no usage entry (e.g. the backend
+    did not report a ``usage`` block), so the field stays absent for that record.
+    Covers all models the example touched (typically just the strategy LM).
+    """
+    totals = usage_tracker.get_total_tokens()
+    if not totals:
+        return None
+    prompt_tokens = sum(int(usage.get("prompt_tokens", 0) or 0) for usage in totals.values())
+    completion_tokens = sum(
+        int(usage.get("completion_tokens", 0) or 0) for usage in totals.values()
+    )
+    total_tokens = sum(int(usage.get("total_tokens", 0) or 0) for usage in totals.values())
+    if total_tokens == 0:
+        total_tokens = prompt_tokens + completion_tokens
+    return {
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens,
+        "total_tokens": total_tokens,
+    }
+
+
+def _aggregate_token_usage(
+    results: list[TaskResult],
+) -> tuple[dict[str, float] | None, dict[str, int] | None]:
+    """Mean (per example) and total (whole run) token usage over tracked records.
+
+    Returns ``(None, None)`` when no record carried token usage.
+    """
+    keys = ("prompt_tokens", "completion_tokens", "total_tokens")
+    sums: dict[str, int] = dict.fromkeys(keys, 0)
+    num_tracked_examples = 0
+    for result in results:
+        usage = result.token_usage
+        if usage is None:
+            continue
+        num_tracked_examples += 1
+        for key in keys:
+            sums[key] += int(usage.get(key, 0) or 0)
+    if num_tracked_examples == 0:
+        return None, None
+    mean = {key: sums[key] / num_tracked_examples for key in keys}
+    total = {key: sums[key] for key in keys}
+    return mean, total
+
+
 def evaluate(
     task: ReasoningTask,
     lm: BaseLM,
@@ -138,9 +227,11 @@ def evaluate(
     failure on a single example (e.g. an API, parsing, or metric error) is logged
     and recorded with a score of ``0.0`` instead of aborting the whole run.
     """
-    examples = task.load_examples()
+    loaded_examples = task.load_examples()
+    num_examples = len(loaded_examples)
+    examples = loaded_examples
     if max_examples is not None:
-        examples = examples[:max_examples]
+        examples = loaded_examples[:max_examples]
     metric_name = task.metadata.main_metric
     judge_name = task.metadata.judge
     judge_module: LLMJudge | None = None
@@ -164,7 +255,7 @@ def evaluate(
         f"metric={metric_name} "
         + (f"judge={judge_name} [{judge_model_name}] " if judge_name is not None else "")
         + (f"max_examples={max_examples} " if max_examples is not None else "")
-        + f"on {len(examples)} examples (num_threads={num_threads})"
+        + f"on {len(examples)}/{num_examples} examples (num_threads={num_threads})"
     )
 
     _process_example_fn = partial(
@@ -202,6 +293,8 @@ def evaluate(
     total_time = time.perf_counter() - start_time
 
     total_score, num_failed, category_scores = _aggregate_scores(results)
+    search_stats = _aggregate_search_stats(results)
+    mean_token_usage, total_token_usage = _aggregate_token_usage(results)
     score = total_score / len(results) if results else 0.0
     logger.info(
         f"Done: {metric_name}={score:.4f} ({total_score:.4f}/{len(results)})"
@@ -214,6 +307,17 @@ def evaluate(
             for category, entry in sorted(category_scores.items())
         )
         logger.info(f"Per-category {metric_name}: {breakdown}")
+    if search_stats is not None:
+        stats_breakdown = ", ".join(f"{key}={value:.2f}" for key, value in search_stats.items())
+        logger.info(f"Search stats (mean): {stats_breakdown}")
+    if mean_token_usage is not None and total_token_usage is not None:
+        logger.info(
+            f"Token usage (mean per example): "
+            f"prompt={mean_token_usage['prompt_tokens']:.0f}, "
+            f"completion={mean_token_usage['completion_tokens']:.0f}, "
+            f"total={mean_token_usage['total_tokens']:.0f} | "
+            f"(run total) total={total_token_usage['total_tokens']}"
+        )
 
     model_kwargs = {
         key: value
@@ -263,12 +367,16 @@ def evaluate(
         judge_model=judge_model_name,
         judge_kwargs=judge_kwargs,
         score=score,
-        num_examples=len(results),
+        num_examples=num_examples,
         max_examples=max_examples,
+        num_evaluated_examples=len(results),
         num_threads=num_threads,
         num_failed=num_failed,
         total_time=total_time,
         category_scores=category_scores,
+        search_stats=search_stats,
+        token_usage=mean_token_usage,
+        total_token_usage=total_token_usage,
         results=results,
     )
 
@@ -283,6 +391,10 @@ def save_report(report: EvaluationReport, output_dir: str) -> str:
     timestamp = datetime.now().strftime("%Y_%m_%d-%H_%M_%S")
     output_path = os.path.join(nested_dir, f"results-{timestamp}.json")
     exclude: set[str] = {"judge", "judge_model", "judge_kwargs"} if report.judge is None else set()
+    if report.search_stats is None:
+        exclude.add("search_stats")
+    if report.token_usage is None:
+        exclude.update(("token_usage", "total_token_usage"))
     with open(output_path, "w", encoding="utf-8") as output_file:
         output_file.write(report.model_dump_json(indent=2, exclude=exclude))
     logger.info(f"Saved results to {output_path}")

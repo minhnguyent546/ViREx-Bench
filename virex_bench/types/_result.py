@@ -15,6 +15,8 @@ class TaskResult(BaseModel):
     premises_f1: float | None = None
     predicted_premises_used: list[int] | None = None
     category: str | None = None
+    # LM token cost of the STRATEGY only (judge/extraction excluded), per example.
+    token_usage: dict[str, int] | None = None
     extra: dict[str, object] = {}
 
 
@@ -64,6 +66,10 @@ class EvaluationReport(BaseModel):
     total_time: float = 0.0
     category_scores: dict[str, CategoryScore] = {}
     search_stats: dict[str, float] | None = None
+    # LM token cost of the STRATEGY only (judge/extraction excluded): mean per
+    # example (`token_usage`) and summed over the run (`total_token_usage`).
+    token_usage: dict[str, float] | None = None
+    total_token_usage: dict[str, int] | None = None
     results: list[TaskResult] = []
 
 
