@@ -55,10 +55,22 @@ def test_get_strategy_tot_dfs_yields_correct_name_and_algorithm() -> None:
     assert strategy.search_algorithm == "dfs"  # type: ignore[attr-defined]
 
 
-def test_get_strategy_bare_tot_uses_env_default_algorithm() -> None:
+def test_get_strategy_bare_tot_uses_env_default_algorithm(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("VIREX_BENCH_TOT_SEARCH_ALGORITHM", raising=False)
     strategy = get_strategy("tot", _TestSignature)
     assert strategy.name == "tot"
     assert strategy.search_algorithm == "beam"  # type: ignore[attr-defined]
+
+
+def test_get_strategy_bare_tot_uses_env_algorithm_override(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("VIREX_BENCH_TOT_SEARCH_ALGORITHM", "DFS")
+    strategy = get_strategy("tot", _TestSignature)
+    assert strategy.name == "tot"
+    assert strategy.search_algorithm == "dfs"  # type: ignore[attr-defined]
 
 
 def test_get_strategy_cot_beam_raises_no_variant_axis() -> None:
