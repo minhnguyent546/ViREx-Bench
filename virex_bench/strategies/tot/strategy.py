@@ -131,7 +131,12 @@ class ToTStrategy(ReasoningStrategy):
             field=dspy.InputField(
                 desc=(
                     "A chain of reasoning steps already explored over the premises. "
-                    "Use it as the basis for the final answer; do not contradict it."
+                    "Use it as the basis for the final answer; do not contradict it. "
+                    "The path may inspect or reject several candidate conclusions "
+                    "before settling on one. When citing premises, ignore that "
+                    "exploration: return only the minimal chain that justifies the "
+                    "FINAL answer, and exclude any premise the path used solely to "
+                    "analyze or rule out other options."
                 )
             ),
             type_=str,
@@ -182,5 +187,17 @@ class ToTStrategy(ReasoningStrategy):
             "evaluate_calls": result.evaluate_calls,
             "depth_reached": result.depth_reached,
             "best_score": result.best_score,
+            # Cost in "LLM request" units (one dspy.Predict invocation each), incl.
+            # the final aggregate call that commits the answer -- the direct analog
+            # of a CoT/direct single call, so total_llm_calls is comparable 1:1.
+            "total_llm_calls": result.propose_calls + result.evaluate_calls + 1,
+            # Cost in "generated completion" units (what drives GPU/token cost): each
+            # propose request samples `branching_factor` completions and each evaluate
+            # request samples `n_eval_samples`; the aggregate call yields 1 completion.
+            "total_completions": (
+                result.propose_calls * self.config.branching_factor
+                + result.evaluate_calls * self.config.n_eval_samples
+                + 1
+            ),
         }
         return prediction
