@@ -65,7 +65,9 @@ if TYPE_CHECKING:
     # run with e.g. `VIREX_BENCH_TOT_MAX_DEPTH=4 uv run vb run --strategy tot ...`.
 
     # Number of reasoning steps (tree depth) explored before committing an answer.
-    VIREX_BENCH_TOT_MAX_DEPTH: int = 3
+    # Tuned for the dataset, whose chains can reach 10+ steps; lower per-run for
+    # shorter-chain subsets. Affects beam (D*B*(1+b) LM calls) and DFS alike.
+    VIREX_BENCH_TOT_MAX_DEPTH: int = 10
     # Candidate next-thoughts requested per node per step (proposer branching factor).
     VIREX_BENCH_TOT_BRANCHING_FACTOR: int = 3
     # Survivors kept per tree layer after evaluation (beam width).
@@ -76,18 +78,28 @@ if TYPE_CHECKING:
     VIREX_BENCH_TOT_PROPOSE_TEMPERATURE: float = 0.7
     # Sampling temperature for the evaluator (0.0 -> deterministic scoring).
     VIREX_BENCH_TOT_EVALUATE_TEMPERATURE: float = 0.0
-    # Stop expanding once a path scores >= this (1..10). Unset/empty disables it.
-    VIREX_BENCH_TOT_EARLY_STOP_THRESHOLD: float | None = None
     # Search algorithm for the bare `tot` strategy (CLI composite names like
-    # `tot-beam` override this). Choices: beam. Add dfs/mcts here when registered.
+    # `tot-beam` override this). Choices: beam, dfs. Add mcts here when registered.
     VIREX_BENCH_TOT_SEARCH_ALGORITHM: str = "beam"
     # Fuzzy dedupe threshold for proposed thoughts. Higher is more conservative.
     VIREX_BENCH_TOT_DEDUPE_SIMILARITY_THRESHOLD: float = 0.9
-    # UCB1 exploration constant (c_puct) for MCTS. Ignored by beam/DFS.
+    # --- Per-variant knobs (semantics differ by algorithm; resolved by
+    # _build_search_config in strategies/tot/strategy.py). ---
+    # Beam: stop the WHOLE search once the best path scores >= this (stop-on-success).
+    # Unset/empty disables it. DFS uses TOT_DFS_PRUNE_THRESHOLD instead.
+    VIREX_BENCH_TOT_BEAM_EARLY_STOP_THRESHOLD: float | None = None
+    # DFS: ToT's value-pruning threshold (v_th). Children scored below this are
+    # evaluated & counted but NOT expanded. Defaults to 5.0 (midpoint of the 1-10
+    # band) so long chains prune dead-ends without starving correct-but-incomplete
+    # prefixes. Beam uses TOT_BEAM_EARLY_STOP_THRESHOLD instead.
+    VIREX_BENCH_TOT_DFS_PRUNE_THRESHOLD: float | None = 5.0
+    # DFS: hard cap on node expansions (one proposer call each). Unset/empty lets
+    # DFSSearch auto-derive max_depth * branching_factor. Beam ignores this.
+    VIREX_BENCH_TOT_DFS_MAX_ITERATIONS: int | None = None
+    # MCTS: UCB1 exploration constant (c_puct). Forward-declared (Phase 3).
     VIREX_BENCH_TOT_MCTS_EXPLORATION_CONSTANT: float = 1.414
-    # Hard budget cap (number of iterations) for MCTS / DFS. Unset/empty = no cap
-    # (beam does not use this).
-    VIREX_BENCH_TOT_MAX_ITERATIONS: int | None = None
+    # MCTS: hard cap on iterations. Forward-declared (Phase 3). Ignored by beam/DFS.
+    VIREX_BENCH_TOT_MCTS_MAX_ITERATIONS: int | None = None
 
     # --- Self-consistency decoding ---
     # Number of independent reasoning paths sampled per example.
@@ -190,7 +202,7 @@ environment_variables: dict[str, Callable[[], Any]] = {
         os.environ.get("VIREX_BENCH_LM_RETRY_JITTER", "1.0")
     ),
     # --- Tree-of-Thoughts (ToT) strategy ---
-    "VIREX_BENCH_TOT_MAX_DEPTH": lambda: int(os.environ.get("VIREX_BENCH_TOT_MAX_DEPTH", "3")),
+    "VIREX_BENCH_TOT_MAX_DEPTH": lambda: int(os.environ.get("VIREX_BENCH_TOT_MAX_DEPTH", "10")),
     "VIREX_BENCH_TOT_BRANCHING_FACTOR": lambda: int(
         os.environ.get("VIREX_BENCH_TOT_BRANCHING_FACTOR", "3")
     ),
@@ -204,15 +216,20 @@ environment_variables: dict[str, Callable[[], Any]] = {
     "VIREX_BENCH_TOT_EVALUATE_TEMPERATURE": lambda: float(
         os.environ.get("VIREX_BENCH_TOT_EVALUATE_TEMPERATURE", "0.0")
     ),
-    "VIREX_BENCH_TOT_EARLY_STOP_THRESHOLD": lambda: (
+    "VIREX_BENCH_TOT_BEAM_EARLY_STOP_THRESHOLD": lambda: (
         float(value)
-        if (value := os.environ.get("VIREX_BENCH_TOT_EARLY_STOP_THRESHOLD")) not in (None, "")
+        if (value := os.environ.get("VIREX_BENCH_TOT_BEAM_EARLY_STOP_THRESHOLD")) not in (None, "")
         else None
+    ),
+    "VIREX_BENCH_TOT_DFS_PRUNE_THRESHOLD": lambda: (
+        float(value)
+        if (value := os.environ.get("VIREX_BENCH_TOT_DFS_PRUNE_THRESHOLD")) not in (None, "")
+        else 5.0
     ),
     "VIREX_BENCH_TOT_SEARCH_ALGORITHM": lambda: env_with_choices(
         "VIREX_BENCH_TOT_SEARCH_ALGORITHM",
         "beam",
-        ["beam"],
+        ["beam", "dfs"],
         case_sensitive=False,
     )().lower(),
     "VIREX_BENCH_TOT_DEDUPE_SIMILARITY_THRESHOLD": lambda: float(
@@ -221,9 +238,14 @@ environment_variables: dict[str, Callable[[], Any]] = {
     "VIREX_BENCH_TOT_MCTS_EXPLORATION_CONSTANT": lambda: float(
         os.environ.get("VIREX_BENCH_TOT_MCTS_EXPLORATION_CONSTANT", "1.414")
     ),
-    "VIREX_BENCH_TOT_MAX_ITERATIONS": lambda: (
+    "VIREX_BENCH_TOT_DFS_MAX_ITERATIONS": lambda: (
         int(value)
-        if (value := os.environ.get("VIREX_BENCH_TOT_MAX_ITERATIONS")) not in (None, "")
+        if (value := os.environ.get("VIREX_BENCH_TOT_DFS_MAX_ITERATIONS")) not in (None, "")
+        else None
+    ),
+    "VIREX_BENCH_TOT_MCTS_MAX_ITERATIONS": lambda: (
+        int(value)
+        if (value := os.environ.get("VIREX_BENCH_TOT_MCTS_MAX_ITERATIONS")) not in (None, "")
         else None
     ),
     # --- Self-consistency decoding ---

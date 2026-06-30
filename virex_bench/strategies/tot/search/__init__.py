@@ -7,9 +7,11 @@ registered here as they land.
 
 from virex_bench.strategies.tot.search.base import SearchConfig, SearchResult, ThoughtSearch
 from virex_bench.strategies.tot.search.beam import BeamSearch
+from virex_bench.strategies.tot.search.dfs import DFSSearch
 
 SEARCH_REGISTRY: dict[str, type[ThoughtSearch]] = {
     BeamSearch.name: BeamSearch,
+    DFSSearch.name: DFSSearch,
 }
 
 

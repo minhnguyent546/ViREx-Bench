@@ -43,18 +43,45 @@ from virex_bench.strategies.tot.common import (
 from virex_bench.strategies.tot.search import SearchConfig, ThoughtSearch, build_search
 
 
-def _build_search_config() -> SearchConfig:
-    """Populate a :class:`SearchConfig` from the ``VIREX_BENCH_TOT_*`` env vars."""
+def _build_search_config(search_algorithm: str) -> SearchConfig:
+    """Populate a :class:`SearchConfig` from the ``VIREX_BENCH_TOT_*`` env vars.
+
+    The propose/evaluate operation knobs (depth, branching, eval samples,
+    temperatures, dedupe) are shared across all algorithms. The threshold and
+    budget cap are variant-specific -- ``early_stop_threshold`` is stop-on-success
+    for beam and ToT's ``v_th`` pruning for DFS; ``max_iterations`` caps DFS/MCTS
+    and is unused by beam -- so the right env var is selected per
+    ``search_algorithm``.
+    """
+    beam_width: int | None = None
+    exploration_constant: float | None = None
+    if search_algorithm == "beam":
+        early_stop_threshold = envs.VIREX_BENCH_TOT_BEAM_EARLY_STOP_THRESHOLD
+        max_iterations = None  # beam has a fixed budget (max_depth * beam_width).
+        beam_width = envs.VIREX_BENCH_TOT_BEAM_WIDTH
+    elif search_algorithm == "dfs":
+        early_stop_threshold = envs.VIREX_BENCH_TOT_DFS_PRUNE_THRESHOLD
+        max_iterations = envs.VIREX_BENCH_TOT_DFS_MAX_ITERATIONS
+    elif search_algorithm == "mcts":
+        # Forward-declared for Phase 3; MCTS does not use early_stop_threshold.
+        early_stop_threshold = None
+        max_iterations = envs.VIREX_BENCH_TOT_MCTS_MAX_ITERATIONS
+        exploration_constant = envs.VIREX_BENCH_TOT_MCTS_EXPLORATION_CONSTANT
+    else:
+        # build_search validates the algorithm before this is called, so an unknown
+        # value here is a programming error, not a user-facing one.
+        raise KeyError(f"Unknown search algorithm {search_algorithm!r}")
+
     return SearchConfig(
         max_depth=envs.VIREX_BENCH_TOT_MAX_DEPTH,
         branching_factor=envs.VIREX_BENCH_TOT_BRANCHING_FACTOR,
         n_eval_samples=envs.VIREX_BENCH_TOT_EVAL_SAMPLES,
         propose_temperature=envs.VIREX_BENCH_TOT_PROPOSE_TEMPERATURE,
         evaluate_temperature=envs.VIREX_BENCH_TOT_EVALUATE_TEMPERATURE,
-        early_stop_threshold=envs.VIREX_BENCH_TOT_EARLY_STOP_THRESHOLD,
-        beam_width=envs.VIREX_BENCH_TOT_BEAM_WIDTH,
-        exploration_constant=envs.VIREX_BENCH_TOT_MCTS_EXPLORATION_CONSTANT,
-        max_iterations=envs.VIREX_BENCH_TOT_MAX_ITERATIONS,
+        early_stop_threshold=early_stop_threshold,
+        beam_width=beam_width,
+        exploration_constant=exploration_constant,
+        max_iterations=max_iterations,
     )
 
 
@@ -90,7 +117,7 @@ class ToTStrategy(ReasoningStrategy):
         # Distinct name -> distinct report label + output folder.
         self.name = "tot" if variant is None else f"tot-{variant}"
 
-        self.config = _build_search_config()
+        self.config = _build_search_config(self.search_algorithm)
         self.search: ThoughtSearch = build_search(self.search_algorithm, self.config)
 
         self.propose = dspy.Predict(ThoughtProposerSignature)

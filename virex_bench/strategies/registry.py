@@ -18,7 +18,7 @@ _STRATEGY_REGISTRY: dict[str, type[ReasoningStrategy]] = {
 # Used for both `get_strategy` validation and `list_strategies` discovery.
 # Phased: "beam" (Phase 1), "dfs" (Phase 2), "mcts" (Phase 3).
 _STRATEGY_VARIANTS: dict[str, list[str]] = {
-    "tot": ["beam"],
+    "tot": ["beam", "dfs"],
 }
 
 _VARIANT_SEPARATOR = "-"
