@@ -18,6 +18,15 @@ class _TestSignature(dspy.Signature):
     answer: str = dspy.OutputField()
 
 
+def test_version_flag_prints_version_and_exits(capsys: pytest.CaptureFixture[str]) -> None:
+    parser = build_cli.build_parser()
+    with pytest.raises(SystemExit) as exc_info:
+        parser.parse_args(["--version"])
+    assert exc_info.value.code == 0
+    captured = capsys.readouterr()
+    assert captured.out.strip() == f"virex-bench {build_cli.__version__}"
+
+
 def test_run_parser_accepts_tot_dfs_strategy() -> None:
     parser = build_cli.build_parser()
     args = parser.parse_args(["run", "--model", "test-model", "--strategy", "tot-dfs"])

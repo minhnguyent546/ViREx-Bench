@@ -1,7 +1,7 @@
 import argparse
 import json
 
-from virex_bench import envs
+from virex_bench import __version__, envs
 from virex_bench.decoding import get_decoding, list_decoding
 from virex_bench.evaluation import evaluate, save_report
 from virex_bench.logger import init_logger, set_level
@@ -208,6 +208,11 @@ def build_parser() -> argparse.ArgumentParser:
         prog="virex-bench",
         description="Vietnamese Reasoning Exploration Benchmark",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
     )
     subparsers = parser.add_subparsers(title="subcommands", required=True)
 
