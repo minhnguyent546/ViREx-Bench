@@ -18,10 +18,11 @@ registry for what is currently implemented):
 - **Prompting / inference-time scaling** (`strategies/`): Chain-of-Thought (CoT),
   Tree-of-Thought (ToT), Self-Consistency, Program-of-Thought with symbolic reasoning
   (Z3 solver), and Monte-Carlo Tree-of-Thought (MCToT). *Implemented: direct baseline,
-  CoT.*
+  CoT, ToT (beam + DFS search).*
 - **Decoding** (`decoding/`): the baseline (single candidate, or multiple candidates
   aggregated by majority vote), Best-of-N with a verifier, and speculative decoding to
-  speed up inference. *Implemented: majority-vote aggregation.*
+  speed up inference. *Implemented: single-pass baseline, self-consistency (N-sample
+  majority vote + LLM aggregation).*
 
 **DSPy** is the main framework for implementing reasoning strategies. The CLI design is
 modeled on [`mteb`](https://github.com/embeddings-benchmark/mteb) — a CLI is sufficient
@@ -91,12 +92,22 @@ virex_bench/
 │   └── backends.py #   load_backend: build a BaseLM for an OpenAI-compatible endpoint
 ├── strategies/     # PROMPTING / inference-time scaling (dspy.Module subclasses)
 │   ├── base.py     #   ReasoningStrategy base class
-│   ├── registry.py #   get_strategy / list_strategies (registered: direct, cot)
+│   ├── registry.py #   get_strategy / list_strategies (registered: direct, cot, tot)
 │   ├── direct.py   #   baseline: direct answer
 │   ├── cot.py      #   Chain-of-Thought
-│   └── modules.py  #   reusable dspy modules: ChainOfThought, DualTask2ChainOfThought, ThinkingCaptureLM
+│   ├── modules.py  #   reusable dspy modules: ChainOfThought, DualTask2ChainOfThought, ThinkingCaptureLM
+│   └── tot/        #   Tree-of-Thoughts strategy package (Yao et al., 2023)
+│       ├── strategy.py # ToTStrategy — propose/evaluate/aggregate over a thought tree
+│       ├── common.py  # shared signatures + helpers (proposer/evaluator, scoring, dedupe)
+│       └── search/     # pluggable search algorithms (beam, DFS; MCTS planned)
+│           ├── __init__.py # search registry: build_search / list_search
+│           ├── base.py     # SearchConfig, SearchResult, ThoughtSearch ABC
+│           ├── beam.py     # BeamSearch (ToT's BFS)
+│           └── dfs.py      # DFSSearch (backtracking + value pruning)
 ├── decoding/       # DECODING / answer aggregation
-│   └── base.py     #   DecodingStrategy base + MajorityVote
+│   ├── base.py     #   DecodingStrategy base + SinglePass (single-candidate baseline)
+│   ├── registry.py #   get_decoding / list_decoding
+│   └── self_consistency.py # SelfConsistency: N-sample majority vote + LLM aggregation
 ├── evaluation/     # orchestration + scoring + LLM-as-a-judge
 │   ├── evaluate.py #   task × model × strategy loop + report serialization (save_report)
 │   ├── metrics.py  #   accuracy metrics + METRIC_REGISTRY / get_metric / judge_example
@@ -105,7 +116,8 @@ virex_bench/
 
 data/               # datasets (managed externally — do not edit by hand)
 notebooks/          # dataset-prep notebooks (e.g. eval-round → HF dataset conversion)
-scripts/            # dataset translation/serving helpers + eval test scripts
+scripts/            # dataset translation helpers + model-serving launchers (serving/)
+tests/              # pytest suite — mirrors the package layout (cli / evaluation / strategies [+ tot])
 results/            # benchmark run outputs
 ```
 
