@@ -56,19 +56,44 @@ class VietnameseLogicalReasoningSignature(dspy.Signature):
       If no requested fact is entailed, return "Không chắc chắn".
 
     Premises used (final-answer evidence):
-    - Alongside the answer, report the MINIMAL set of premises that actually
-      justify it. This is the final-answer evidence, NOT every premise you
-      inspected: exclude premises used only as background, to reject distractor
-      options, or that lead to unrelated consequences. Include the full positive
-      dependency chain — if a rule fires only because of some fact premises,
-      include both the rule and those fact premises.
+    - `premises_used` means final-answer evidence: the MINIMAL set of premises
+      necessary to justify the answer you are returning. It is NOT every premise
+      you read, inspected, or mentioned while thinking.
+    - Include the FULL positive dependency chain: if a rule fires only because of
+      some fact premises, cite BOTH the rule and those fact premises. Do not
+      return only rules without the facts that activate them, nor only the final
+      segment of a chain.
+    - EXCLUDE premises that were only used as background, to analyze or reject
+      non-selected options/distractors, or that lead to unrelated consequences --
+      even if they are true and you inspected them. If you discuss such a premise,
+      describe it in words WITHOUT citing its number.
+    - Citation rules by answer type:
+      * multiple_choice: cite only the minimal chain supporting the SELECTED
+        option. Exclude every premise used only to reject other options.
+      * yes_no_uncertain = "Có": cite every rule and fact needed to ENTAIL the
+        claim.
+      * yes_no_uncertain = "Không": cite every rule and fact needed to entail the
+        NEGATION of the claim.
+      * yes_no_uncertain = "Không chắc chắn": cite only the premises that
+        establish the blocking condition or missing link explaining why the claim
+        is not derived. Exclude unrelated chains. Do NOT return empty just because
+        the answer is uncertain.
+      * numeric: cite the premise(s) stating the quantity, plus any rule needed to
+        derive it.
+      * open_ended: cite the union of the supporting premises for the returned
+        derived fact(s) only.
+    - ALL-PREMISES WARNING: if your selected set equals every premise in the list,
+      this is almost always wrong. Keep all of them only if each one is genuinely
+      necessary for the final derivation; otherwise return the smallest sufficient
+      set.
     - `supporting_premise_indices` is the primary output: the 1-based indices of
       that minimal set (premise 1 is the first premise in the list), sorted
       ascending and deduplicated.
     - `relevant_premises` is a fallback: the EXACT original text of those same
-      premises, copied verbatim (do not rephrase or shorten). The two fields must
-      describe the same set.
-    - Return both empty only when no premise participates in deriving the answer.
+      premises, copied verbatim (do not rephrase or shorten -- the downstream
+      re-matcher needs a verbatim copy to recover the index). The two fields must
+      describe the SAME set, in the same order.
+    - Return both empty ONLY when no premise participates in deriving the answer.
     """
 
     premises: list[str] = dspy.InputField(desc="The list of premises. The only source of truth.")
@@ -97,18 +122,24 @@ class VietnameseLogicalReasoningSignature(dspy.Signature):
     )
     supporting_premise_indices: list[int] = dspy.OutputField(
         desc=(
-            "PRIMARY source of premises_used: the 1-based indices of the minimal set of "
-            "premises that justify `answer` (premise 1 is the first premise). Include the "
-            "full dependency chain (rules AND the fact premises that activate them); exclude "
+            "PRIMARY source of premises_used: the 1-based indices of the MINIMAL set of "
+            "premises that justify `answer` (premise 1 is the first premise). Follow the "
+            "per-answer-type and full-dependency-chain rules in the signature. Exclude "
             "premises used only as background or to reject other options. Sort ascending, "
-            "deduplicate, e.g. [1, 3, 4]. Empty only if no premise is used."
+            "deduplicate, e.g. [1, 3, 4]. Empty only if no premise is used. "
+            "ALL-PREMISES WARNING: returning every premise is almost always wrong. "
+            "EXAMPLES (style only): a Yes answer applies a rule that needs a fact premise "
+            "to fire -> cite BOTH, e.g. [4, 9], not [9] alone. An MCQ answer supported by "
+            "premises 1, 2, 4 where premise 5 only rejected a distractor -> [1, 2, 4], not "
+            "[1, 2, 4, 5]."
         )
     )
     relevant_premises: list[str] = dspy.OutputField(
         desc=(
             "FALLBACK for premises_used: the EXACT original text of the SAME premises listed "
             "in `supporting_premise_indices`, copied verbatim from the premise list (do not "
-            "rephrase, shorten, or add numbering). Same order, same set."
+            "rephrase, shorten, or add numbering). The downstream re-matcher needs a verbatim "
+            "copy to recover the correct index. Same set, same order as the indices."
         )
     )
 
