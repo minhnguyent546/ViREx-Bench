@@ -71,7 +71,12 @@ def _run(args: argparse.Namespace) -> None:
         f"task={report.task} model={report.model} backend={report.backend} "
         f"strategy={report.strategy} decoding={report.decoding}"
     )
-    print(f"{report.metric}={report.score:.4f} ({report.num_examples} examples)")
+    num_evaluated_examples = getattr(report, "num_evaluated_examples", None) or report.num_examples
+    if num_evaluated_examples == report.num_examples:
+        example_summary = f"{report.num_examples} examples"
+    else:
+        example_summary = f"{num_evaluated_examples}/{report.num_examples} examples"
+    print(f"{report.metric}={report.score:.4f} ({example_summary})")
 
     save_report(report, args.output_dir)
 
