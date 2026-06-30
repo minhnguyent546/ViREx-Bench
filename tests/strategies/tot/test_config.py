@@ -44,11 +44,11 @@ def _get_tot_config(strategy_name: str) -> SearchConfig:
     return cast(SearchConfig, strategy.config)
 
 
-def test_beam_default_early_stop_is_none(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Beam ships with stop-on-success disabled by default (preserves Phase 1 behavior)."""
+def test_beam_default_early_stop_threshold(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Beam ships with a stop-on-success threshold of 9.0 by default."""
     _clear_variant_envs(monkeypatch)
     config = _get_tot_config("tot-beam")
-    assert config.early_stop_threshold is None
+    assert config.early_stop_threshold == 9.0
     # beam has a fixed budget; max_iterations is unused.
     assert config.max_iterations is None
 
@@ -111,7 +111,7 @@ def test_dfs_threshold_does_not_leak_into_beam(monkeypatch: pytest.MonkeyPatch) 
     _clear_variant_envs(monkeypatch)
     monkeypatch.setenv("VIREX_BENCH_TOT_DFS_PRUNE_THRESHOLD", "7.0")
     config = _get_tot_config("tot-beam")
-    assert config.early_stop_threshold is None  # beam reads its own var
+    assert config.early_stop_threshold == 9.0  # beam default, unaffected by DFS env
 
 
 def test_beam_threshold_does_not_leak_into_dfs(monkeypatch: pytest.MonkeyPatch) -> None:

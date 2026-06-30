@@ -7,6 +7,7 @@ correctness -- without any real LM calls.
 
 from typing import Any
 
+import dspy
 import pytest
 
 from virex_bench.strategies.tot.search import SearchConfig
@@ -56,6 +57,24 @@ class _FakeEvaluator:
         self._index += 1
         self.call_count += 1
         return _FakePrediction(score=scores)
+
+
+class _OverflowProposer:
+    """Acts like ``_FakeProposer`` but raises on its Nth call (1-indexed)."""
+
+    def __init__(self, thoughts_before_overflow: list[list[str]], overflow_on_call: int) -> None:
+        self._thoughts = list(thoughts_before_overflow)
+        self._overflow_on_call = overflow_on_call
+        self._index = 0
+        self.call_count = 0
+
+    def __call__(self, **kwargs: Any) -> _FakePrediction:
+        self.call_count += 1
+        if self.call_count == self._overflow_on_call:
+            raise dspy.ContextWindowExceededError(message="simulated overflow")
+        thoughts = self._thoughts[self._index]
+        self._index += 1
+        return _FakePrediction(next_thought=thoughts)
 
 
 def _make_config(**overrides: Any) -> SearchConfig:
@@ -274,3 +293,27 @@ def test_dfs_empty_proposals_stall_immediately() -> None:
     assert result.nodes_visited == 0
     assert result.propose_calls == 1
     assert result.evaluate_calls == 0
+
+
+def test_dfs_returns_best_path_on_context_overflow() -> None:
+    """A context-window overflow mid-search returns the best path found so far
+    instead of crashing. The overflowing expansion is not counted."""
+    config = _make_config(max_depth=3, branching_factor=2, max_iterations=20)
+    proposer = _OverflowProposer(
+        thoughts_before_overflow=[["A", "B"]],  # root expansion succeeds
+        overflow_on_call=2,  # descending into best child overflows (path too long)
+    )
+    evaluator = _FakeEvaluator([["5"], ["8"]])  # A -> 5, B -> 8 (B is best survivor)
+    search = DFSSearch(config)
+    result = search.search(
+        premises=["p1"],
+        question="q",
+        propose=proposer,  # type: ignore[arg-type]
+        evaluate=evaluator,  # type: ignore[arg-type]
+    )
+
+    assert result.best_path == ["B"]
+    assert result.best_score == 8.0
+    assert result.depth_reached == 1
+    assert result.propose_calls == 1  # the overflowing expansion did not complete
+    assert result.evaluate_calls == 2

@@ -7,6 +7,7 @@ real LM calls.
 
 from typing import Any
 
+import dspy
 import pytest
 
 from virex_bench.strategies.tot.search import SearchConfig
@@ -55,6 +56,42 @@ class _FakeEvaluator:
         scores = self._scores[self._index]
         self._index += 1
         self.call_count += 1
+        return _FakePrediction(score=scores)
+
+
+class _OverflowProposer:
+    """Acts like ``_FakeProposer`` but raises on its Nth call (1-indexed)."""
+
+    def __init__(self, thoughts_before_overflow: list[list[str]], overflow_on_call: int) -> None:
+        self._thoughts = list(thoughts_before_overflow)
+        self._overflow_on_call = overflow_on_call
+        self._index = 0
+        self.call_count = 0
+
+    def __call__(self, **kwargs: Any) -> _FakePrediction:
+        self.call_count += 1
+        if self.call_count == self._overflow_on_call:
+            raise dspy.ContextWindowExceededError(message="simulated overflow")
+        thoughts = self._thoughts[self._index]
+        self._index += 1
+        return _FakePrediction(next_thought=thoughts)
+
+
+class _OverflowEvaluator:
+    """Acts like ``_FakeEvaluator`` but raises on its Nth call (1-indexed)."""
+
+    def __init__(self, scores_before_overflow: list[list[str]], overflow_on_call: int) -> None:
+        self._scores = list(scores_before_overflow)
+        self._overflow_on_call = overflow_on_call
+        self._index = 0
+        self.call_count = 0
+
+    def __call__(self, **kwargs: Any) -> _FakePrediction:
+        self.call_count += 1
+        if self.call_count == self._overflow_on_call:
+            raise dspy.ContextWindowExceededError(message="simulated overflow")
+        scores = self._scores[self._index]
+        self._index += 1
         return _FakePrediction(score=scores)
 
 
@@ -226,3 +263,72 @@ def test_beam_width_validation() -> None:
     config_zero = _make_config(beam_width=0)
     with pytest.raises(ValueError, match="beam_width"):
         BeamSearch(config_zero)
+
+
+def test_beam_returns_best_path_on_proposer_overflow() -> None:
+    """A context-window overflow on a later proposer call returns the best path
+    found so far instead of crashing. The overflowing call is not counted."""
+    config = _make_config(max_depth=3, beam_width=1, branching_factor=2)
+    proposer = _OverflowProposer(
+        thoughts_before_overflow=[["A", "B"]],  # depth 0 succeeds
+        overflow_on_call=2,  # depth 1 proposer call overflows (path too long)
+    )
+    evaluator = _FakeEvaluator([["8"], ["5"]])  # A -> 8, B -> 5
+    search = BeamSearch(config)
+    result = search.search(
+        premises=["p1"],
+        question="q",
+        propose=proposer,  # type: ignore[arg-type]
+        evaluate=evaluator,  # type: ignore[arg-type]
+    )
+
+    assert result.best_path == ["A"]
+    assert result.best_score == 8.0
+    assert result.depth_reached == 1
+    assert result.propose_calls == 1  # the overflowing call did not complete
+    assert result.evaluate_calls == 2
+
+
+def test_beam_returns_best_path_on_evaluator_overflow() -> None:
+    """A context-window overflow mid-evaluation still returns the best leaf
+    evaluated before the overflow (a partial depth's worth of candidates)."""
+    config = _make_config(max_depth=2, beam_width=1, branching_factor=2)
+    proposer = _FakeProposer([["A", "B"]])
+    evaluator = _OverflowEvaluator(
+        scores_before_overflow=[["8"]],  # A -> 8 (recorded as best)
+        overflow_on_call=2,  # B's evaluation overflows
+    )
+    search = BeamSearch(config)
+    result = search.search(
+        premises=["p1"],
+        question="q",
+        propose=proposer,  # type: ignore[arg-type]
+        evaluate=evaluator,  # type: ignore[arg-type]
+    )
+
+    assert result.best_path == ["A"]
+    assert result.best_score == 8.0
+    assert result.depth_reached == 1
+    assert result.evaluate_calls == 1  # B's evaluation did not complete
+
+
+def test_beam_overflow_at_root_returns_empty_path() -> None:
+    """If even the first proposer call overflows, the search returns an empty
+    path (root placeholder) rather than raising -- the aggregator then answers
+    from premises + question alone."""
+    config = _make_config(max_depth=3, beam_width=1, branching_factor=2)
+    proposer = _OverflowProposer(thoughts_before_overflow=[], overflow_on_call=1)
+    evaluator = _FakeEvaluator([])
+    search = BeamSearch(config)
+    result = search.search(
+        premises=["p1"],
+        question="q",
+        propose=proposer,  # type: ignore[arg-type]
+        evaluate=evaluator,  # type: ignore[arg-type]
+    )
+
+    assert result.best_path == []
+    assert result.best_score == 0.0
+    assert result.depth_reached == 0
+    assert result.propose_calls == 0
+    assert result.evaluate_calls == 0
