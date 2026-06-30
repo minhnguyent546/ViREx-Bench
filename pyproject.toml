@@ -38,7 +38,7 @@ dependencies = [
     "tqdm>=4.66.0",
     "torch==2.11.0",
     "torchvision==0.26.0",
-    "transformers>=5.6.0,<5.7.0",
+    "transformers>=5.6.0,<=5.8.1",
     "kernels>=0.14.1,<0.15.0",
 ]
 
@@ -79,6 +79,10 @@ sglang-spec-v2-dflash-support = [
     "flashinfer-python>=0.6.8.post1",
     "sglang",
 ]
+sglang-v0-5-14 = [
+    "flashinfer-python>=0.6.12",
+    "sglang",
+]
 
 [tool.uv]
 conflicts = [
@@ -86,6 +90,7 @@ conflicts = [
     { group = "vllm-v0-20" },
     { group = "vllm-v0-23" },
     { group = "sglang-spec-v2-dflash-support" },
+    { group = "sglang-v0-5-14" },
   ]
 ]
 
@@ -138,4 +143,5 @@ vllm = [
 ]
 sglang = [
     { group = "sglang-spec-v2-dflash-support", url = "https://huggingface.co/datasets/minhnguyent546/wheelhouse/resolve/490d7cea06b7f998eb36071ab2257cb0384249b6/SGLang/sglang-0.5.13.dev23+g93758bb00-cp312-cp312-linux_x86_64.whl"  },
+    { group = "sglang-v0-5-14", url = "https://huggingface.co/datasets/minhnguyent546/wheelhouse/resolve/e8491995c210f7b3b1e4034d2d23bc957bdd136c/SGLang/sglang-0.5.14-cp312-cp312-linux_x86_64.whl"  },
 ]
