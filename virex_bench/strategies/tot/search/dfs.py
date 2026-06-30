@@ -139,20 +139,26 @@ class DFSSearch(ThoughtSearch):
         # are depth 1); the root itself is never scored, mirroring beam's uncounted root
         # placeholder. Each frame tracks which surviving child to descend into next.
         root = ThoughtNode(path=[], score=0.0, depth=0)
-        stack: list[_DFSFrame] = [_DFSFrame(node=root, survivors=expand(root), next_index=0)]
+        try:
+            stack: list[_DFSFrame] = [_DFSFrame(node=root, survivors=expand(root), next_index=0)]
 
-        while stack and propose_calls < max_iterations:
-            frame = stack[-1]
-            if frame.next_index < len(frame.survivors):
-                child = frame.survivors[frame.next_index]
-                frame.next_index += 1
-                # Leaves at max_depth cannot be expanded; try the next sibling.
-                if child.depth >= config.max_depth:
-                    continue
-                stack.append(_DFSFrame(node=child, survivors=expand(child), next_index=0))
-            else:
-                # All siblings exhausted -> backtrack to the parent.
-                stack.pop()
+            while stack and propose_calls < max_iterations:
+                frame = stack[-1]
+                if frame.next_index < len(frame.survivors):
+                    child = frame.survivors[frame.next_index]
+                    frame.next_index += 1
+                    # Leaves at max_depth cannot be expanded; try the next sibling.
+                    if child.depth >= config.max_depth:
+                        continue
+                    stack.append(_DFSFrame(node=child, survivors=expand(child), next_index=0))
+                else:
+                    # All siblings exhausted -> backtrack to the parent.
+                    stack.pop()
+        except dspy.ContextWindowExceededError:
+            logger.debug(
+                f"ToT DFS: context window exceeded; returning best path so far "
+                f"(depth {best_leaf.depth}, score {best_leaf.score:.2f})"
+            )
 
         logger.debug(
             f"ToT DFS done: explored {nodes_visited} nodes over {propose_calls} expansions, "

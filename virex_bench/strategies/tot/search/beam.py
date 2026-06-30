@@ -60,37 +60,45 @@ class BeamSearch(ThoughtSearch):
 
         for depth in range(config.max_depth):
             candidates: list[ThoughtNode] = []
-            for node in frontier:
-                proposed = propose(
-                    premises=premises,
-                    question=question,
-                    reasoning_so_far=render_thought_path(node.path),
-                    config={
-                        "n": config.branching_factor,
-                        "temperature": config.propose_temperature,
-                    },
-                )
-                propose_calls += 1
-                thoughts = dedupe_thoughts(completion_values(proposed, "next_thought"))
-                for thought in thoughts:
-                    child_path = [*node.path, thought]
-                    evaluated = evaluate(
+            try:
+                for node in frontier:
+                    proposed = propose(
                         premises=premises,
                         question=question,
-                        reasoning_path=render_thought_path(child_path),
+                        reasoning_so_far=render_thought_path(node.path),
                         config={
-                            "n": config.n_eval_samples,
-                            "temperature": config.evaluate_temperature,
+                            "n": config.branching_factor,
+                            "temperature": config.propose_temperature,
                         },
                     )
-                    evaluate_calls += 1
-                    score = mean_score(completion_values(evaluated, "score"))
-                    child = ThoughtNode(path=child_path, score=score, depth=depth + 1)
-                    candidates.append(child)
-                    nodes_visited += 1
-                    depth_reached = depth + 1
-                    if is_better(child, best_leaf):
-                        best_leaf = child
+                    propose_calls += 1
+                    thoughts = dedupe_thoughts(completion_values(proposed, "next_thought"))
+                    for thought in thoughts:
+                        child_path = [*node.path, thought]
+                        evaluated = evaluate(
+                            premises=premises,
+                            question=question,
+                            reasoning_path=render_thought_path(child_path),
+                            config={
+                                "n": config.n_eval_samples,
+                                "temperature": config.evaluate_temperature,
+                            },
+                        )
+                        evaluate_calls += 1
+                        score = mean_score(completion_values(evaluated, "score"))
+                        child = ThoughtNode(path=child_path, score=score, depth=depth + 1)
+                        candidates.append(child)
+                        nodes_visited += 1
+                        depth_reached = depth + 1
+                        if is_better(child, best_leaf):
+                            best_leaf = child
+            except dspy.ContextWindowExceededError:
+                logger.debug(
+                    f"ToT beam: context window exceeded at depth {depth + 1}; "
+                    f"returning best path so far (depth {best_leaf.depth}, "
+                    f"score {best_leaf.score:.2f})"
+                )
+                break
 
             if (
                 config.early_stop_threshold is not None
