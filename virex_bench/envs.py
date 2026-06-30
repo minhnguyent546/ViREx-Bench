@@ -71,9 +71,9 @@ if TYPE_CHECKING:
     # Candidate next-thoughts requested per node per step (proposer branching factor).
     VIREX_BENCH_TOT_BRANCHING_FACTOR: int = 3
     # Survivors kept per tree layer after evaluation (beam width).
-    VIREX_BENCH_TOT_BEAM_WIDTH: int = 2
+    VIREX_BENCH_TOT_BEAM_WIDTH: int = 3
     # Independent evaluator votes averaged to score each candidate path.
-    VIREX_BENCH_TOT_EVAL_SAMPLES: int = 1
+    VIREX_BENCH_TOT_EVAL_SAMPLES: int = 3
     # Sampling temperature for the proposer (higher -> more diverse thoughts).
     VIREX_BENCH_TOT_PROPOSE_TEMPERATURE: float = 0.7
     # Sampling temperature for the evaluator (0.0 -> deterministic scoring).
@@ -209,9 +209,9 @@ environment_variables: dict[str, Callable[[], Any]] = {
     "VIREX_BENCH_TOT_BRANCHING_FACTOR": lambda: int(
         os.environ.get("VIREX_BENCH_TOT_BRANCHING_FACTOR", "3")
     ),
-    "VIREX_BENCH_TOT_BEAM_WIDTH": lambda: int(os.environ.get("VIREX_BENCH_TOT_BEAM_WIDTH", "2")),
+    "VIREX_BENCH_TOT_BEAM_WIDTH": lambda: int(os.environ.get("VIREX_BENCH_TOT_BEAM_WIDTH", "3")),
     "VIREX_BENCH_TOT_EVAL_SAMPLES": lambda: int(
-        os.environ.get("VIREX_BENCH_TOT_EVAL_SAMPLES", "1")
+        os.environ.get("VIREX_BENCH_TOT_EVAL_SAMPLES", "3")
     ),
     "VIREX_BENCH_TOT_PROPOSE_TEMPERATURE": lambda: float(
         os.environ.get("VIREX_BENCH_TOT_PROPOSE_TEMPERATURE", "0.7")
