@@ -3,9 +3,15 @@
 Implements ToT's DFS (Yao et al. 2023, Algorithm 2): from a node, propose
 ``branching_factor`` candidate next-thoughts, evaluate each, **prune** children whose
 evaluator score falls below ``early_stop_threshold`` (ToT's value-pruning threshold
-``v_th``), then recurse depth-first into the highest-scoring surviving child. When a node
-has no surviving children (a dead-end) the search **backtracks** to the parent and tries
-the next sibling.
+``v_th`` -- defaults to 3.0, the "dead end" boundary of the evaluator's 1-10 scale), then
+recurse depth-first into the highest-scoring surviving child. When a node has no
+surviving children (a dead-end) the search **backtracks** to the parent and tries the
+next sibling.
+
+A **stop-on-success** threshold (``config.success_threshold``) halts the entire search
+once the best path scores >= this value -- analogous to beam's
+``early_stop_threshold``. Without it, DFS always exhausts its ``max_iterations`` budget
+even after finding a perfect path.
 
 Unlike beam, DFS keeps no frontier: it commits to one path at a time and can recover
 branches beam would prune irrevocably. It has no natural budget cap, so
@@ -13,6 +19,11 @@ branches beam would prune irrevocably. It has no natural budget cap, so
 hard safety valve; the pruning threshold does the real budget control in the common case.
 When ``max_iterations`` is unset it defaults to ``max_depth * branching_factor``
 expansions so ``tot-dfs`` runs out of the box without risking exponential blowup.
+
+Context-window overflows on a deep branch are caught **per-branch**: the overflowing
+branch is treated as a dead-end and DFS backtracks to try shorter siblings, rather than
+aborting the entire search. An overflow on the root expansion (rare) falls through to the
+outer handler and returns the best path found so far.
 
 Note on the shared threshold: ``early_stop_threshold`` is ToT's ``v_th`` here -- children
 scored below it are evaluated and counted toward ``nodes_visited`` but are not expanded.
@@ -78,6 +89,7 @@ class DFSSearch(ThoughtSearch):
     ) -> SearchResult:
         config = self.config
         early_stop_threshold = config.early_stop_threshold
+        success_threshold = config.success_threshold
         max_iterations = self.max_iterations
 
         nodes_visited = 0
@@ -143,6 +155,13 @@ class DFSSearch(ThoughtSearch):
             stack: list[_DFSFrame] = [_DFSFrame(node=root, survivors=expand(root), next_index=0)]
 
             while stack and propose_calls < max_iterations:
+                if success_threshold is not None and best_leaf.score >= success_threshold:
+                    logger.debug(
+                        f"ToT DFS early stop: best score {best_leaf.score:.1f} "
+                        f">= threshold {success_threshold}"
+                    )
+                    break
+
                 frame = stack[-1]
                 if frame.next_index < len(frame.survivors):
                     child = frame.survivors[frame.next_index]
@@ -150,13 +169,20 @@ class DFSSearch(ThoughtSearch):
                     # Leaves at max_depth cannot be expanded; try the next sibling.
                     if child.depth >= config.max_depth:
                         continue
-                    stack.append(_DFSFrame(node=child, survivors=expand(child), next_index=0))
+                    try:
+                        stack.append(_DFSFrame(node=child, survivors=expand(child), next_index=0))
+                    except dspy.ContextWindowExceededError:
+                        logger.debug(
+                            f"ToT DFS: context window exceeded at depth {child.depth}; "
+                            f"treating branch as dead-end"
+                        )
+                        continue
                 else:
                     # All siblings exhausted -> backtrack to the parent.
                     stack.pop()
         except dspy.ContextWindowExceededError:
             logger.debug(
-                f"ToT DFS: context window exceeded; returning best path so far "
+                f"ToT DFS: context window exceeded at root; returning best path so far "
                 f"(depth {best_leaf.depth}, score {best_leaf.score:.2f})"
             )
 

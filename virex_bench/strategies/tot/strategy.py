@@ -49,12 +49,14 @@ def _build_search_config(search_algorithm: str) -> SearchConfig:
     The propose/evaluate operation knobs (depth, branching, eval samples,
     temperatures, dedupe) are shared across all algorithms. The threshold and
     budget cap are variant-specific -- ``early_stop_threshold`` is stop-on-success
-    for beam and ToT's ``v_th`` pruning for DFS; ``max_iterations`` caps DFS/MCTS
-    and is unused by beam -- so the right env var is selected per
-    ``search_algorithm``.
+    for beam and ToT's ``v_th`` pruning for DFS; ``success_threshold`` is DFS's
+    stop-on-success (analogous to beam's ``early_stop_threshold``);
+    ``max_iterations`` caps DFS/MCTS and is unused by beam -- so the right env var
+    is selected per ``search_algorithm``.
     """
     beam_width: int | None = None
     exploration_constant: float | None = None
+    success_threshold: float | None = None
     if search_algorithm == "beam":
         early_stop_threshold = envs.VIREX_BENCH_TOT_BEAM_EARLY_STOP_THRESHOLD
         max_iterations = None  # beam has a fixed budget (max_depth * beam_width).
@@ -62,6 +64,7 @@ def _build_search_config(search_algorithm: str) -> SearchConfig:
     elif search_algorithm == "dfs":
         early_stop_threshold = envs.VIREX_BENCH_TOT_DFS_PRUNE_THRESHOLD
         max_iterations = envs.VIREX_BENCH_TOT_DFS_MAX_ITERATIONS
+        success_threshold = envs.VIREX_BENCH_TOT_DFS_STOP_THRESHOLD
     elif search_algorithm == "mcts":
         # Forward-declared for Phase 3; MCTS does not use early_stop_threshold.
         early_stop_threshold = None
@@ -82,6 +85,7 @@ def _build_search_config(search_algorithm: str) -> SearchConfig:
         beam_width=beam_width,
         exploration_constant=exploration_constant,
         max_iterations=max_iterations,
+        success_threshold=success_threshold,
     )
 
 
@@ -156,6 +160,7 @@ class ToTStrategy(ReasoningStrategy):
             "beam_width": self.config.beam_width,
             "exploration_constant": self.config.exploration_constant,
             "max_iterations": self.config.max_iterations,
+            "success_threshold": self.config.success_threshold,
         }
 
     def forward(self, **inputs: object) -> dspy.Prediction:

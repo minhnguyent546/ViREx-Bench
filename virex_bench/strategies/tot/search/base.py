@@ -40,6 +40,7 @@ class SearchConfig:
     beam_width: int | None = None  # beam
     exploration_constant: float | None = None  # MCTS (c_puct)
     max_iterations: int | None = None  # DFS / MCTS hard budget cap (beam ignores)
+    success_threshold: float | None = None  # DFS stop-on-success (beam uses early_stop_threshold)
 
     def __post_init__(self) -> None:
         if self.max_depth < 1:

@@ -92,10 +92,17 @@ if TYPE_CHECKING:
     # unset/empty to disable. DFS uses TOT_DFS_PRUNE_THRESHOLD instead.
     VIREX_BENCH_TOT_BEAM_EARLY_STOP_THRESHOLD: float | None = 9.0
     # DFS: ToT's value-pruning threshold (v_th). Children scored below this are
-    # evaluated & counted but NOT expanded. Defaults to 5.0 (midpoint of the 1-10
-    # band) so long chains prune dead-ends without starving correct-but-incomplete
-    # prefixes. Beam uses TOT_BEAM_EARLY_STOP_THRESHOLD instead.
-    VIREX_BENCH_TOT_DFS_PRUNE_THRESHOLD: float | None = 5.0
+    # evaluated & counted but NOT expanded. Defaults to 3.0: the evaluator reserves
+    # 1-3 for "dead end / mostly unsound" paths, so this prunes only true dead-ends
+    # while letting "on track but incomplete" steps (4-6) survive for deeper
+    # exploration. Beam uses TOT_BEAM_EARLY_STOP_THRESHOLD instead.
+    VIREX_BENCH_TOT_DFS_PRUNE_THRESHOLD: float | None = 3.0
+    # DFS: stop-on-success threshold. When the best path's evaluator score reaches
+    # this, the entire search stops immediately -- analogous to beam's
+    # TOT_BEAM_EARLY_STOP_THRESHOLD. Defaults to 9.0: a score >= 9 means the path
+    # has already derived the answer, so further exploration only wastes budget.
+    # Unset/empty to disable.
+    VIREX_BENCH_TOT_DFS_STOP_THRESHOLD: float | None = 9.0
     # DFS: hard cap on node expansions (one proposer call each). Unset/empty lets
     # DFSSearch auto-derive max_depth * branching_factor. Beam ignores this.
     VIREX_BENCH_TOT_DFS_MAX_ITERATIONS: int | None = None
@@ -216,7 +223,7 @@ environment_variables: dict[str, Callable[[], Any]] = {
     "VIREX_BENCH_TOT_PROPOSE_TEMPERATURE": lambda: float(
         os.environ.get("VIREX_BENCH_TOT_PROPOSE_TEMPERATURE", "0.7")
     ),
-    "VIREX_BENCH_TOT_EVALUATE_TEMPERATURE": lambda: float(
+"VIREX_BENCH_TOT_EVALUATE_TEMPERATURE": lambda: float(
         os.environ.get("VIREX_BENCH_TOT_EVALUATE_TEMPERATURE", "0.0")
     ),
     "VIREX_BENCH_TOT_BEAM_EARLY_STOP_THRESHOLD": lambda: (
@@ -227,7 +234,12 @@ environment_variables: dict[str, Callable[[], Any]] = {
     "VIREX_BENCH_TOT_DFS_PRUNE_THRESHOLD": lambda: (
         float(value)
         if (value := os.environ.get("VIREX_BENCH_TOT_DFS_PRUNE_THRESHOLD")) not in (None, "")
-        else 5.0
+        else 3.0
+    ),
+    "VIREX_BENCH_TOT_DFS_STOP_THRESHOLD": lambda: (
+        float(value)
+        if (value := os.environ.get("VIREX_BENCH_TOT_DFS_STOP_THRESHOLD")) not in (None, "")
+        else 9.0
     ),
     "VIREX_BENCH_TOT_SEARCH_ALGORITHM": lambda: env_with_choices(
         "VIREX_BENCH_TOT_SEARCH_ALGORITHM",
