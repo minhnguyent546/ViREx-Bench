@@ -6,8 +6,7 @@ from virex_bench.decoding import get_decoding, list_decoding
 from virex_bench.evaluation import evaluate, save_report
 from virex_bench.logger import init_logger, set_level
 from virex_bench.models import get_model
-from virex_bench.strategies import get_strategy, list_strategies
-from virex_bench.strategies.registry import parse_strategy_name
+from virex_bench.strategies import list_strategies
 from virex_bench.tasks import get_task, list_tasks
 
 logger = init_logger(__name__)
@@ -46,10 +45,7 @@ def _run(args: argparse.Namespace) -> None:
     logger.debug(
         f"Loaded model {args.model} with backend {args.backend} and kwargs {args.model_kwargs}"
     )
-    base_strategy, _variant = parse_strategy_name(args.strategy)
-    signature = task.get_signature(base_strategy)
-    rationale_field = task.get_rationale_field(base_strategy)
-    strategy = get_strategy(args.strategy, signature, rationale_field=rationale_field)
+    strategy = task.get_strategy(args.strategy)
 
     decoding_kwargs: dict[str, object] = {}
     if args.decoding_num_samples is not None:

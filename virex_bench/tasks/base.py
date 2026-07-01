@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from collections.abc import Mapping
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import datasets
 import dspy
@@ -7,7 +9,11 @@ from pydantic.fields import FieldInfo
 
 from virex_bench import envs
 from virex_bench.logger import init_logger
+from virex_bench.strategies.registry import get_strategy, parse_strategy_name
 from virex_bench.types import ReasoningExample, ScoreComponents, TaskMetadata
+
+if TYPE_CHECKING:
+    from virex_bench.strategies.base import ReasoningStrategy
 
 logger = init_logger(__name__)
 
@@ -82,6 +88,16 @@ class ReasoningTask:
         strategy use the DSPy module's built-in reasoning field).
         """
         return self.rationale_fields.get(strategy_name, self.rationale_fields.get("default"))
+
+    def get_strategy(self, strategy_name: str) -> ReasoningStrategy:
+        """Build a strategy using this task's signature and rationale-field config."""
+
+        base_strategy_name, _variant = parse_strategy_name(strategy_name)
+        return get_strategy(
+            name=strategy_name,
+            signature=self.get_signature(base_strategy_name),
+            rationale_field=self.get_rationale_field(base_strategy_name),
+        )
 
     def example_to_inputs(self, example: ReasoningExample) -> dict[str, object]:
         """Convert an example into the dict of input kwargs for the signature."""
