@@ -57,18 +57,16 @@ def _run(args: argparse.Namespace) -> None:
     decoding_strategy = get_decoding(args.decoding, strategy, **decoding_kwargs)
 
     report = evaluate(
-        task,
-        lm,
-        strategy,
-        model_name=args.model,
-        backend=args.backend,
+        task=task,
+        lm=lm,
+        strategy=strategy,
         num_threads=args.num_threads,
         decoding=decoding_strategy,
         max_examples=args.max_examples,
     )
 
     print(
-        f"task={report.task} model={report.model} backend={report.backend} "
+        f"task={report.task} model={report.model}"
         f"strategy={report.strategy} decoding={report.decoding}"
     )
     num_evaluated_examples = getattr(report, "num_evaluated_examples", None) or report.num_examples

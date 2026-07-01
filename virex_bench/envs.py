@@ -44,11 +44,11 @@ if TYPE_CHECKING:
     # public datasets; required for gated or private ones.
     HF_TOKEN: str | None = None
 
-    # API key for the DeepSeek API, used by the LLM-as-a-judge metric.
-    DEEPSEEK_API_KEY: str | None = None
+    # API key for the judge model provider, used by the LLM-as-a-judge metric.
+    VIREX_BENCH_JUDGE_API_KEY: str | None = None
 
     # DeepSeek model used by the LLM-as-a-judge metric.
-    VIREX_BENCH_JUDGE_MODEL: Literal["deepseek-v4-pro", "deepseek-v4-flash"] = "deepseek-v4-pro"
+    VIREX_BENCH_JUDGE_MODEL: Literal["deepseek-v4-pro", "deepseek-v4-flash"] = "deepseek-v4-flash"
 
     # Maximum number of attempts (including the first call) for transient LM
     # connection errors (timeouts, connection resets, HTTP 429/500/503).
@@ -192,11 +192,11 @@ environment_variables: dict[str, Callable[[], Any]] = {
     "OPENAI_API_KEY": lambda: os.environ.get("OPENAI_API_KEY"),
     # --- HuggingFace Hub (task datasets) ---
     "HF_TOKEN": lambda: os.environ.get("HF_TOKEN"),
-    # --- LLM-as-a-judge (DeepSeek) ---
-    "DEEPSEEK_API_KEY": lambda: os.environ.get("DEEPSEEK_API_KEY"),
+    # --- LLM-as-a-judge ---
+    "VIREX_BENCH_JUDGE_API_KEY": lambda: os.environ.get("VIREX_BENCH_JUDGE_API_KEY"),
     "VIREX_BENCH_JUDGE_MODEL": env_with_choices(
         "VIREX_BENCH_JUDGE_MODEL",
-        "deepseek-v4-pro",
+        "deepseek-v4-flash",
         ["deepseek-v4-pro", "deepseek-v4-flash"],
         case_sensitive=False,
     ),

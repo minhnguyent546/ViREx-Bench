@@ -171,16 +171,18 @@ class LogicalReasoningJudgeSignature(dspy.Signature):
 def build_judge_lm() -> BaseLM:
     """Build the fixed DeepSeek reasoning LM used by the judge.
 
-    The model (``deepseek-v4-pro`` by default, or ``deepseek-v4-flash``) is chosen via
-    the ``VIREX_BENCH_JUDGE_MODEL`` env var; the API key via ``DEEPSEEK_API_KEY``.
+    The model (``deepseek-v4-flash`` by default, or ``deepseek-v4-pro``) is chosen via
+    the ``VIREX_BENCH_JUDGE_MODEL`` env var; the API key via
+    ``VIREX_BENCH_JUDGE_API_KEY``.
     """
     judge_model_name = envs.VIREX_BENCH_JUDGE_MODEL
     if judge_model_name.lower().startswith("deepseek-v4-"):
-        api_key = envs.DEEPSEEK_API_KEY
+        api_key = envs.VIREX_BENCH_JUDGE_API_KEY
         if api_key is None:
             raise RuntimeError(
-                "DEEPSEEK_API_KEY is not set. The llm_judge metric requires a DeepSeek API "
-                "key — set it via the DEEPSEEK_API_KEY environment variable."
+                "VIREX_BENCH_JUDGE_API_KEY is not set. The llm_judge metric requires "
+                "a judge model API key. Set it via the VIREX_BENCH_JUDGE_API_KEY "
+                "environment variable."
             )
         return BaseLM(
             model=f"deepseek/{judge_model_name}",

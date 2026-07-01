@@ -1,7 +1,13 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import dspy
 
 from virex_bench.strategies.base import ReasoningStrategy
-from virex_bench.tasks.base import ReasoningTask
+
+if TYPE_CHECKING:
+    from virex_bench.tasks.base import ReasoningTask
 
 
 class DecodingStrategy(dspy.Module):

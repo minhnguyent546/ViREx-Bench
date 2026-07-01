@@ -210,8 +210,6 @@ def evaluate(
     task: ReasoningTask,
     lm: BaseLM,
     strategy: ReasoningStrategy,
-    model_name: str,
-    backend: str,
     num_threads: int = 8,
     decoding: DecodingStrategy | None = None,
     max_examples: int | None = None,
@@ -250,7 +248,7 @@ def evaluate(
     decoding_strategy.configure_from_task(task)
 
     logger.info(
-        f"Evaluating task={task.name} model={model_name} "
+        f"Evaluating task={task.name} model={lm.model} "
         f"strategy={strategy.name} decoding={decoding_strategy.display_name} "
         f"metric={metric_name} "
         + (f"judge={judge_name} [{judge_model_name}] " if judge_name is not None else "")
@@ -354,8 +352,7 @@ def evaluate(
     return EvaluationReport(
         task=task.name,
         dataset=task.metadata.dataset,
-        model=model_name,
-        backend=backend,
+        model=lm.model,
         model_kwargs=model_kwargs,
         lm_retry_kwargs=lm_retry_kwargs,
         strategy=strategy.name,

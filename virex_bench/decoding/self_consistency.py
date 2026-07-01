@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import copy
 import difflib
 import json
@@ -5,7 +7,7 @@ import re
 import time
 from collections.abc import Sequence
 from concurrent.futures import ALL_COMPLETED, Future, ThreadPoolExecutor, wait
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import dspy
 
@@ -15,7 +17,9 @@ from virex_bench.logger import init_logger
 from virex_bench.models.base import BaseLM
 from virex_bench.strategies.base import ReasoningStrategy
 from virex_bench.strategies.modules import ChainOfThought
-from virex_bench.tasks.base import ReasoningTask
+
+if TYPE_CHECKING:
+    from virex_bench.tasks.base import ReasoningTask
 
 logger = init_logger(__name__)
 

@@ -69,11 +69,9 @@ def test_evaluate_reports_original_and_evaluated_example_counts(
     monkeypatch.setattr(evaluate_module.dspy, "configure", lambda **_kwargs: None)
 
     report = evaluate_module.evaluate(
-        _FakeTask(examples),
-        SimpleNamespace(kwargs={}),
-        SimpleNamespace(name="direct", report_config={}),
-        model_name="test-model",
-        backend="openai",
+        task=_FakeTask(examples),
+        lm=SimpleNamespace(model="test-model", kwargs={}),
+        strategy=SimpleNamespace(name="direct", report_config={}),
         num_threads=1,
         decoding=_FakeDecoding(),
         max_examples=2,

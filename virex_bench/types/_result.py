@@ -46,7 +46,6 @@ class EvaluationReport(BaseModel):
     task: str
     dataset: DatasetConfig
     model: str
-    backend: str
     model_kwargs: dict[str, object] = {}
     lm_retry_kwargs: dict[str, object] = {}
     strategy: str
