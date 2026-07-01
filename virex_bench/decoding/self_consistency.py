@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextvars
 import copy
 import difflib
 import json
@@ -204,10 +205,18 @@ class SelfConsistency(DecodingStrategy):
 
     def _run_parallel_paths(self, inputs: dict[str, object]) -> list[dspy.Prediction]:
         """Run ``num_samples`` paths in parallel and return successful paths in index order."""
+        # Run each path in a copied context so the active query-id tag (set by
+        # `log_query_context` in the evaluator) reaches the worker threads, which
+        # ThreadPoolExecutor does not propagate on its own.
         executor = ThreadPoolExecutor(max_workers=self.max_workers)
         try:
             future_to_index: dict[Future[dspy.Prediction], int] = {
-                executor.submit(self._run_single_path, inputs, path_index): path_index
+                executor.submit(
+                    contextvars.copy_context().run,
+                    self._run_single_path,
+                    inputs,
+                    path_index,
+                ): path_index
                 for path_index in range(self.num_samples)
             }
             done, not_done = wait(
@@ -349,7 +358,9 @@ class SelfConsistency(DecodingStrategy):
             executor = ThreadPoolExecutor(max_workers=1)
             try:
                 future: Future[dspy.Prediction] = executor.submit(
-                    self._call_aggregator, **aggregator_kwargs
+                    contextvars.copy_context().run,
+                    self._call_aggregator,
+                    **aggregator_kwargs,
                 )
                 done, _not_done = wait(
                     {future},

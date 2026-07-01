@@ -1,12 +1,45 @@
+import contextvars
 import logging
 import sys
+from contextlib import contextmanager
 
 from virex_bench import envs
 
-_LOG_FORMAT = "%(asctime)s | %(levelname)-8s | %(name)s:%(lineno)d | %(message)s"
+_LOG_FORMAT = "%(asctime)s | %(levelname)-8s | %(location)s | %(query_id)s%(message)s"
 _DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 _LEVELNAME_WIDTH = 8
 _configured = False
+
+# Active query id for `log_query_context`; prefixes each log line with ``[<id>]``.
+# A contextvar so the tag is isolated per task/worker.
+_query_id_var: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    "virex_bench_query_id", default=None
+)
+
+
+@contextmanager
+def log_query_context(query_id: str):
+    """Prefix all log messages emitted within this block with ``[<query_id>]``.
+
+    Safe for nesting and async/thread use via contextvars. To carry the tag into a
+    `ThreadPoolExecutor` worker, run the callable in a copied context (see
+    `decoding/self_consistency.py`).
+    """
+    token = _query_id_var.set(query_id)
+    try:
+        yield
+    finally:
+        _query_id_var.reset(token)
+
+
+class _RecordEnricher(logging.Filter):
+    """Stamp each record with ``location`` (``module.funcName:lineno``) and ``query_id``."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        record.location = f"{record.module}.{record.funcName}:{record.lineno}"
+        query_id = _query_id_var.get()
+        record.query_id = f"[{query_id}] " if query_id is not None else ""
+        return True
 
 
 class ColoredFormatter(logging.Formatter):
@@ -28,26 +61,25 @@ class ColoredFormatter(logging.Formatter):
 
     def __init__(self, fmt: str, datefmt: str | None = None) -> None:
         # The base format pads the level name itself; this formatter pads + colors it
-        # manually, so strip the width spec to avoid double-padding. The line number is
-        # merged into the colored `name` field, so strip the lineno spec from the format
-        # to avoid printing it twice.
-        colored_fmt = fmt.replace("%(levelname)-8s", "%(levelname)s").replace(":%(lineno)d", "")
+        # manually, so strip the width spec to avoid double-padding.
+        colored_fmt = fmt.replace("%(levelname)-8s", "%(levelname)s")
         super().__init__(colored_fmt, datefmt=datefmt)
 
     def format(self, record: logging.LogRecord) -> str:
         original_levelname = record.levelname
         original_asctime = getattr(record, "asctime", None)
-        original_name = record.name
+        # `location` is injected by `_RecordEnricher`.
+        original_location = getattr(record, "location", "")
 
         level_color = self._LEVEL_COLORS.get(record.levelname, "")
         padded_levelname = f"{record.levelname:<{_LEVELNAME_WIDTH}}"
         record.levelname = f"{level_color}{padded_levelname}{self._RESET}"
-        record.name = f"{self._GREY}{record.name}:{record.lineno}{self._RESET}"
+        record.location = f"{self._GREY}{original_location}{self._RESET}"
         try:
             message = super().format(record)
         finally:
             record.levelname = original_levelname
-            record.name = original_name
+            record.location = original_location
             if original_asctime is not None:
                 record.asctime = original_asctime
         return message
@@ -71,6 +103,7 @@ def _configure_root() -> None:
         return
     stream = sys.stderr
     handler = logging.StreamHandler(stream)
+    handler.addFilter(_RecordEnricher())
     if _use_color(stream):
         handler.setFormatter(ColoredFormatter(_LOG_FORMAT, datefmt=_DATE_FORMAT))
     else:

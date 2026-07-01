@@ -18,7 +18,7 @@ from virex_bench.evaluation.metrics import (
     get_metric,
     judge_example,
 )
-from virex_bench.logger import init_logger
+from virex_bench.logger import init_logger, log_query_context
 from virex_bench.models import BaseLM
 from virex_bench.strategies.base import ReasoningStrategy
 from virex_bench.tasks.base import ReasoningTask
@@ -44,61 +44,63 @@ def _process_example(
     if (judge_module is None) == (metric_func is None):
         raise ValueError("Exactly one of judge_module or metric_func must be provided")
 
-    inputs = task.example_to_inputs(example)
-    recorded_inputs = task.recorded_inputs(example, inputs)
-    try:
-        # Scope a usage tracker to the STRATEGY call only -- the judge runs after
-        # the `with` exits so its tokens are excluded. dspy.settings is thread-local,
-        # so each worker thread's tracker stays isolated to its own example.
-        with dspy.track_usage() as usage_tracker:
-            prediction = decoding_strategy(**inputs)
-        token_usage = _summarize_usage(usage_tracker)
-        predicted = str(prediction.answer)
-        extra: dict[str, object] = {}
-        reasoning = getattr(prediction, "reasoning", None)
-        if reasoning is not None:
-            extra["reasoning"] = reasoning
-        search_stats = getattr(prediction, "search_stats", None)
-        if search_stats is not None:
-            extra["search_stats"] = search_stats
-        if judge_module is not None:
-            outcome = judge_example(
-                example=example, prediction=prediction, judge_module=judge_module
+    # Tag this example's log lines with its id so concurrent workers stay attributable.
+    with log_query_context(example.example_id):
+        inputs = task.example_to_inputs(example)
+        recorded_inputs = task.recorded_inputs(example, inputs)
+        try:
+            # Scope a usage tracker to the STRATEGY call only -- the judge runs after
+            # the `with` exits so its tokens are excluded. dspy.settings is thread-local,
+            # so each worker thread's tracker stays isolated to its own example.
+            with dspy.track_usage() as usage_tracker:
+                prediction = decoding_strategy(**inputs)
+            token_usage = _summarize_usage(usage_tracker)
+            predicted = str(prediction.answer)
+            extra: dict[str, object] = {}
+            reasoning = getattr(prediction, "reasoning", None)
+            if reasoning is not None:
+                extra["reasoning"] = reasoning
+            search_stats = getattr(prediction, "search_stats", None)
+            if search_stats is not None:
+                extra["search_stats"] = search_stats
+            if judge_module is not None:
+                outcome = judge_example(
+                    example=example, prediction=prediction, judge_module=judge_module
+                )
+                extra["judge_result"] = {
+                    "verdict": outcome.verdict,
+                    "error_type": outcome.error_type,
+                    "feedback": outcome.feedback,
+                }
+                answer_score = outcome.score
+            else:
+                assert metric_func is not None
+                answer_score = float(metric_func(example, prediction))
+            score_components = task.compute_score(example, prediction, answer_score)
+        except Exception as error:  # noqa: BLE001
+            logger.warning(f"Example {example.example_id} failed: {error!r}")
+            return TaskResult(
+                example_id=example.example_id,
+                inputs=recorded_inputs,
+                predicted="",
+                gold=example.answer,
+                score=0.0,
+                category=example.category,
+                extra={"error": f"{type(error).__name__}: {error}"},
             )
-            extra["judge_result"] = {
-                "verdict": outcome.verdict,
-                "error_type": outcome.error_type,
-                "feedback": outcome.feedback,
-            }
-            answer_score = outcome.score
-        else:
-            assert metric_func is not None
-            answer_score = float(metric_func(example, prediction))
-        score_components = task.compute_score(example, prediction, answer_score)
-    except Exception as error:  # noqa: BLE001
-        logger.warning(f"Example {example.example_id} failed: {error!r}")
         return TaskResult(
             example_id=example.example_id,
             inputs=recorded_inputs,
-            predicted="",
+            predicted=predicted,
             gold=example.answer,
-            score=0.0,
+            score=score_components.score,
+            llm_judge_score=score_components.llm_judge_score,
+            premises_f1=score_components.premises_f1,
+            predicted_premises_used=score_components.predicted_premises_used,
             category=example.category,
-            extra={"error": f"{type(error).__name__}: {error}"},
+            token_usage=token_usage,
+            extra=extra,
         )
-    return TaskResult(
-        example_id=example.example_id,
-        inputs=recorded_inputs,
-        predicted=predicted,
-        gold=example.answer,
-        score=score_components.score,
-        llm_judge_score=score_components.llm_judge_score,
-        premises_f1=score_components.premises_f1,
-        predicted_premises_used=score_components.predicted_premises_used,
-        category=example.category,
-        token_usage=token_usage,
-        extra=extra,
-    )
 
 
 def _aggregate_scores(
