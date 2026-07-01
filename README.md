@@ -1,8 +1,13 @@
 <h1 align="center" style="border-bottom: none;">
-  <img src="https://github.com/minhnguyent546/ViREx-Bench/blob/main/docs/assets/virex_bench_logo.png?raw=true" alt="ViREX-Bench" width="64" style="vertical-align: middle;"/> ViREX-Bench
+  <img src="https://github.com/minhnguyent546/ViREx-Bench/blob/main/docs/assets/virex_bench_logo.png?raw=true" alt="ViREX-Bench" width="64" style="vertical-align: middle;"/> ViREx-Bench
 </h1>
 
 <h3 align="center" style="border-bottom: none;">A framework for inference-time scaling on Vietnamese reasoning tasks</h3>
+
+<p align="center">
+  <a href="#installation">Installation</a> ·
+  <a href="#example-of-usage">Example of Usage</a>
+</p>
 
 <p align="center">
     <a href="https://github.com/minhnguyent546/ViREx-Bench/releases">
@@ -15,24 +20,24 @@
 
 ---
 
-`ViREx-Bench` is a framework for inference-time scaling on Vietnamese reasoning tasks. The project is designed to benchmark different strategies under consistent evaluation settings and measure how much each strategy improves over a direct-answer baseline.
+> [!WARNING]
+> Work in progress: dataset format, evaluation protocol, and supported reasoning methods are **under active development**.
 
-The framework aims to compare approaches such as Chain-of-Thought, Tree-of-Thought, Monte Carlo Tree-of-Thought, Program-of-Thought, and symbolic reasoning with tools such as Z3.
+## Overview
 
-> Work in progress: dataset format, evaluation protocol, and supported reasoning methods are under active development.
+`ViREx-Bench` is a framework for inference-time scaling on Vietnamese reasoning tasks. The project is designed to benchmark different prompting strategies under consistent evaluation settings and measure how much each strategy improves over a direct-answer baseline.
 
 ## Installation
 
-You can install ViREx-Bench using `pip`:
-
-```bash
-pip install virex-bench
-```
-
-or if you are using `uv`:
+You can install ViREx-Bench using [`uv`](https://docs.astral.sh/uv/):
 
 ```bash
 uv add virex-bench
+```
+
+or using `pip`:
+```bash
+pip install virex-bench
 ```
 
 Verify the installation by running:
