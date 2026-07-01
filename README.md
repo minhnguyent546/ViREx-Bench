@@ -1,6 +1,10 @@
-# ViREx-Bench
+<h1 align="center" style="border-bottom: none;">
+  <img src="https://github.com/minhnguyent546/ViREx-Bench/blob/main/docs/assets/virex_bench_logo.png?raw=true" alt="ViREX-Bench" width="64" style="vertical-align: middle;"/> ViREX-Bench
+</h1>
 
-<p>
+<h3 align="center" style="border-bottom: none;">A framework for inference-time scaling on Vietnamese reasoning tasks</h3>
+
+<p align="center">
     <a href="https://github.com/minhnguyent546/ViREx-Bench/releases">
         <img alt="ViREX-Bench latest release" src="https://img.shields.io/github/v/release/minhnguyent546/ViREx-Bench.svg">
     </a>
@@ -8,6 +12,8 @@
         <img alt="License" src="https://img.shields.io/github/license/minhnguyent546/ViREx-Bench">
     </a>
 </p>
+
+---
 
 `ViREx-Bench` is a framework for inference-time scaling on Vietnamese reasoning tasks. The project is designed to benchmark different strategies under consistent evaluation settings and measure how much each strategy improves over a direct-answer baseline.
 
