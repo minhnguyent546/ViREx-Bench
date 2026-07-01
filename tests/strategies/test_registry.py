@@ -4,6 +4,9 @@ Covers ``parse_strategy_name``, ``get_strategy`` with composite names,
 ``list_strategies`` variant discovery, and error paths for invalid variants.
 """
 
+from collections.abc import Mapping
+from typing import Any
+
 import dspy
 import pytest
 
@@ -13,6 +16,8 @@ from virex_bench.strategies.registry import (
     list_strategies,
     parse_strategy_name,
 )
+from virex_bench.tasks.base import ReasoningTask
+from virex_bench.types import DatasetConfig, ReasoningExample, TaskMetadata
 
 
 class _TestSignature(dspy.Signature):
@@ -21,6 +26,28 @@ class _TestSignature(dspy.Signature):
     premises: list[str] = dspy.InputField()
     question: str = dspy.InputField()
     answer: str = dspy.OutputField()
+
+
+class _TaskToTSignature(dspy.Signature):
+    """Task-specific ToT signature for helper equivalence tests."""
+
+    premises: list[str] = dspy.InputField()
+    question: str = dspy.InputField()
+    answer: str = dspy.OutputField()
+
+
+class _FakeTask(ReasoningTask):
+    metadata = TaskMetadata(
+        name="fake-task",
+        description="Fake task for strategy construction tests",
+        dataset=DatasetConfig(path="fake-dataset"),
+        main_metric="exact_match",
+    )
+    signatures = {"default": _TestSignature, "tot": _TaskToTSignature}
+    rationale_fields = {"tot": dspy.OutputField(desc="Task-specific ToT reasoning field")}
+
+    def _row_to_example(self, row: Mapping[str, Any]) -> ReasoningExample:
+        raise NotImplementedError
 
 
 def test_parse_strategy_name_resolves_composite() -> None:
@@ -47,6 +74,21 @@ def test_get_strategy_tot_beam_yields_correct_name_and_algorithm() -> None:
     strategy = get_strategy("tot-beam", _TestSignature)
     assert strategy.name == "tot-beam"
     assert strategy.search_algorithm == "beam"  # type: ignore[attr-defined]
+
+
+def test_task_get_strategy_resolves_composite_strategy() -> None:
+    task = _FakeTask()
+    strategy = task.get_strategy("tot-beam")
+    old_path_strategy = get_strategy(
+        "tot-beam",
+        task.get_signature("tot"),
+        rationale_field=task.get_rationale_field("tot"),
+    )
+
+    assert strategy.name == "tot-beam"
+    assert strategy.search_algorithm == "beam"  # type: ignore[attr-defined]
+    assert strategy.signature is old_path_strategy.signature
+    assert strategy.rationale_field is old_path_strategy.rationale_field
 
 
 def test_get_strategy_tot_dfs_yields_correct_name_and_algorithm() -> None:
