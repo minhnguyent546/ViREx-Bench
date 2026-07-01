@@ -181,8 +181,8 @@ def build_judge_lm() -> BaseLM:
         if api_key is None:
             raise RuntimeError(
                 "VIREX_BENCH_JUDGE_API_KEY is not set. The llm_judge metric requires "
-                "a judge model API key. Set it via the VIREX_BENCH_JUDGE_API_KEY "
-                "environment variable."
+                f"a judge model API key (current judge model set to `{judge_model_name}`). "
+                "Set it via the VIREX_BENCH_JUDGE_API_KEY environment variable."
             )
         return BaseLM(
             model=f"deepseek/{judge_model_name}",
