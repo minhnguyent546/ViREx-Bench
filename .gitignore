@@ -23,6 +23,8 @@ _*
 /slides
 /notebooks
 /tmp/
+/report/
+/.bashrc
 
 # datasets
 /data

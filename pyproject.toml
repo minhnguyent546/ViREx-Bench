@@ -1,10 +1,11 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
 name = "virex-bench"
 version = "0.1.0"
+dynamic = ["urls"]
 description = "ViREx-Bench is a lightweight framework for comparing inference-time reasoning strategies on Vietnamese reasoning tasks."
 readme = "README.md"
 authors = [
@@ -49,9 +50,10 @@ vb = "virex_bench.cli:main"
 [tool.hatch.build.targets.wheel]
 packages = ["virex_bench"]
 
-[project.urls]
+[tool.hatch.metadata.hooks.vcs.urls]
 Homepage = "https://github.com/minhnguyent546/ViREx-Bench"
 Repository = "https://github.com/minhnguyent546/ViREx-Bench"
+"Source commit" = "https://github.com/minhnguyent546/ViREx-Bench/commit/{commit_hash}"
 
 [dependency-groups]
 dev = [

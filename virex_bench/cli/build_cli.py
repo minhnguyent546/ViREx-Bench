@@ -1,7 +1,8 @@
 import argparse
 import json
+from typing import Any
 
-from virex_bench import __version__, envs
+from virex_bench import __git_revision__, __version__, envs
 from virex_bench.decoding import get_decoding, list_decoding
 from virex_bench.evaluation import evaluate, save_report
 from virex_bench.logger import init_logger, set_level
@@ -30,6 +31,22 @@ def _parse_positive_int(raw: str) -> int:
     if value <= 0:
         raise argparse.ArgumentTypeError("value must be greater than 0")
     return value
+
+
+def _format_version() -> str:
+    return f"virex-bench: v{__version__}\ngit revision: {__git_revision__}"
+
+
+class _VersionAction(argparse.Action):
+    def __call__(
+        self,
+        parser: argparse.ArgumentParser,
+        namespace: argparse.Namespace,
+        values: Any,
+        option_string: str | None = None,
+    ) -> None:
+        print(_format_version())
+        parser.exit()
 
 
 def _run(args: argparse.Namespace) -> None:
@@ -204,9 +221,10 @@ def build_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
+        "-V",
         "--version",
-        action="version",
-        version=f"%(prog)s {__version__}",
+        action=_VersionAction,
+        nargs=0,
     )
     subparsers = parser.add_subparsers(title="subcommands", required=True)
 
