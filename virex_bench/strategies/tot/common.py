@@ -35,6 +35,9 @@ class ThoughtProposerSignature(dspy.Signature):
       - is self-contained enough to be read on its own,
       - cites the 1-based premise index/indices it relies on.
 
+    Be concise: produce at most three short sentences. Do not include hidden
+    thinking traces or alternative branches.
+
     Do NOT restate a step already present in `reasoning_so_far`. Write the step
     in Vietnamese to match the task language.
     """
