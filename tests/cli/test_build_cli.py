@@ -9,13 +9,17 @@ import pytest
 from virex_bench.cli import build_cli
 
 
-def test_version_flag_prints_version_and_exits(capsys: pytest.CaptureFixture[str]) -> None:
+def test_version_flag_prints_version_and_exits(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(build_cli, "__git_revision__", "abc1234")
     parser = build_cli.build_parser()
     with pytest.raises(SystemExit) as exc_info:
         parser.parse_args(["--version"])
     assert exc_info.value.code == 0
     captured = capsys.readouterr()
-    assert captured.out.strip() == f"virex-bench {build_cli.__version__}"
+    assert captured.out.strip() == f"virex-bench: v{build_cli.__version__}\ngit revision: abc1234"
 
 
 def test_run_parser_accepts_tot_dfs_strategy() -> None:
@@ -49,12 +53,27 @@ def test_run_delegates_strategy_construction_to_task(
             num_examples=1,
         )
 
-    monkeypatch.setattr(build_cli, "set_level", lambda _level: None)
-    monkeypatch.setattr(build_cli, "get_task", lambda _name: _FakeTask())
-    monkeypatch.setattr(build_cli, "get_model", lambda *args, **kwargs: object())
-    monkeypatch.setattr(build_cli, "get_decoding", lambda *args, **kwargs: object())
+    def fake_set_level(_level: str) -> None:
+        return None
+
+    def fake_get_task(_name: str) -> _FakeTask:
+        return _FakeTask()
+
+    def fake_get_model(*args: Any, **kwargs: Any) -> object:
+        return object()
+
+    def fake_get_decoding(*args: Any, **kwargs: Any) -> object:
+        return object()
+
+    def fake_save_report(*args: Any, **kwargs: Any) -> str:
+        return ""
+
+    monkeypatch.setattr(build_cli, "set_level", fake_set_level)
+    monkeypatch.setattr(build_cli, "get_task", fake_get_task)
+    monkeypatch.setattr(build_cli, "get_model", fake_get_model)
+    monkeypatch.setattr(build_cli, "get_decoding", fake_get_decoding)
     monkeypatch.setattr(build_cli, "evaluate", fake_evaluate)
-    monkeypatch.setattr(build_cli, "save_report", lambda *_args, **_kwargs: "")
+    monkeypatch.setattr(build_cli, "save_report", fake_save_report)
 
     args = argparse.Namespace(
         log_level="INFO",

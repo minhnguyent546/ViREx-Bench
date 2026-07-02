@@ -53,6 +53,7 @@ class _FakeTask(ReasoningTask):
 def test_parse_strategy_name_resolves_composite() -> None:
     assert parse_strategy_name("tot-beam") == ("tot", "beam")
     assert parse_strategy_name("tot-dfs") == ("tot", "dfs")
+    assert parse_strategy_name("tot-mcts") == ("tot", "mcts")
 
 
 def test_parse_strategy_name_passthrough_bare() -> None:
@@ -68,6 +69,7 @@ def test_list_strategies_includes_variants() -> None:
     assert "tot" in names
     assert "tot-beam" in names
     assert "tot-dfs" in names
+    assert "tot-mcts" in names
 
 
 def test_get_strategy_tot_beam_yields_correct_name_and_algorithm() -> None:
@@ -95,6 +97,12 @@ def test_get_strategy_tot_dfs_yields_correct_name_and_algorithm() -> None:
     strategy = get_strategy("tot-dfs", _TestSignature)
     assert strategy.name == "tot-dfs"
     assert strategy.search_algorithm == "dfs"  # type: ignore[attr-defined]
+
+
+def test_get_strategy_tot_mcts_yields_correct_name_and_algorithm() -> None:
+    strategy = get_strategy("tot-mcts", _TestSignature)
+    assert strategy.name == "tot-mcts"
+    assert strategy.search_algorithm == "mcts"  # type: ignore[attr-defined]
 
 
 def test_get_strategy_bare_tot_uses_env_default_algorithm(

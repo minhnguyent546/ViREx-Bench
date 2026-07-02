@@ -3,10 +3,17 @@ from collections.abc import Mapping
 from types import SimpleNamespace
 from typing import Any
 
+import dspy
 import pytest
 
 from virex_bench.tasks.base import ReasoningTask
-from virex_bench.types import DatasetConfig, ReasoningExample, TaskMetadata, TaskResult
+from virex_bench.types import (
+    DatasetConfig,
+    ReasoningExample,
+    ReasoningMetric,
+    TaskMetadata,
+    TaskResult,
+)
 
 evaluate_module = importlib.import_module("virex_bench.evaluation.evaluate")
 
@@ -65,8 +72,18 @@ def test_evaluate_reports_original_and_evaluated_example_counts(
         )
 
     monkeypatch.setattr(evaluate_module, "_process_example", fake_process_example)
-    monkeypatch.setattr(evaluate_module, "get_metric", lambda _metric_name: lambda *_args: 1.0)
-    monkeypatch.setattr(evaluate_module.dspy, "configure", lambda **_kwargs: None)
+
+    def fake_get_metric(_metric_name: str) -> ReasoningMetric:
+        def metric(_example: ReasoningExample, _prediction: dspy.Prediction) -> float:
+            return 1.0
+
+        return metric
+
+    def fake_configure(**_kwargs: object) -> None:
+        return None
+
+    monkeypatch.setattr(evaluate_module, "get_metric", fake_get_metric)
+    monkeypatch.setattr(evaluate_module.dspy, "configure", fake_configure)
 
     report = evaluate_module.evaluate(
         task=_FakeTask(examples),
