@@ -34,6 +34,7 @@ import dspy
 from pydantic.fields import FieldInfo
 
 from virex_bench import envs
+from virex_bench.logger import init_logger
 from virex_bench.strategies.base import ReasoningStrategy
 from virex_bench.strategies.tot.common import (
     ThoughtEvaluatorSignature,
@@ -41,6 +42,18 @@ from virex_bench.strategies.tot.common import (
     render_thought_path,
 )
 from virex_bench.strategies.tot.search import SearchConfig, ThoughtSearch, build_search
+
+logger = init_logger(__name__)
+
+
+def _resolve_threshold(raw: float | None, default: float) -> float | None:
+    """Resolve a ToT threshold env var: unset -> default, ``0`` -> disable (None)."""
+
+    if raw == 0:
+        return None
+    if raw is None:
+        return default
+    return raw
 
 
 def _build_search_config(search_algorithm: str) -> SearchConfig:
@@ -53,23 +66,38 @@ def _build_search_config(search_algorithm: str) -> SearchConfig:
     stop-on-success (analogous to beam's ``early_stop_threshold``);
     ``max_iterations`` caps DFS/MCTS and is unused by beam -- so the right env var
     is selected per ``search_algorithm``.
+
+    Threshold env vars are parsed by ``maybe_convert_float`` (pure converter) and
+    return ``None`` when unset/empty, or ``0.0`` when set to ``"0"``. Since the
+    thresholds live on the evaluator's 1-10 scale, ``0`` is never a useful real
+    threshold -- it is the explicit disable sentinel. ``_resolve_threshold``
+    applies the algorithm default when the env is unset, and maps ``0`` to
+    ``None`` (disabled) so consumers can keep their existing ``if x is not None``
+    guard.
     """
     beam_width: int | None = None
     exploration_constant: float | None = None
     success_threshold: float | None = None
     if search_algorithm == "beam":
-        early_stop_threshold = envs.VIREX_BENCH_TOT_BEAM_EARLY_STOP_THRESHOLD
+        early_stop_threshold = _resolve_threshold(
+            envs.VIREX_BENCH_TOT_BEAM_EARLY_STOP_THRESHOLD, 9.0
+        )
         max_iterations = None  # beam has a fixed budget (max_depth * beam_width).
         beam_width = envs.VIREX_BENCH_TOT_BEAM_WIDTH
     elif search_algorithm == "dfs":
-        early_stop_threshold = envs.VIREX_BENCH_TOT_DFS_PRUNE_THRESHOLD
+        early_stop_threshold = _resolve_threshold(envs.VIREX_BENCH_TOT_DFS_PRUNE_THRESHOLD, 3.0)
         max_iterations = envs.VIREX_BENCH_TOT_DFS_MAX_ITERATIONS
-        success_threshold = envs.VIREX_BENCH_TOT_DFS_STOP_THRESHOLD
+        success_threshold = _resolve_threshold(envs.VIREX_BENCH_TOT_DFS_STOP_THRESHOLD, 9.0)
     elif search_algorithm == "mcts":
-        # Forward-declared for Phase 3; MCTS does not use early_stop_threshold.
+        # MCTS does not use early_stop_threshold (ToT's v_th pruning is DFS-only);
+        # its stop-on-success knob is ``success_threshold`` (analogous to DFS).
         early_stop_threshold = None
         max_iterations = envs.VIREX_BENCH_TOT_MCTS_MAX_ITERATIONS
         exploration_constant = envs.VIREX_BENCH_TOT_MCTS_EXPLORATION_CONSTANT
+        mcts_stop_threshold = envs.VIREX_BENCH_TOT_MCTS_STOP_THRESHOLD
+        success_threshold = (
+            None if mcts_stop_threshold is None else _resolve_threshold(mcts_stop_threshold, 9.0)
+        )
     else:
         # build_search validates the algorithm before this is called, so an unknown
         # value here is a programming error, not a user-facing one.
@@ -122,6 +150,7 @@ class ToTStrategy(ReasoningStrategy):
         self.name = "tot" if variant is None else f"tot-{variant}"
 
         self.config = _build_search_config(self.search_algorithm)
+        logger.info(f"Search config for {self.name}: {self.config}")
         self.search: ThoughtSearch = build_search(self.search_algorithm, self.config)
 
         self.propose = dspy.Predict(ThoughtProposerSignature)

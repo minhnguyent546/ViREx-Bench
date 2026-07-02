@@ -34,13 +34,16 @@ class SearchConfig:
     propose_temperature: float
     evaluate_temperature: float
     # Variant-specific semantics, resolved by _build_search_config: stop-on-success
-    # for beam, ToT's v_th pruning for DFS. MCTS leaves this None.
+    # for beam (early_stop_threshold); ToT's v_th pruning for DFS
+    # (early_stop_threshold = prune threshold); MCTS stop-on-success (success_threshold).
     early_stop_threshold: float | None
     # algorithm-specific (optional; ignored by algos that don't use them)
     beam_width: int | None = None  # beam
-    exploration_constant: float | None = None  # MCTS (c_puct)
+    exploration_constant: float | None = None  # MCTS (c) -- assumes [0,1]-normalized Q
     max_iterations: int | None = None  # DFS / MCTS hard budget cap (beam ignores)
-    success_threshold: float | None = None  # DFS stop-on-success (beam uses early_stop_threshold)
+    success_threshold: float | None = (
+        None  # DFS / MCTS stop-on-success (beam uses early_stop_threshold)
+    )
 
     def __post_init__(self) -> None:
         if self.max_depth < 1:

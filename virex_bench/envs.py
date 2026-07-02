@@ -79,30 +79,31 @@ if TYPE_CHECKING:
     # Sampling temperature for the evaluator (0.0 -> deterministic scoring).
     VIREX_BENCH_TOT_EVALUATE_TEMPERATURE: float = 0.0
     # Search algorithm for the bare `tot` strategy (CLI composite names like
-    # `tot-beam` override this). Choices: beam, dfs. Add mcts here when registered.
+    # `tot-beam` override this). Choices: beam, dfs, mcts.
     VIREX_BENCH_TOT_SEARCH_ALGORITHM: str = "beam"
     # Fuzzy dedupe threshold for proposed thoughts. Higher is more conservative.
     VIREX_BENCH_TOT_DEDUPE_SIMILARITY_THRESHOLD: float = 0.9
     # --- Per-variant knobs (semantics differ by algorithm; resolved by
     # _build_search_config in strategies/tot/strategy.py). ---
     # Beam: stop the WHOLE search once the best path scores >= this (stop-on-success).
-    # Defaults to 9.0: the evaluator reserves 9-10 for paths that have already
-    # derived the answer, so a score >= 9 means further expansion only pads the
-    # chain with redundant steps. Lower it for more aggressive budget control, or
-    # unset/empty to disable. DFS uses TOT_DFS_PRUNE_THRESHOLD instead.
-    VIREX_BENCH_TOT_BEAM_EARLY_STOP_THRESHOLD: float | None = 9.0
+    # The env returns None when unset/empty; _build_search_config applies the 9.0
+    # default (the evaluator reserves 9-10 for paths that have already derived the
+    # answer). Setting this to "0" disables the threshold. DFS uses
+    # TOT_DFS_PRUNE_THRESHOLD instead.
+    VIREX_BENCH_TOT_BEAM_EARLY_STOP_THRESHOLD: float | None = None
     # DFS: ToT's value-pruning threshold (v_th). Children scored below this are
-    # evaluated & counted but NOT expanded. Defaults to 3.0: the evaluator reserves
-    # 1-3 for "dead end / mostly unsound" paths, so this prunes only true dead-ends
-    # while letting "on track but incomplete" steps (4-6) survive for deeper
-    # exploration. Beam uses TOT_BEAM_EARLY_STOP_THRESHOLD instead.
-    VIREX_BENCH_TOT_DFS_PRUNE_THRESHOLD: float | None = 3.0
+    # evaluated & counted but NOT expanded. The env returns None when unset/empty;
+    # _build_search_config applies the 3.0 default (the evaluator reserves 1-3 for
+    # "dead end" paths, so this prunes only true dead-ends while letting "on track
+    # but incomplete" steps survive). Setting this to "0" disables
+    # pruning. Beam uses TOT_BEAM_EARLY_STOP_THRESHOLD instead.
+    VIREX_BENCH_TOT_DFS_PRUNE_THRESHOLD: float | None = None
     # DFS: stop-on-success threshold. When the best path's evaluator score reaches
     # this, the entire search stops immediately -- analogous to beam's
-    # TOT_BEAM_EARLY_STOP_THRESHOLD. Defaults to 9.0: a score >= 9 means the path
-    # has already derived the answer, so further exploration only wastes budget.
-    # Unset/empty to disable.
-    VIREX_BENCH_TOT_DFS_STOP_THRESHOLD: float | None = 9.0
+    # TOT_BEAM_EARLY_STOP_THRESHOLD. The env returns None when unset/empty;
+    # _build_search_config applies the 9.0 default. Setting this to "0" disables
+    # the stop-on-success.
+    VIREX_BENCH_TOT_DFS_STOP_THRESHOLD: float | None = None
     # DFS: hard cap on node expansions (one proposer call each). Unset/empty lets
     # DFSSearch auto-derive max_depth * branching_factor. Beam ignores this.
     VIREX_BENCH_TOT_DFS_MAX_ITERATIONS: int | None = None
@@ -110,6 +111,12 @@ if TYPE_CHECKING:
     VIREX_BENCH_TOT_MCTS_EXPLORATION_CONSTANT: float = 1.414
     # MCTS: hard cap on iterations. Forward-declared. Ignored by beam/DFS.
     VIREX_BENCH_TOT_MCTS_MAX_ITERATIONS: int | None = None
+    # MCTS: optional stop-on-success threshold (analogous to beam/DFS). When set
+    # and the max raw evaluator score seen during the search reaches it, MCTS
+    # halts early. Unset/empty disables this by default so robust-child selection
+    # can revisit promising paths instead of trusting a single high score.
+    # Setting this to "0" also disables the stop-on-success.
+    VIREX_BENCH_TOT_MCTS_STOP_THRESHOLD: float | None = None
 
     # --- Self-consistency decoding ---
     # Number of independent reasoning paths sampled per example.
@@ -166,6 +173,24 @@ def env_with_choices(
     return _get_validated_env
 
 
+def maybe_convert_int(value: str | None) -> int | None:
+    if value is None or value == "":
+        return None
+    return int(value)
+
+
+def maybe_convert_float(value: str | None) -> float | None:
+    if value is None or value == "":
+        return None
+    return float(value)
+
+
+def maybe_convert_bool(value: str | None) -> bool | None:
+    if value is None or value == "":
+        return None
+    return bool(int(value))
+
+
 # Single source of truth. Each value is a zero-argument callable that reads `os.environ`
 # when invoked, keeping access lazy. Group with comments as the set grows.
 environment_variables: dict[str, Callable[[], Any]] = {
@@ -188,12 +213,12 @@ environment_variables: dict[str, Callable[[], Any]] = {
     # --- Paths ---
     "VIREX_BENCH_OUTPUT_DIR": lambda: os.environ.get("VIREX_BENCH_OUTPUT_DIR", "results"),
     # --- Model endpoint (OpenAI-compatible) ---
-    "OPENAI_BASE_URL": lambda: os.environ.get("OPENAI_BASE_URL"),
-    "OPENAI_API_KEY": lambda: os.environ.get("OPENAI_API_KEY"),
+    "OPENAI_BASE_URL": lambda: os.environ.get("OPENAI_BASE_URL", None),
+    "OPENAI_API_KEY": lambda: os.environ.get("OPENAI_API_KEY", None),
     # --- HuggingFace Hub (task datasets) ---
-    "HF_TOKEN": lambda: os.environ.get("HF_TOKEN"),
+    "HF_TOKEN": lambda: os.environ.get("HF_TOKEN", None),
     # --- LLM-as-a-judge ---
-    "VIREX_BENCH_JUDGE_API_KEY": lambda: os.environ.get("VIREX_BENCH_JUDGE_API_KEY"),
+    "VIREX_BENCH_JUDGE_API_KEY": lambda: os.environ.get("VIREX_BENCH_JUDGE_API_KEY", None),
     "VIREX_BENCH_JUDGE_MODEL": env_with_choices(
         "VIREX_BENCH_JUDGE_MODEL",
         "deepseek-v4-flash",
@@ -226,25 +251,19 @@ environment_variables: dict[str, Callable[[], Any]] = {
     "VIREX_BENCH_TOT_EVALUATE_TEMPERATURE": lambda: float(
         os.environ.get("VIREX_BENCH_TOT_EVALUATE_TEMPERATURE", "0.0")
     ),
-    "VIREX_BENCH_TOT_BEAM_EARLY_STOP_THRESHOLD": lambda: (
-        float(value)
-        if (value := os.environ.get("VIREX_BENCH_TOT_BEAM_EARLY_STOP_THRESHOLD")) not in (None, "")
-        else 9.0
+    "VIREX_BENCH_TOT_BEAM_EARLY_STOP_THRESHOLD": lambda: maybe_convert_float(
+        os.environ.get("VIREX_BENCH_TOT_BEAM_EARLY_STOP_THRESHOLD", None)
     ),
-    "VIREX_BENCH_TOT_DFS_PRUNE_THRESHOLD": lambda: (
-        float(value)
-        if (value := os.environ.get("VIREX_BENCH_TOT_DFS_PRUNE_THRESHOLD")) not in (None, "")
-        else 3.0
+    "VIREX_BENCH_TOT_DFS_PRUNE_THRESHOLD": lambda: maybe_convert_float(
+        os.environ.get("VIREX_BENCH_TOT_DFS_PRUNE_THRESHOLD", None)
     ),
-    "VIREX_BENCH_TOT_DFS_STOP_THRESHOLD": lambda: (
-        float(value)
-        if (value := os.environ.get("VIREX_BENCH_TOT_DFS_STOP_THRESHOLD")) not in (None, "")
-        else 9.0
+    "VIREX_BENCH_TOT_DFS_STOP_THRESHOLD": lambda: maybe_convert_float(
+        os.environ.get("VIREX_BENCH_TOT_DFS_STOP_THRESHOLD", None)
     ),
     "VIREX_BENCH_TOT_SEARCH_ALGORITHM": lambda: env_with_choices(
         "VIREX_BENCH_TOT_SEARCH_ALGORITHM",
         "beam",
-        ["beam", "dfs"],
+        ["beam", "dfs", "mcts"],
         case_sensitive=False,
     )().lower(),
     "VIREX_BENCH_TOT_DEDUPE_SIMILARITY_THRESHOLD": lambda: float(
@@ -253,15 +272,14 @@ environment_variables: dict[str, Callable[[], Any]] = {
     "VIREX_BENCH_TOT_MCTS_EXPLORATION_CONSTANT": lambda: float(
         os.environ.get("VIREX_BENCH_TOT_MCTS_EXPLORATION_CONSTANT", "1.414")
     ),
-    "VIREX_BENCH_TOT_DFS_MAX_ITERATIONS": lambda: (
-        int(value)
-        if (value := os.environ.get("VIREX_BENCH_TOT_DFS_MAX_ITERATIONS")) not in (None, "")
-        else None
+    "VIREX_BENCH_TOT_DFS_MAX_ITERATIONS": lambda: maybe_convert_int(
+        os.environ.get("VIREX_BENCH_TOT_DFS_MAX_ITERATIONS", None)
     ),
-    "VIREX_BENCH_TOT_MCTS_MAX_ITERATIONS": lambda: (
-        int(value)
-        if (value := os.environ.get("VIREX_BENCH_TOT_MCTS_MAX_ITERATIONS")) not in (None, "")
-        else None
+    "VIREX_BENCH_TOT_MCTS_MAX_ITERATIONS": lambda: maybe_convert_int(
+        os.environ.get("VIREX_BENCH_TOT_MCTS_MAX_ITERATIONS", None)
+    ),
+    "VIREX_BENCH_TOT_MCTS_STOP_THRESHOLD": lambda: maybe_convert_float(
+        os.environ.get("VIREX_BENCH_TOT_MCTS_STOP_THRESHOLD", None)
     ),
     # --- Self-consistency decoding ---
     "VIREX_BENCH_SC_NUM_SAMPLES": lambda: int(os.environ.get("VIREX_BENCH_SC_NUM_SAMPLES", "5")),
