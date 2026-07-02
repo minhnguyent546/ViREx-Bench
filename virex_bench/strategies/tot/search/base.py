@@ -75,6 +75,17 @@ class ThoughtSearch(ABC):
     def __init__(self, config: SearchConfig) -> None:
         self.config = config
 
+    @property
+    def effective_max_iterations(self) -> int | None:
+        """The iteration budget this search actually runs with, for the report.
+
+        Beam has a fixed ``max_depth`` budget and no iteration cap, so the raw
+        ``config.max_iterations`` (None) is already accurate. DFS and MCTS derive a
+        concrete cap when the env leaves ``config.max_iterations`` unset, so they
+        override this to report the resolved value instead of a misleading None.
+        """
+        return self.config.max_iterations
+
     @abstractmethod
     def search(
         self,

@@ -131,12 +131,12 @@ def test_dfs_threshold_does_not_leak_into_beam(monkeypatch: pytest.MonkeyPatch) 
 
 
 def test_mcts_default_config(monkeypatch: pytest.MonkeyPatch) -> None:
-    """MCTS defaults: exploration constant sqrt(2), no stop-on-success, no cap."""
+    """MCTS defaults: exploration constant sqrt(2), stop-on-success 9.0, cap 30."""
     _clear_variant_envs(monkeypatch)
     config = _get_tot_config("tot-mcts")
     assert config.exploration_constant == 1.414
-    assert config.success_threshold is None
-    assert config.max_iterations is None  # MCTSSearch resolves the default (10).
+    assert config.success_threshold == 9.0
+    assert config.max_iterations is None  # MCTSSearch resolves the default (30).
     assert config.early_stop_threshold is None  # MCTS does not use v_th pruning.
 
 
@@ -227,7 +227,7 @@ def test_threshold_disable_sentinel_zero(
 @pytest.mark.parametrize(
     ("env_name", "strategy_name", "threshold_attr", "expected_default"),
     [
-        ("VIREX_BENCH_TOT_MCTS_STOP_THRESHOLD", "tot-mcts", "success_threshold", None),
+        ("VIREX_BENCH_TOT_MCTS_STOP_THRESHOLD", "tot-mcts", "success_threshold", 9.0),
         ("VIREX_BENCH_TOT_DFS_STOP_THRESHOLD", "tot-dfs", "success_threshold", 9.0),
         (
             "VIREX_BENCH_TOT_DFS_PRUNE_THRESHOLD",

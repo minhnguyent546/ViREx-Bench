@@ -109,13 +109,15 @@ if TYPE_CHECKING:
     VIREX_BENCH_TOT_DFS_MAX_ITERATIONS: int | None = None
     # MCTS: UCT exploration constant (c). Forward-declared.
     VIREX_BENCH_TOT_MCTS_EXPLORATION_CONSTANT: float = 1.414
-    # MCTS: hard cap on iterations. Forward-declared. Ignored by beam/DFS.
+    # MCTS: hard cap on iterations. The env returns None when unset/empty;
+    # MCTSSearch then applies the 30-iteration default (empirically tuned).
+    # Ignored by beam/DFS.
     VIREX_BENCH_TOT_MCTS_MAX_ITERATIONS: int | None = None
-    # MCTS: optional stop-on-success threshold (analogous to beam/DFS). When set
-    # and the max raw evaluator score seen during the search reaches it, MCTS
-    # halts early. Unset/empty disables this by default so robust-child selection
-    # can revisit promising paths instead of trusting a single high score.
-    # Setting this to "0" also disables the stop-on-success.
+    # MCTS: stop-on-success threshold (analogous to beam/DFS). When the max raw
+    # evaluator score seen during the search reaches it, MCTS halts early. The
+    # env returns None when unset/empty; _build_search_config applies the 9.0
+    # default (the evaluator reserves 9-10 for paths that have already derived
+    # the answer). Setting this to "0" disables the stop-on-success.
     VIREX_BENCH_TOT_MCTS_STOP_THRESHOLD: float | None = None
 
     # --- Self-consistency decoding ---

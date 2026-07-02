@@ -90,7 +90,7 @@ _SCORE_RANGE = _EVAL_MAX_SCORE - _EVAL_MIN_SCORE
 _LOG_OFFSET = 1
 _VISIT_EPSILON = 1e-6
 
-_DEFAULT_MAX_ITERATIONS = 10
+_DEFAULT_MAX_ITERATIONS = 30
 
 
 def _normalize_score(raw_score: float) -> float:
@@ -188,7 +188,8 @@ class MCTSSearch(ThoughtSearch):
         max_iterations = config.max_iterations
         if max_iterations is None:
             # MCTS has no natural cap -- the iteration budget IS the search.
-            # 10 full expansions (1 propose + b evaluate each) ~= beam/DFS cost.
+            # 30 full expansions (1 propose + b evaluate each) is the
+            # empirically tuned default for the Vietnamese reasoning dataset.
             max_iterations = _DEFAULT_MAX_ITERATIONS
         if max_iterations < 1:
             raise ValueError(f"max_iterations must be >= 1, got {max_iterations}")
@@ -200,6 +201,10 @@ class MCTSSearch(ThoughtSearch):
         if exploration_constant < 0.0:
             raise ValueError(f"exploration_constant must be >= 0, got {exploration_constant}")
         self.exploration_constant = exploration_constant
+
+    @property
+    def effective_max_iterations(self) -> int | None:
+        return self.max_iterations
 
     def search(
         self,
@@ -409,7 +414,7 @@ class MCTSSearch(ThoughtSearch):
         mechanism = (
             "engaged" if robust_leaf is not None and robust_leaf.visits > 1 else "idle (N=1)"
         )
-        logger.info(
+        logger.debug(
             f"ToT MCTS summary: best_score={best_score:.2f} "
             f"depth={depth_reached} nodes={nodes_visited} "
             f"propose={propose_calls} eval={evaluate_calls} "

@@ -90,14 +90,12 @@ def _build_search_config(search_algorithm: str) -> SearchConfig:
         success_threshold = _resolve_threshold(envs.VIREX_BENCH_TOT_DFS_STOP_THRESHOLD, 9.0)
     elif search_algorithm == "mcts":
         # MCTS does not use early_stop_threshold (ToT's v_th pruning is DFS-only);
-        # its stop-on-success knob is ``success_threshold`` (analogous to DFS).
+        # its stop-on-success knob is ``success_threshold`` (analogous to DFS),
+        # defaulting to 9.0 when unset.
         early_stop_threshold = None
         max_iterations = envs.VIREX_BENCH_TOT_MCTS_MAX_ITERATIONS
         exploration_constant = envs.VIREX_BENCH_TOT_MCTS_EXPLORATION_CONSTANT
-        mcts_stop_threshold = envs.VIREX_BENCH_TOT_MCTS_STOP_THRESHOLD
-        success_threshold = (
-            None if mcts_stop_threshold is None else _resolve_threshold(mcts_stop_threshold, 9.0)
-        )
+        success_threshold = _resolve_threshold(envs.VIREX_BENCH_TOT_MCTS_STOP_THRESHOLD, 9.0)
     else:
         # build_search validates the algorithm before this is called, so an unknown
         # value here is a programming error, not a user-facing one.
@@ -188,7 +186,11 @@ class ToTStrategy(ReasoningStrategy):
             "early_stop_threshold": self.config.early_stop_threshold,
             "beam_width": self.config.beam_width,
             "exploration_constant": self.config.exploration_constant,
-            "max_iterations": self.config.max_iterations,
+            # Read the resolved cap the search actually runs with, not the raw
+            # config value: DFS/MCTS derive a concrete budget when the env is unset
+            # (config.max_iterations stays None), so reporting self.config here would
+            # hide the effective value. Beam has no cap and reports None.
+            "max_iterations": self.search.effective_max_iterations,
             "success_threshold": self.config.success_threshold,
         }
 

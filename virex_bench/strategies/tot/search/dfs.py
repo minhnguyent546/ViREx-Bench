@@ -79,6 +79,10 @@ class DFSSearch(ThoughtSearch):
             raise ValueError(f"max_iterations must be >= 1, got {max_iterations}")
         self.max_iterations = max_iterations
 
+    @property
+    def effective_max_iterations(self) -> int | None:
+        return self.max_iterations
+
     def search(
         self,
         *,
