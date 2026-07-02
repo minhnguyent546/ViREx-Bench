@@ -123,6 +123,8 @@ results/            # benchmark run outputs
 
 ## Development and Code Style
 
+### Development Guide
+
 - **Python 3.12** — use modern syntax (`str | None`, `list[int]`, etc.)
 - **Git**: Do not try to use `git checkout <file>` to discard or revert changes as you might cause loose uncommitted work.
 - **Formatter**: Ruff (`uv run --no-sync ruff format`) — double quotes, 4-space indent, LF endings, line length 99
@@ -130,6 +132,10 @@ results/            # benchmark run outputs
 - **Type checker**: Pyright in strict mode. Use `# pyright: ignore` to suppress false positive or workaround some limitation in the type checker. DO NOT silence legitimate type errors.
 - **Imports**: sorted by Ruff (isort rules), grouped: stdlib → third-party → local
 - **DSPy**: Reasoning strategies are implemented as `dspy.Module` subclasses under `strategies/`. Follow the existing patterns there for signatures and modules. Write signature docstrings and field descriptions in **English** (the instruction language), even for Vietnamese tasks — the target models are multilingual, and English instructions keep the prompt contract consistent across tasks. The task data (premises/questions/answers) stays in its native language.
+- **Grepping**: Prefer using `rg` (ripgrep) over `grep` for speed and better defaults.
+
+### Code Style
+
 - **Pydantic**: Use `pydantic.BaseModel` for data models (examples, configs, results, reports) — not `dataclasses`. Serialize with `model_dump()` / `model_dump_json()`.
 - **Logging**: Use the shared logger — `from virex_bench.logger import init_logger` then `logger = init_logger(__name__)` at module top. Prefer f-strings in logging calls over `%`-style logger formatting. Do not call `print()` for diagnostics or configure `logging` directly (CLI user-facing output via `print` is fine).
 - **Env vars**: All environment variables go through `virex_bench/envs.py` — never read `os.environ` directly elsewhere. Add a typed declaration in the `TYPE_CHECKING` block and a lazy `lambda` entry in `environment_variables`, then access via `from virex_bench import envs` / `envs.VAR_NAME`. Access is lazy (read at use time, not import time), so set vars before first access.
