@@ -6,8 +6,9 @@ exploitation, the mean-backprop / robust-child mechanics, the ``nodes_visited``
 normalization, early stop, default ``max_iterations``, and per-branch
 context-overflow recovery -- without any real LM calls.
 
-The robust-child final selection (``_robust_child_selection``) is also exercised
-directly with hand-built trees, decoupling it from UCT traversal nondeterminism.
+The robust-child diagnostic selector (``_robust_child_selection``) and final
+best-scored selector are also exercised directly with hand-built trees,
+decoupling them from UCT traversal nondeterminism.
 """
 
 from __future__ import annotations
@@ -21,6 +22,7 @@ from virex_bench.strategies.tot.search import SearchConfig
 from virex_bench.strategies.tot.search.mcts import (
     _DEFAULT_MAX_ITERATIONS,  # pyright: ignore[reportPrivateUsage]
     MCTSSearch,
+    _best_scored_selection,  # pyright: ignore[reportPrivateUsage]
     _MCTSNode,  # pyright: ignore[reportPrivateUsage]
     _robust_child_selection,  # pyright: ignore[reportPrivateUsage]
 )
@@ -130,6 +132,20 @@ class _OverflowEvaluator:
         return _FakePrediction(score=scores)
 
 
+class _OverflowAfterFirstEvaluator:
+    """Scores the first evaluation, then overflows every later call."""
+
+    def __init__(self, first_score: str) -> None:
+        self.first_score = first_score
+        self.call_count = 0
+
+    def __call__(self, **kwargs: Any) -> _FakePrediction:
+        self.call_count += 1
+        if self.call_count > 1:
+            raise dspy.ContextWindowExceededError(message="simulated overflow")
+        return _FakePrediction(score=[self.first_score])
+
+
 def _make_config(**overrides: Any) -> SearchConfig:
     defaults: dict[str, Any] = {
         "max_depth": 3,
@@ -222,9 +238,10 @@ def test_mcts_max_iterations_honored() -> None:
     assert result.evaluate_calls == 4
     assert result.nodes_visited == 4
     assert result.depth_reached == 2
-    # Robust child: A (3 visits) over B (1); then A1 (tie visits, higher Q).
-    assert result.best_path == ["A", "A1"]
-    assert result.best_score == 7.0  # denormalize(6/9)
+    # Final selection now returns the best evaluator-scored path seen, while
+    # robust-child remains a separate diagnostic.
+    assert result.best_path == ["A"]
+    assert result.best_score == 8.0
 
 
 def test_mcts_robust_child_picks_most_visited_not_highest_score() -> None:
@@ -242,6 +259,22 @@ def test_mcts_robust_child_picks_most_visited_not_highest_score() -> None:
     _leaf, path, score = _robust_child_selection(root)
     assert path == ["A"]
     assert score == pytest.approx(5.5)
+
+
+def test_mcts_best_scored_selection_picks_highest_score_not_most_visited() -> None:
+    """Final selection follows beam/DFS semantics: highest evaluated score wins."""
+    root = _MCTSNode(path=[], depth=0)
+    high_visits = _MCTSNode(path=["A"], depth=1, parent=root, score=5.0)
+    high_visits.visits = 5
+    high_visits.total_value = 2.5
+    high_score = _MCTSNode(path=["B"], depth=1, parent=root, score=9.0)
+    high_score.visits = 2
+    high_score.total_value = 1.8
+    root.children = [high_visits, high_score]
+
+    _leaf, path, score = _best_scored_selection(root)
+    assert path == ["B"]
+    assert score == 9.0
 
 
 def test_mcts_robust_child_tiebreaks_on_q_value() -> None:
@@ -370,3 +403,33 @@ def test_mcts_child_evaluate_overflow_skips_child() -> None:
     assert result.propose_calls == 1
     assert result.evaluate_calls == 1
     assert evaluator.call_count == 2  # invoked twice (the 2nd overflowed)
+
+
+def test_mcts_propose_overflow_exhausts_child_branch() -> None:
+    """A child branch whose proposer overflows is not repeatedly reselected."""
+    config = _make_config(max_depth=3, branching_factor=1, max_iterations=5)
+    proposer = _OverflowProposer(thoughts_before_overflow=[["A"]], overflow_on_call=2)
+    evaluator = _FakeEvaluator([["7"], ["9"], ["9"], ["9"]])
+    result = _run(config, proposer, evaluator)
+
+    assert result.best_path == ["A"]
+    assert result.best_score == 7.0
+    assert result.nodes_visited == 1
+    assert result.propose_calls == 1
+    assert proposer.call_count == 2  # root proposal + overflowing child proposal
+    assert result.evaluate_calls == 1
+
+
+def test_mcts_reevaluate_overflow_exhausts_leaf() -> None:
+    """A terminal leaf whose re-evaluation overflows is not selected again."""
+    config = _make_config(max_depth=1, branching_factor=1, max_iterations=5)
+    proposer = _FakeProposer([["A"]])
+    evaluator = _OverflowAfterFirstEvaluator("7")
+    result = _run(config, proposer, evaluator)
+
+    assert result.best_path == ["A"]
+    assert result.best_score == 7.0
+    assert result.nodes_visited == 1
+    assert result.propose_calls == 1
+    assert result.evaluate_calls == 1
+    assert evaluator.call_count == 2  # initial score + one overflowing re-eval attempt
