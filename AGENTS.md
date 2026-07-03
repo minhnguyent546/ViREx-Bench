@@ -130,6 +130,7 @@ results/            # benchmark run outputs
 - **Formatter**: Ruff (`uv run --no-sync ruff format`) — double quotes, 4-space indent, LF endings, line length 99
 - **Linter**: Ruff (`uv run --no-sync ruff check`) — rules: B, C, E, F, I, W, RUF013, UP006
 - **Type checker**: Pyright in strict mode. Use `# pyright: ignore` to suppress false positive or workaround some limitation in the type checker. DO NOT silence legitimate type errors.
+- **Testing**: pytest (`uv run --no-sync pytest`)
 - **Imports**: sorted by Ruff (isort rules), grouped: stdlib → third-party → local
 - **DSPy**: Reasoning strategies are implemented as `dspy.Module` subclasses under `strategies/`. Follow the existing patterns there for signatures and modules. Write signature docstrings and field descriptions in **English** (the instruction language), even for Vietnamese tasks — the target models are multilingual, and English instructions keep the prompt contract consistent across tasks. The task data (premises/questions/answers) stays in its native language.
 - **Grepping**: Prefer using `rg` (ripgrep) over `grep` for speed and better defaults.
