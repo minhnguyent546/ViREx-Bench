@@ -139,6 +139,12 @@ quote-style = "double"
 indent-style = "space"
 line-ending = "lf"
 
+[tool.pytest.ini_options]
+filterwarnings = [
+  "ignore::DeprecationWarning:dspy.teleprompt.avatar_optimizer",
+  "ignore::DeprecationWarning:dspy.predict.avatar.signatures",
+]
+
 [tool.uv.sources]
 vllm = [
     { group = "vllm-v0-20", url = "https://huggingface.co/datasets/minhnguyent546/wheelhouse/resolve/c9c295620142c173781e78a90ac2b7e25e9d7c7f/vLLM/vllm-0.20.2rc1.dev0+ge6ff3e9c8.d20260520-cp312-cp312-linux_x86_64.whl" },
