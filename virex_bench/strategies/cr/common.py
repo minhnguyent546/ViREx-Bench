@@ -227,7 +227,7 @@ class CRConfig:
                     )
 
 
-# --- pure-Python helpers -----------------------------------------------------
+# --- pure-Python helpers ---
 
 
 _TRUTHY = {"true", "yes", "1", "t", "y"}
