@@ -11,6 +11,7 @@ from virex_bench import envs
 from virex_bench.logger import init_logger
 from virex_bench.strategies.registry import get_strategy, parse_strategy_name
 from virex_bench.types import ReasoningExample, ScoreComponents, TaskMetadata
+from virex_bench.utils import premises_to_text
 
 if TYPE_CHECKING:
     from virex_bench.strategies.base import ReasoningStrategy
@@ -100,8 +101,13 @@ class ReasoningTask:
         )
 
     def example_to_inputs(self, example: ReasoningExample) -> dict[str, object]:
-        """Convert an example into the dict of input kwargs for the signature."""
-        return {"premises": example.premises, "question": example.question}
+        """Convert an example into the dict of input kwargs for the signature.
+
+        ``premises`` is collapsed to a numbered text block so the model can cite
+        1-based premise indices unambiguously; the original list is re-stored in
+        the results file by :meth:`recorded_inputs`.
+        """
+        return {"premises": premises_to_text(example.premises), "question": example.question}
 
     def recorded_inputs(
         self, example: ReasoningExample, model_inputs: dict[str, object]

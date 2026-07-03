@@ -17,6 +17,7 @@ from virex_bench import envs
 from virex_bench.logger import init_logger
 from virex_bench.models.base import BaseLM
 from virex_bench.strategies.modules import ChainOfThought
+from virex_bench.utils import premises_to_text
 
 logger = init_logger(__name__)
 
@@ -35,11 +36,6 @@ LOGIC_ANSWER_ERROR_TYPES: set[str] = {
     "ambiguous_or_unextractable",
     "unknown",
 }
-
-
-def _premises_to_text(premises: Sequence[str]) -> str:
-    """Format a list of premises as a numbered block of text."""
-    return "\n".join(f"Premise {index + 1}. {premise}" for index, premise in enumerate(premises))
 
 
 class LogicalReasoningJudgeSignature(dspy.Signature):
@@ -274,7 +270,7 @@ class LogicalReasoningJudge(LLMJudge):
                 reasoning="",
             )
         result = self._judge(
-            premises=_premises_to_text(premises),
+            premises=premises_to_text(premises),
             question=question,
             correct_answer=correct_answer,
             predicted_answer=predicted_answer,

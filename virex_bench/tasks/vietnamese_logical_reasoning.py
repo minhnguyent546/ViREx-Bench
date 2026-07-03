@@ -96,7 +96,9 @@ class VietnameseLogicalReasoningSignature(dspy.Signature):
     - Return both empty ONLY when no premise participates in deriving the answer.
     """
 
-    premises: list[str] = dspy.InputField(desc="The list of premises. The only source of truth.")
+    premises: str = dspy.InputField(
+        desc="The premises as a numbered text block (Premise 1, Premise 2, ...). The only source of truth."
+    )
     question: str = dspy.InputField(desc="The question to answer based on the premises.")
 
     answer_type: Literal["multiple_choice", "yes_no_uncertain", "numeric", "open_ended"] = (
@@ -186,7 +188,9 @@ class VietnameseLogicalReasoningAggregationSignature(dspy.Signature):
       mention voting or aggregation.
     """
 
-    premises: list[str] = dspy.InputField(desc="The original premises. The only source of truth.")
+    premises: str = dspy.InputField(
+        desc="The original premises as a numbered text block (Premise 1, Premise 2, ...). The only source of truth."
+    )
     question: str = dspy.InputField(desc="The original question.")
     candidate_answers: str = dspy.InputField(
         desc=(
@@ -286,7 +290,14 @@ class VietnameseLogicalReasoning(ReasoningTask):
     ) -> dict[str, object]:
         # Record the gold premises alongside the model inputs so the results file
         # carries the premise-level supervision without leaking it to the model.
-        return {**model_inputs, "premises_used": example.premises_used}
+        # ``model_inputs["premises"]`` is the numbered text block actually fed to
+        # the model (see ReasoningTask.example_to_inputs); restore the original
+        # list here so the saved results keep the structured premise representation.
+        return {
+            **model_inputs,
+            "premises": example.premises,
+            "premises_used": example.premises_used,
+        }
 
     def compute_score(
         self,

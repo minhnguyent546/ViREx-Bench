@@ -23,7 +23,7 @@ from virex_bench.types import DatasetConfig, ReasoningExample, TaskMetadata
 class _TestSignature(dspy.Signature):
     """Minimal signature for strategy construction in tests."""
 
-    premises: list[str] = dspy.InputField()
+    premises: str = dspy.InputField()
     question: str = dspy.InputField()
     answer: str = dspy.OutputField()
 
@@ -31,7 +31,7 @@ class _TestSignature(dspy.Signature):
 class _TaskToTSignature(dspy.Signature):
     """Task-specific ToT signature for helper equivalence tests."""
 
-    premises: list[str] = dspy.InputField()
+    premises: str = dspy.InputField()
     question: str = dspy.InputField()
     answer: str = dspy.OutputField()
 

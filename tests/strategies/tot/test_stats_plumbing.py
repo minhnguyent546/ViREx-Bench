@@ -19,7 +19,7 @@ from virex_bench.types import ReasoningExample
 class _FakeSignature(dspy.Signature):
     """Minimal signature for strategy construction."""
 
-    premises: list[str] = dspy.InputField()
+    premises: str = dspy.InputField()
     question: str = dspy.InputField()
     answer: str = dspy.OutputField()
 

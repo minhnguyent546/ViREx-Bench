@@ -42,7 +42,9 @@ class ThoughtProposerSignature(dspy.Signature):
     in Vietnamese to match the task language.
     """
 
-    premises: list[str] = dspy.InputField(desc="The premises; the only source of truth.")
+    premises: str = dspy.InputField(
+        desc="The premises as a numbered text block (Premise 1, Premise 2, ...); the only source of truth."
+    )
     question: str = dspy.InputField(desc="The question to answer.")
     reasoning_so_far: str = dspy.InputField(
         desc="The reasoning steps established so far, concatenated. Empty at the root."
@@ -78,7 +80,9 @@ class ThoughtEvaluatorSignature(dspy.Signature):
     Output an integer in 1..10.
     """
 
-    premises: list[str] = dspy.InputField(desc="The premises; the only source of truth.")
+    premises: str = dspy.InputField(
+        desc="The premises as a numbered text block (Premise 1, Premise 2, ...); the only source of truth."
+    )
     question: str = dspy.InputField(desc="The question to answer.")
     reasoning_path: str = dspy.InputField(
         desc="The reasoning accumulated so far, ending at the thought being scored."
@@ -109,12 +113,6 @@ def render_thought_path(path: Sequence[str]) -> str:
     if not path:
         return ""
     return "\n\n".join(f"[Bước {index + 1}] {thought}" for index, thought in enumerate(path))
-
-
-# Default Jaccard similarity (0-1) above which two thoughts are treated as
-# near-duplicates by :func:`dedupe_thoughts`.  At the word level, 0.9 is
-# intentionally conservative: false-positive dedupe can remove valid branches.
-_DEDUPE_SIMILARITY_THRESHOLD = 0.9
 
 
 def jaccard_similarity(a: set[str], b: set[str]) -> float:

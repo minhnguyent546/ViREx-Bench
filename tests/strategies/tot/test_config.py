@@ -28,7 +28,7 @@ _VARIANT_ENVS = [
 class _TestSignature(dspy.Signature):
     """Minimal signature for strategy construction in tests."""
 
-    premises: list[str] = dspy.InputField()
+    premises: str = dspy.InputField()
     question: str = dspy.InputField()
     answer: str = dspy.OutputField()
 
