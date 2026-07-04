@@ -44,7 +44,6 @@ uv run --no-sync vllm serve "$MODEL_ID" \
   --max-num-seqs "$MAX_NUM_SEQS" \
   --enable-prefix-caching \
   --gpu-memory-utilization "$GPU_MEMORY_UTILIZATION" \
-  --language-model-only \
   --reasoning-parser gemma4 \
   --tool-call-parser gemma4 \
   --speculative-config "$SPECULATIVE_CONFIG"
