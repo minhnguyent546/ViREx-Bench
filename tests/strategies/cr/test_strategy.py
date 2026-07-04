@@ -67,7 +67,7 @@ class _FakeMeaningful:
         verdict = self._verdicts[self._index]
         self._index += 1
         self.call_count += 1
-        return _FakePrediction(is_meaningful=verdict, reason="x")
+        return _FakePrediction(is_meaningful=verdict)
 
 
 class _FakeValidity:
@@ -84,9 +84,7 @@ class _FakeValidity:
         is_entailed, is_contradicted = self._verdicts[self._index]
         self._index += 1
         self.call_count += 1
-        return _FakePrediction(
-            is_entailed=is_entailed, is_contradicted=is_contradicted, reason="x"
-        )
+        return _FakePrediction(is_entailed=is_entailed, is_contradicted=is_contradicted)
 
 
 class _FakeAggregate:
@@ -194,11 +192,11 @@ class _UnparseableMeaningful:
                 message=(
                     "Adapter ChatAdapter failed to parse the LM response.\n\n"
                     "LM Response: [[ ## is_mean ## ]]\nTrue\n\n"
-                    "Expected to find output fields: [is_meaningful, reason]\n"
-                    "Actual output fields parsed: [reason]"
+                    "Expected to find output fields: [reasoning, is_meaningful]\n"
+                    "Actual output fields parsed: [reasoning]"
                 ),
             )
-        return _FakePrediction(is_meaningful=self._recovery, reason="x")
+        return _FakePrediction(is_meaningful=self._recovery)
 
 
 class _UnparseableValidity:
@@ -233,14 +231,13 @@ class _UnparseableValidity:
                 lm_response="",
                 message=(
                     "Adapter ChatAdapter failed to parse the LM response.\n\n"
-                    "Expected to find output fields: [is_entailed, is_contradicted, reason]\n"
-                    "Actual output fields parsed: [reason]"
+                    "Expected to find output fields: [reasoning, is_contradicted, is_entailed]\n"
+                    "Actual output fields parsed: [reasoning]"
                 ),
             )
         return _FakePrediction(
             is_entailed=self._recovery_entailed,
             is_contradicted=self._recovery_contradicted,
-            reason="x",
         )
 
 

@@ -59,6 +59,7 @@ from virex_bench.strategies.cr.common import (
     parse_bool,
     render_verdict_buckets,
 )
+from virex_bench.strategies.modules import ChainOfThought
 from virex_bench.strategies.tot.common import dedupe_thoughts
 
 logger = init_logger(__name__)
@@ -114,14 +115,34 @@ class CRStrategy(ReasoningStrategy):
         logger.info(f"CR config for {self.name}: {self.config}")
 
         self.propose = dspy.Predict(PropositionProposerSignature)
-        self.verify_validity = dspy.Predict(PropositionValiditySignature)
+        # forcing a falsification-first analysis that the booleans anchor to.
+        self.verify_validity = ChainOfThought(
+            PropositionValiditySignature,
+            rationale_field=dspy.OutputField(
+                desc=(
+                    "Counterexample search. Actively try to FALSIFY the proposition: "
+                    "search for ONE consistent scenario (a model of the premises) "
+                    "where it is FALSE despite all premises holding. Also try to "
+                    "find one where it is TRUE despite seeming ruled out. If you "
+                    "find a falsifying scenario, describe it and note the proposition "
+                    "is NOT necessarily true. If you find none, say so explicitly "
+                    "('Không tìm thấy phản ví dụ'). Your is_contradicted and "
+                    "is_entailed must be consistent with this analysis. Vietnamese "
+                    "or English."
+                )
+            ),
+        )
         # Built always but only invoked when verifier_mode == "multi".
-        self.verify_meaningful = dspy.Predict(PropositionMeaningfulnessSignature)
+        self.verify_meaningful = ChainOfThought(
+            PropositionMeaningfulnessSignature,
+            rationale_field=dspy.OutputField(
+                desc=(
+                    "A one-sentence justification for the is_meaningful verdict. "
+                    "Vietnamese or English."
+                )
+            ),
+        )
 
-        # Feed the accumulated propositions into the task signature as an extra
-        # input so the committed answer reuses the task's full output contract
-        # (answer, supporting_premise_indices, ...). `prepend` is the same
-        # mechanism ToT uses to add its `reasoning_path` input.
         aggregator_signature = self.signature.prepend(
             name="accumulated_context",
             field=dspy.InputField(
@@ -136,34 +157,27 @@ class CRStrategy(ReasoningStrategy):
                     "neither prove nor disprove these. Undetermined does NOT "
                     "mean the proposition is false — it means there is "
                     "INSUFFICIENT information to decide.\n\n"
-                    "DECISION PROCEDURE (follow in order):\n"
-                    "1. Check whether the entailed and contradicted buckets "
-                    "together logically force a single definitive answer.\n"
-                    "2. If YES — answer definitively.\n"
-                    "3. If NO definitive answer is forced — COMPARE the "
-                    "bucket sizes. Let E = count of [Mệnh đề được xác nhận] "
-                    "and U = count of [Mệnh đề không xác định].\n"
-                    "   - If U >= E: the premises leave more unresolved "
-                    "than settled. The evidence is INSUFFICIENT. Answer "
-                    "'Không chắc chắn' (Uncertain).\n"
-                    "   - If U < E: the entailed evidence outweighs the "
-                    "gaps. Attempt a definitive answer from the entailed "
-                    "bucket. Fall back to 'Không chắc chắn' only if the "
-                    "entailed propositions genuinely cannot settle the "
-                    "question despite outnumbering the undetermined ones.\n"
-                    "4. CAUTION: 'Không' means the answer is provably "
-                    "negative. Do NOT answer 'Không' merely because "
-                    "propositions are undetermined — that confuses 'cannot "
-                    "determine' with 'is false'. If you cannot prove 'Có' "
-                    "and cannot prove 'Không', the correct answer is "
-                    "'Không chắc chắn'.\n"
+                    "Use the entailed and contradicted buckets as your "
+                    "established facts. If they settle the question, answer "
+                    "definitively. If the question turns on a point that only "
+                    "the undetermined bucket touches, the evidence is "
+                    "INSUFFICIENT — answer 'Không chắc chắn'. "
+                    "CAUTION: 'Không' means the answer is provably negative. "
+                    "Do NOT answer 'Không' merely because propositions are "
+                    "undetermined — that confuses 'cannot determine' with "
+                    "'is false'. If you cannot prove 'Có' and cannot prove "
+                    "'Không', the correct answer is 'Không chắc chắn'.\n"
                     "When citing premises, return only the minimal chain "
                     "that justifies the FINAL answer."
                 )
             ),
             type_=str,
         )
-        self.aggregate = dspy.Predict(aggregator_signature)
+        self.aggregate = ChainOfThought(
+            aggregator_signature,
+            rationale_field=self.rationale_field,
+            rationale_field_type=self.rationale_field_type,
+        )
 
     @property
     def report_config(self) -> dict[str, object]:

@@ -78,38 +78,33 @@ class PropositionProposerSignature(dspy.Signature):
 class PropositionValiditySignature(dspy.Signature):
     """Judge the logical relationship between the premises and a candidate proposition.
 
-    Answer TWO independent yes/no questions. "Undetermined" is never a button
-    you actively press -- it is the natural result when BOTH answers are "no".
+    You will write a counterexample search into the `reasoning` field FIRST
+    (see its description), then commit two booleans anchored in that analysis.
+    "Undetermined" is never a button you actively press -- it is the natural
+    result when BOTH booleans are "no".
 
-    ── Question 1: ENTAILMENT (is_entailed) ──
-    Is the `proposition` NECESSARILY TRUE given ONLY the stated `premises` and
-    any already-accepted propositions in `accumulated_context`?
+    ### CONTRADICTION (is_contradicted)
+    Is the `proposition` NECESSARILY FALSE given the premises? Set
+    is_contradicted = true ONLY when the premises logically force the
+    proposition's negation. Do NOT set it merely because the proposition seems
+    unlikely or improbable.
 
-    Set is_entailed = true ONLY when the proposition follows by strict logical
-    deduction: every scenario consistent with the premises must also satisfy the
-    proposition. Do NOT set it for claims that are:
-      - plausible, probable, or common-sense-true but not logically forced;
-      - supported by outside knowledge or assumptions not stated in the premises;
-      - true in some scenarios but false in others that remain consistent with
-        the premises.
-
-    ── Question 2: CONTRADICTION (is_contradicted) ──
-    Is the `proposition` NECESSARILY FALSE given the premises? That is, do the
-    premises force its negation to hold?
-
-    Set is_contradicted = true ONLY when the premises logically rule out the
-    proposition. Do NOT set it merely because the proposition seems unlikely or
-    improbable.
+    ### ENTAILMENT (is_entailed)
+    Is the `proposition` NECESSARILY TRUE given ONLY the stated premises and
+    any already-accepted propositions in `accumulated_context`? Set
+    is_entailed = true ONLY when every scenario consistent with the premises
+    also satisfies the proposition. If you found even ONE falsifying scenario
+    in your `reasoning`, is_entailed MUST be false.
 
     The four possible answer combinations and their meaning:
-      is_entailed=false, is_contradicted=false  →  UNDETERMINED.
+    - is_entailed=false, is_contradicted=false => UNDETERMINED.
           The premises neither prove nor disprove the proposition. This is a
           common and valid outcome -- it is the correct signal that the question
           may be unanswerable ("Không chắc chắn"). Set both to false whenever
           you cannot prove or disprove the proposition from the premises alone.
-      is_entailed=true,  is_contradicted=false  →  ENTAILED.
-      is_entailed=false, is_contradicted=true   →  CONTRADICTED.
-      is_entailed=true,  is_contradicted=true   →  Inconsistent premises (rare).
+    - is_entailed=true, is_contradicted=false => ENTAILED.
+    - is_entailed=false, is_contradicted=true => CONTRADICTED.
+    - is_entailed=true, is_contradicted=true => Inconsistent premises (rare).
 
     When in doubt, default to false for both -- undetermined is always a safe
     and honest verdict. The bar for each flag is "necessarily", not "probably".
@@ -127,20 +122,19 @@ class PropositionValiditySignature(dspy.Signature):
         ),
         default="",
     )
-    is_entailed: bool = dspy.OutputField(
-        desc=(
-            "True if the proposition is necessarily true given the premises "
-            "(strict logical entailment); false otherwise."
-        )
-    )
     is_contradicted: bool = dspy.OutputField(
         desc=(
             "True if the proposition is necessarily false given the premises "
-            "(strict logical contradiction); false otherwise."
+            "(strict logical contradiction); false otherwise. Consistent with "
+            "your `reasoning` analysis."
         )
     )
-    reason: str = dspy.OutputField(
-        desc="A one-sentence justification (Vietnamese or English) for the verdict."
+    is_entailed: bool = dspy.OutputField(
+        desc=(
+            "True if the proposition is necessarily true given the premises "
+            "(strict logical entailment); false if you found any counterexample "
+            "in `reasoning`."
+        )
     )
 
 
@@ -161,9 +155,6 @@ class PropositionMeaningfulnessSignature(dspy.Signature):
     proposition: str = dspy.InputField(desc="The candidate proposition to screen.")
     is_meaningful: bool = dspy.OutputField(
         desc="True if the proposition is a substantive, non-filler claim worth verifying."
-    )
-    reason: str = dspy.OutputField(
-        desc="A one-sentence justification (Vietnamese or English) for the verdict."
     )
 
 

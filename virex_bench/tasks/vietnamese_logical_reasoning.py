@@ -273,6 +273,18 @@ class VietnameseLogicalReasoning(ReasoningTask):
                 "IMPORTANT: write this reasoning in Vietnamese."
             )
         ),
+        "cr": dspy.OutputField(
+            desc=(
+                "Before answering, reason over the verified propositions in "
+                "`accumulated_context`. First check whether the "
+                "[Mệnh đề được xác nhận] (entailed) bucket directly settles the "
+                "question — if it does, commit that answer. If the question turns "
+                "on a point that only the [Mệnh đề không xác định] (undetermined) "
+                "bucket touches, the evidence is INSUFFICIENT — answer "
+                "'Không chắc chắn'. Never confuse 'undetermined' with 'is false'. "
+                "Write this reasoning in Vietnamese."
+            )
+        ),
     }
     aggregation_signature = VietnameseLogicalReasoningAggregationSignature
 
