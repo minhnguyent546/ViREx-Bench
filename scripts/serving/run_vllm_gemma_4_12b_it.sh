@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+# !!! NOTES: requires `gemma4_unified`? even vLLM v0.23.0 does not work!!!!!
+
 export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
 export SAFETENSORS_FAST_GPU=1
 
