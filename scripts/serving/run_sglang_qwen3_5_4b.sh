@@ -48,10 +48,15 @@ elif [ "$SPEC_DECODING_METHOD" = "DFLASH" ]; then
     --attention-backend fa3
     --speculative-draft-attention-backend fa4
   )
+elif [ "$SPEC_DECODING_METHOD" = "OFF" ]; then
+  # No speculative decoding
+  SPEC_ARGS=()
 else
   echo "Unknown SPEC_DECODING_METHOD: $SPEC_DECODING_METHOD" >&2
   exit 1
 fi
+
+echo "SPEC_ARGS: ${SPEC_ARGS[*]}"
 
 # python -m sglang.compile_deep_gemm
 uv run --no-sync sglang serve \

@@ -20,6 +20,8 @@ if [[ $SPEC_DECODING_METHOD == "DFLASH" ]]; then
   SPECULATIVE_CONFIG='{"method": "dflash", "model": "z-lab/Qwen3.6-27B-DFlash", "num_speculative_tokens": 7}'
 elif [[ $SPEC_DECODING_METHOD == "MTP" ]]; then
   SPECULATIVE_CONFIG='{"method": "mtp", "num_speculative_tokens": 2}'
+elif [[ $SPEC_DECODING_METHOD == "OFF" ]]; then
+  SPECULATIVE_CONFIG=''
 else
   echo "Invalid SPEC_DECODING_METHOD = $SPEC_DECODING_METHOD. Expected one of dflash or mtp" >&2
   exit 1
