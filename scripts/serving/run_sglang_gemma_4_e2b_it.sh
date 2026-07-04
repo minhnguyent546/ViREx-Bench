@@ -61,5 +61,4 @@ uv run --no-sync sglang serve \
   --reasoning-parser gemma4 \
   --tool-call-parser gemma4 \
   --grammar-backend xgrammar \
-  --enable-flashinfer-allreduce-fusion \
   "${SPEC_ARGS[@]}"
