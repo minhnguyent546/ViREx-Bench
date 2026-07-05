@@ -5503,6 +5503,7 @@ dependencies = [
     { name = "transformers", version = "5.6.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' or (extra == 'group-11-virex-bench-sglang-v0-5-14' and extra == 'group-11-virex-bench-vllm-v0-20') or (extra == 'group-11-virex-bench-sglang-v0-5-14' and extra == 'group-11-virex-bench-vllm-v0-23') or (extra == 'group-11-virex-bench-vllm-v0-20' and extra == 'group-11-virex-bench-vllm-v0-23')" },
     { name = "transformers", version = "5.8.1", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-virex-bench-sglang-v0-5-14' or (extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-20') or (extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-vllm-v0-23') or (extra == 'group-11-virex-bench-vllm-v0-20' and extra == 'group-11-virex-bench-vllm-v0-23')" },
     { name = "transformers", version = "5.11.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'group-11-virex-bench-vllm-v0-20' or extra == 'group-11-virex-bench-vllm-v0-23' or (extra == 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra == 'group-11-virex-bench-sglang-v0-5-14') or (extra != 'group-11-virex-bench-sglang-spec-v2-dflash-support' and extra != 'group-11-virex-bench-sglang-v0-5-14')" },
+    { name = "z3-solver" },
 ]
 
 [package.dev-dependencies]
@@ -5549,6 +5550,7 @@ requires-dist = [
     { name = "torchvision", specifier = "==0.26.0" },
     { name = "tqdm", specifier = ">=4.66.0" },
     { name = "transformers", specifier = ">=5.6.0,<5.12.0" },
+    { name = "z3-solver", specifier = ">=4.13.0,<4.15.5" },
 ]
 
 [package.metadata.requires-dev]
