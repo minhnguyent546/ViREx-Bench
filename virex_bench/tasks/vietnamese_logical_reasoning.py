@@ -282,6 +282,21 @@ class VietnameseLogicalReasoning(ReasoningTask):
                 "IMPORTANT: write this reasoning in Vietnamese."
             )
         ),
+        "tot": dspy.OutputField(
+            desc=(
+                "Before committing the final answer, review the explored "
+                "`reasoning_path` and reconcile it with what the question actually "
+                "asks. The path may inspect or reject several candidate conclusions "
+                "— do not blindly reproduce every conclusion it reached. Instead, "
+                "identify which of the explored conclusions are directly relevant to "
+                "the question, exclude those the question does not request (even if "
+                "the path derived them), and verify the selected answer follows "
+                "strictly from the premises. Cite only the minimal premise chain that "
+                "justifies the FINAL answer, ignoring any premise the path used solely "
+                "to analyze or rule out other options. Write this reasoning in "
+                "Vietnamese."
+            )
+        ),
         "cr": dspy.OutputField(
             desc=(
                 "Before answering, reason over the verified propositions in "

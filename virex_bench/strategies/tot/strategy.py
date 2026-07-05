@@ -36,6 +36,7 @@ from pydantic.fields import FieldInfo
 from virex_bench import envs
 from virex_bench.logger import init_logger
 from virex_bench.strategies.base import ReasoningStrategy
+from virex_bench.strategies.modules import ChainOfThought
 from virex_bench.strategies.tot.common import (
     ThoughtEvaluatorSignature,
     ThoughtProposerSignature,
@@ -172,7 +173,11 @@ class ToTStrategy(ReasoningStrategy):
             ),
             type_=str,
         )
-        self.aggregate = dspy.Predict(aggregator_signature)
+        self.aggregate = ChainOfThought(
+            aggregator_signature,
+            rationale_field=self.rationale_field,
+            rationale_field_type=self.rationale_field_type,
+        )
 
     @property
     def report_config(self) -> dict[str, object]:
