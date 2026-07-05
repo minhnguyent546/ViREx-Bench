@@ -72,7 +72,7 @@ def test_record_enricher_sets_compact_location_and_empty_query_id() -> None:
 
     assert enricher.filter(record) is True
 
-    assert getattr(record, "location", None) == "evaluate._process_example:79"
+    assert getattr(record, "location", None) == "evaluation.evaluate::_process_example:79"
     assert getattr(record, "query_id", None) == ""
 
 
@@ -97,7 +97,7 @@ def test_format_renders_compact_location_not_full_logger_name() -> None:
 
     output = fmt.format(record)
 
-    assert "evaluate._process_example:79" in output
+    assert "evaluation.evaluate::_process_example:79" in output
     # The full dotted logger name must NOT appear (it's replaced by the compact form).
     assert "virex_bench.evaluation.evaluate" not in output
 
@@ -109,8 +109,8 @@ def test_format_uses_compact_location_in_real_log_lines(
     log.info("check location")
     line = stream.getvalue().strip()
 
-    # `module.funcName:lineno`, where module is the call-site file stem ("test_logger").
-    assert "test_logger.test_format_uses_compact_location_in_real_log_lines:" in line
+    # `parent.module::funcName:lineno`, where module is the call-site file stem ("test_logger").
+    assert "tests.test_logger::test_format_uses_compact_location_in_real_log_lines:" in line
     assert "virex_bench.tests.test_logger" not in line
 
 
@@ -214,7 +214,7 @@ def test_colored_formatter_wraps_location_in_ansi_without_mutating_record() -> N
 
     reset = virex_logger.ColoredFormatter._RESET  # pyright: ignore[reportPrivateUsage]
     assert reset in output
-    assert "evaluate._process_example:79" in output
+    assert "evaluation.evaluate::_process_example:79" in output
     # The record itself must be left untouched (coloring is applied to a copy).
-    assert getattr(record, "location", None) == "evaluate._process_example:79"
+    assert getattr(record, "location", None) == "evaluation.evaluate::_process_example:79"
     assert record.levelname == "WARNING"
