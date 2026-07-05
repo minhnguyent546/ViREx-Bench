@@ -64,15 +64,16 @@ def _process_example(
             if search_stats is not None:
                 extra["search_stats"] = search_stats
             if judge_module is not None:
-                outcome = judge_example(
+                judgement = judge_example(
                     example=example, prediction=prediction, judge_module=judge_module
                 )
                 extra["judge_result"] = {
-                    "verdict": outcome.verdict,
-                    "error_type": outcome.error_type,
-                    "feedback": outcome.feedback,
+                    "verdict": judgement.verdict,
+                    "error_type": judgement.error_type,
+                    "feedback": judgement.feedback,
+                    "method": judgement.method,
                 }
-                answer_score = outcome.score
+                answer_score = judgement.score
             else:
                 assert metric_func is not None
                 answer_score = float(metric_func(example, prediction))

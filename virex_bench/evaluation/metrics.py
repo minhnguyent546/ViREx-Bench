@@ -129,7 +129,12 @@ def _parse_premise_texts(value: object) -> list[str]:
         try:
             parsed = json.loads(text)
         except (ValueError, TypeError):
-            return [text]
+            # Not valid JSON — the model likely emitted one premise per line,
+            # sometimes wrapped in brackets (e.g. "[item1]\n[item2]"). Split on
+            # newlines, strip surrounding brackets from each line, and drop
+            # empty lines so the re-matcher gets individual premise texts.
+            lines = [line.strip().strip("[]").strip() for line in text.splitlines()]
+            return [line for line in lines if line]
         return [str(item) for item in parsed] if isinstance(parsed, list) else [str(parsed)]
     return [str(value)]
 
@@ -273,13 +278,16 @@ def judge_example(
         correct_answer=example.answer,
         predicted_answer=str(prediction.answer),
         predicted_solution=str(getattr(prediction, "reasoning", "") or ""),
+        category=example.category,
     )
     verdict = str(judgement.verdict).strip().upper()
+    method = str(getattr(judgement, "method", "llm") or "llm")
     return JudgeOutcome(
         verdict=verdict,
         error_type=str(judgement.error_type),
         feedback=str(getattr(judgement, "feedback", "") or ""),
         score=float(verdict.startswith("YES")),
+        method=method,
     )
 
 

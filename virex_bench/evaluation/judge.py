@@ -8,6 +8,7 @@ model under test — avoiding self-judging bias. Task-specific judges (e.g.
 ``forward`` / normalization logic for their answer types.
 """
 
+import re
 import time
 from collections.abc import Sequence
 
@@ -37,6 +38,114 @@ LOGIC_ANSWER_ERROR_TYPES: set[str] = {
     "unknown",
 }
 
+_YNU_VALID_LABELS = frozenset({"có", "không", "không chắc chắn"})
+_MCQ_ANSWER_PATTERN = re.compile(r"^[A-H](\s*,\s*[A-H])*$", re.IGNORECASE)
+_MCQ_LABEL_PATTERN = re.compile(r"[A-H]", re.IGNORECASE)
+
+
+def _normalize_closed_answer(text: str) -> str:
+    """Normalize a closed answer: trim, lowercase, collapse internal whitespace."""
+    return " ".join(text.strip().lower().split())
+
+
+def _canonical_mcq_labels(text: str) -> str:
+    """Canonicalize an MCQ answer to sorted unique uppercase labels joined by ', '."""
+    labels = {match.upper() for match in _MCQ_LABEL_PATTERN.findall(text)}
+    return ", ".join(sorted(labels))
+
+
+def compare_closed_answer(
+    category: str | None,
+    correct_answer: str,
+    predicted_answer: str,
+) -> dspy.Prediction | None:
+    """Strictly compare a closed-answer prediction to the gold, no judge LM call.
+
+    ``mcq``: predicted must be option labels (A-H) separated by commas only —
+    extra text or punctuation is wrong; labels are compared as a set.
+    ``yes_no_uncertain``: predicted must be exactly one of ``"Có"``, ``"Không"``,
+    ``"Không chắc chắn"`` (case/whitespace-insensitive) — variants and other
+    languages are wrong, with no LM fallback.
+
+    Returns ``None`` to defer to the LM judge for non-closed categories or when
+    the gold does not fit its category (a dataset anomaly), so such rows are
+    scored accurately rather than silently mis-judged.
+    """
+    if category == "mcq":
+        # Defer anomalous gold (e.g. an mcq row whose gold is "Không chắc chắn")
+        # to the LM judge before checking the predicted format.
+        if not _MCQ_ANSWER_PATTERN.match(correct_answer.strip()):
+            return None
+        if not _MCQ_ANSWER_PATTERN.match(predicted_answer.strip()):
+            return dspy.Prediction(
+                verdict="NO",
+                error_type="multiple_choice_error",
+                feedback=(
+                    "MCQ answer must contain only option labels (A-H) separated "
+                    "by ', ' — any additional text or punctuation is wrong."
+                ),
+                reasoning="",
+                method="deterministic",
+            )
+        predicted_labels = _canonical_mcq_labels(predicted_answer)
+        gold_labels = _canonical_mcq_labels(correct_answer)
+        if predicted_labels == gold_labels:
+            return dspy.Prediction(
+                verdict="YES",
+                error_type="correct",
+                feedback="",
+                reasoning="",
+                method="deterministic",
+            )
+        return dspy.Prediction(
+            verdict="NO",
+            error_type="multiple_choice_error",
+            feedback=(
+                f"Predicted labels '{predicted_labels}' do not match the "
+                f"correct labels '{gold_labels}'."
+            ),
+            reasoning="",
+            method="deterministic",
+        )
+
+    if category == "yes_no_uncertain":
+        gold_normalized = _normalize_closed_answer(correct_answer)
+        if gold_normalized not in _YNU_VALID_LABELS:
+            return None
+        predicted_normalized = _normalize_closed_answer(predicted_answer)
+        if predicted_normalized not in _YNU_VALID_LABELS:
+            return dspy.Prediction(
+                verdict="NO",
+                error_type="yes_no_uncertain_error",
+                feedback=(
+                    "Answer must be exactly one of 'Có', 'Không', 'Không chắc "
+                    "chắn' — variants (e.g. 'Đúng', 'Sai') and other languages "
+                    "(e.g. 'Yes', 'No') are wrong."
+                ),
+                reasoning="",
+                method="deterministic",
+            )
+        if predicted_normalized == gold_normalized:
+            return dspy.Prediction(
+                verdict="YES",
+                error_type="correct",
+                feedback="",
+                reasoning="",
+                method="deterministic",
+            )
+        return dspy.Prediction(
+            verdict="NO",
+            error_type="yes_no_uncertain_error",
+            feedback=(
+                f"Predicted '{predicted_normalized}' does not match the correct "
+                f"stance '{gold_normalized}'."
+            ),
+            reasoning="",
+            method="deterministic",
+        )
+
+    return None
+
 
 class LogicalReasoningJudgeSignature(dspy.Signature):
     """You are an expert in formal and logical reasoning. Judge whether the predicted
@@ -58,28 +167,29 @@ class LogicalReasoningJudgeSignature(dspy.Signature):
 
     TYPE DETECTION (check in order):
 
-    1. MULTIPLE_CHOICE: The correct answer is one or more option labels (A-H). Extract
-       the option label(s) the predicted answer actually chose and compare to the
-       correct label(s). Labels are universal symbols, so the language of any
-       surrounding text does NOT matter — "Đáp án là A", "The answer is A", and "A" are
-       all equivalent to correct answer "A". For multi-select, the predicted answer
-       must contain exactly the same SET of labels as the correct answer (order,
-       separators, and surrounding text are irrelevant).
-       correct="C", predicted="C" or "chọn C" => YES.
-       correct="A,C", predicted="C và A" => YES (same set).
-       correct="A, C", predicted="A,C" => YES (spaces are no matter here).
+    1. MULTIPLE_CHOICE: The correct answer is one or more option labels (A-H). The
+       predicted answer must be option labels (A-H) separated by commas ONLY — any
+       surrounding text or punctuation ("Đáp án là A", "The answer is A", "chọn C",
+       "C.") makes it WRONG. Labels are universal symbols, so their own language does
+       not matter, but they must not be wrapped in prose. For multi-select, the
+       predicted answer must contain exactly the same SET of labels as the correct
+       answer (order and separators are irrelevant; surrounding text is not allowed).
+       correct="C", predicted="C" => YES.
+       correct="A,C", predicted="C, A" => YES (same set, only labels + commas).
+       correct="A, C", predicted="A,C" => YES (whitespace around separators is fine).
        correct="A,C", predicted="A" => NO (missing label — incomplete).
+       correct="C", predicted="chọn C" => NO (surrounding text).
 
     2. YES_NO_UNCERTAIN: The correct answer is a yes/no/uncertain judgement. The
-       predicted answer must express the SAME stance AND do so in Vietnamese. An
-       English (or other-language) equivalent is INCORRECT even when the stance
-       matches. Within Vietnamese, affirmatives are interchangeable ("Có", "Đúng",
-       "Vâng"), as are negatives ("Không", "Sai") and uncertainty ("Không xác định",
-       "Không rõ"). Capitalization and surrounding text do not matter.
-       correct="Có", predicted="Đúng" or "Vâng" => YES (Vietnamese affirmatives).
+       predicted answer must be EXACTLY one of "Có", "Không", "Không chắc chắn"
+       (case- and whitespace-insensitive). Vietnamese variants ("Đúng", "Sai", "Vâng",
+       "Không rõ") and other-language equivalents ("Yes", "No", "Uncertain") are all
+       WRONG — the task forces a single canonical label set, with no synonyms.
+       correct="Có", predicted="Có" => YES.
+       correct="Có", predicted="Đúng" or "Vâng" => NO (variant, not the canonical label).
        correct="Có", predicted="Yes" => NO (wrong language).
        correct="Không", predicted="No" => NO (wrong language).
-       correct="Không xác định", predicted="Uncertain" => NO (wrong language).
+       correct="Không chắc chắn", predicted="Không rõ" => NO (variant).
 
     3. NUMERIC: The correct answer is a number (possibly with units, thousands
        separators, scientific notation, fractions, or Vietnamese quantity words such
@@ -276,6 +386,7 @@ class LogicalReasoningJudge(LLMJudge):
         correct_answer: str,
         predicted_answer: str,
         predicted_solution: str = "",
+        category: str | None = None,
     ) -> dspy.Prediction:
         if predicted_answer.strip() == "":
             return dspy.Prediction(
@@ -283,7 +394,15 @@ class LogicalReasoningJudge(LLMJudge):
                 error_type="missing_answer",
                 feedback="No usable answer was provided.",
                 reasoning="",
+                method="deterministic",
             )
+        closed_result = compare_closed_answer(
+            category=category,
+            correct_answer=correct_answer,
+            predicted_answer=predicted_answer,
+        )
+        if closed_result is not None:
+            return closed_result
         result = self._judge(
             premises=premises_to_text(premises),
             question=question,
@@ -320,6 +439,7 @@ class LogicalReasoningJudge(LLMJudge):
             error_type=error_type,
             feedback=feedback,
             reasoning=reasoning,
+            method="llm",
         )
 
 
