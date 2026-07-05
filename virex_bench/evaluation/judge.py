@@ -172,17 +172,32 @@ def build_judge_lm() -> BaseLM:
     ``VIREX_BENCH_JUDGE_API_KEY``.
     """
     judge_model_name = envs.VIREX_BENCH_JUDGE_MODEL
-    if judge_model_name.lower().startswith("deepseek-v4-"):
-        api_key = envs.VIREX_BENCH_JUDGE_API_KEY
-        if api_key is None:
-            raise RuntimeError(
-                "VIREX_BENCH_JUDGE_API_KEY is not set. The llm_judge metric requires "
-                f"a judge model API key (current judge model set to `{judge_model_name}`). "
-                "Set it via the VIREX_BENCH_JUDGE_API_KEY environment variable."
-            )
+    api_key = envs.VIREX_BENCH_JUDGE_API_KEY
+    if api_key is None:
+        raise RuntimeError(
+            "VIREX_BENCH_JUDGE_API_KEY is not set. The llm_judge metric requires "
+            f"a judge model API key (current judge model set to `{judge_model_name}`). "
+            "Set it via the VIREX_BENCH_JUDGE_API_KEY environment variable. "
+            "If the provider does not require an API key, set it to any non-empty string, "
+            "e.g., `export VIREX_BENCH_JUDGE_API_KEY=empty`."
+        )
+    if judge_model_name.lower().startswith("deepseek/"):
+        # DeepSeek API
         return BaseLM(
-            model=f"deepseek/{judge_model_name}",
+            model=f"{judge_model_name}",
             base_url="https://api.deepseek.com",
+            api_key=api_key,
+            extra_body={
+                "reasoning_effort": "high",
+                "thinking": {"type": "enabled"},
+            },
+            cache=False,
+        )
+    elif judge_model_name.lower().startswith("opencode-go/"):
+        # OpenCode Go
+        return BaseLM(
+            model=f"openai/{judge_model_name.removeprefix('opencode-go/')}",
+            base_url="https://opencode.ai/zen/go/v1",
             api_key=api_key,
             extra_body={
                 "reasoning_effort": "high",
