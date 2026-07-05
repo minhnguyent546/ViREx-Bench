@@ -85,6 +85,7 @@ sglang-spec-v2-dflash-support = [
 sglang-v0-5-14 = [
     "flashinfer-python>=0.6.12",
     "sglang",
+    "transformers<5.9.0",
 ]
 
 [tool.uv]

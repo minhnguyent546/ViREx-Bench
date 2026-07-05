@@ -5526,6 +5526,7 @@ sglang-spec-v2-dflash-support = [
 sglang-v0-5-14 = [
     { name = "flashinfer-python", version = "0.6.12", source = { registry = "https://pypi.org/simple" } },
     { name = "sglang", version = "0.5.14", source = { url = "https://huggingface.co/datasets/minhnguyent546/wheelhouse/resolve/e8491995c210f7b3b1e4034d2d23bc957bdd136c/SGLang/sglang-0.5.14-cp312-cp312-linux_x86_64.whl" } },
+    { name = "transformers", version = "5.8.1", source = { registry = "https://pypi.org/simple" } },
 ]
 vllm-v0-20 = [
     { name = "flashinfer-python", version = "0.6.8.post1", source = { registry = "https://pypi.org/simple" } },
@@ -5571,6 +5572,7 @@ sglang-spec-v2-dflash-support = [
 sglang-v0-5-14 = [
     { name = "flashinfer-python", specifier = ">=0.6.12" },
     { name = "sglang", url = "https://huggingface.co/datasets/minhnguyent546/wheelhouse/resolve/e8491995c210f7b3b1e4034d2d23bc957bdd136c/SGLang/sglang-0.5.14-cp312-cp312-linux_x86_64.whl" },
+    { name = "transformers", specifier = "<5.9.0" },
 ]
 vllm-v0-20 = [
     { name = "flashinfer-python", specifier = ">=0.6.8.post1" },
