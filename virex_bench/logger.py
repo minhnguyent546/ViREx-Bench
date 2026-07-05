@@ -33,10 +33,11 @@ def log_query_context(query_id: str):
 
 
 class _RecordEnricher(logging.Filter):
-    """Stamp each record with ``location`` (``module.funcName:lineno``) and ``query_id``."""
+    """Stamp each record with ``location`` (``parent.module::func:lineno``) and ``query_id``."""
 
     def filter(self, record: logging.LogRecord) -> bool:
-        record.location = f"{record.module}.{record.funcName}:{record.lineno}"
+        module_path = ".".join(record.name.split(".")[-2:])
+        record.location = f"{module_path}::{record.funcName}:{record.lineno}"
         query_id = _query_id_var.get()
         record.query_id = f"[{query_id}] " if query_id is not None else ""
         return True
