@@ -9,8 +9,6 @@ from virex_bench.strategies.cr.common import (
     render_verdict_buckets,
 )
 
-# --- parse_bool ---
-
 
 @pytest.mark.parametrize(
     "raw",
@@ -40,9 +38,6 @@ def test_parse_bool_labelled_output() -> None:
     assert parse_bool("Verdict: false") is False
 
 
-# --- is_empty_or_none_proposition ---
-
-
 def test_is_empty_handles_none_and_whitespace() -> None:
     assert is_empty_or_none_proposition(None) is True
     assert is_empty_or_none_proposition("") is True
@@ -61,9 +56,6 @@ def test_is_empty_catches_english_sentinels() -> None:
 
 def test_is_empty_keeps_substantive_proposition() -> None:
     assert is_empty_or_none_proposition("Theo tiền đề 3, An là sinh viên.") is False
-
-
-# --- render_verdict_buckets ---
 
 
 def test_render_all_empty_returns_empty_string() -> None:
@@ -88,9 +80,6 @@ def test_render_all_three_buckets() -> None:
     assert "[Mệnh đề không xác định 1] An có thể là giáo viên." in rendered
     # Empty buckets are omitted, non-empty sections separated by blank line.
     assert rendered.count("\n\n") == 2
-
-
-# --- CRConfig validation ---
 
 
 def _valid_config_kwargs() -> dict[str, object]:

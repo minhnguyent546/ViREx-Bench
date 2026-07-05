@@ -17,9 +17,7 @@ from virex_bench.strategies.pot.interpreter import (
     find_solution,
 )
 
-# ---------------------------------------------------------------------------
 # check_entailment — the two-solver unsat test
-# ---------------------------------------------------------------------------
 
 
 def test_check_entailment_entailed() -> None:
@@ -51,9 +49,7 @@ def test_check_entailment_uncertain() -> None:
     assert check_entailment([reads(a)], knows(a)) == "uncertain"
 
 
-# ---------------------------------------------------------------------------
 # find_solution — satisfiability + model extraction
-# ---------------------------------------------------------------------------
 
 
 def test_find_solution_sat_returns_assignments() -> None:
@@ -84,9 +80,7 @@ def test_find_solution_rational_returns_float() -> None:
     assert result["x"] == 0.5
 
 
-# ---------------------------------------------------------------------------
 # Wrapper forgiveness — _unwrap single-element lists
-# ---------------------------------------------------------------------------
 
 
 def test_create_predicate_unwraps_single_element_list() -> None:
@@ -110,9 +104,7 @@ def test_create_function_absorbs_return_sort_kwarg() -> None:
     assert z3.is_int(age(lan))
 
 
-# ---------------------------------------------------------------------------
 # LocalZ3PythonInterpreter.execute — end-to-end sandbox tests
-# ---------------------------------------------------------------------------
 
 
 def test_execute_captures_printed_result() -> None:
@@ -256,10 +248,8 @@ def test_execute_timeout_raises_timeout_error() -> None:
         interpreter.execute("while True:\n    pass")
 
 
-# ---------------------------------------------------------------------------
 # Helpers — thin wrappers to keep check_entailment tests readable without
 # importing z3 at the top level
-# ---------------------------------------------------------------------------
 
 
 def _forall(domain: object, fn: object) -> object:

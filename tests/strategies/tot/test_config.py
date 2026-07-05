@@ -272,7 +272,6 @@ def test_threshold_empty_string_falls_back_to_default(
     assert getattr(config, threshold_attr) == expected_default
 
 
-# --- Sampling-temperature inheritance (VIREX_BENCH_TOT_{PROPOSE,EVALUATE}_TEMPERATURE) ---
 #
 # Unset/empty -> None -> the `temperature` key is OMITTED from the per-call
 # sampling config so dspy inherits the LM's --model-kwargs profile (same policy

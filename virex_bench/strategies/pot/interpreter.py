@@ -50,9 +50,7 @@ logger = init_logger(__name__)
 __all__ = ["LocalZ3PythonInterpreter", "check_entailment", "find_solution"]
 
 
-# ---------------------------------------------------------------------------
 # Safe builtins
-# ---------------------------------------------------------------------------
 
 _DANGEROUS_BUILTINS = frozenset(
     {
@@ -100,9 +98,7 @@ def _make_safe_builtins() -> dict[str, Any]:
 _SAFE_BUILTINS = _make_safe_builtins()
 
 
-# ---------------------------------------------------------------------------
 # LLM-friendly Z3 wrapper API
-# ---------------------------------------------------------------------------
 
 
 def _unwrap(arg: Any) -> Any:
@@ -256,9 +252,7 @@ _LOCAL_WRAPPERS: dict[str, Any] = {
 }
 
 
-# ---------------------------------------------------------------------------
 # Attribute proxies (forgive z3./logic_api. prefixes the LLM may emit)
-# ---------------------------------------------------------------------------
 
 
 class _LogicApiMock:
@@ -283,9 +277,7 @@ class _Z3ApiMock:
         raise AttributeError(f"Library Z3 does not have attribute or function '{name}'.")
 
 
-# ---------------------------------------------------------------------------
 # Execution worker (module-scope — picklable for spawn)
-# ---------------------------------------------------------------------------
 
 
 def _build_z3_globals() -> dict[str, Any]:
@@ -342,9 +334,7 @@ def _run_z3_python_code(code: str) -> tuple[str, str]:
         return "error", traceback.format_exc()
 
 
-# ---------------------------------------------------------------------------
 # Public interpreter class
-# ---------------------------------------------------------------------------
 
 
 class LocalZ3PythonInterpreter:

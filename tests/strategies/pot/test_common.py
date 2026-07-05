@@ -14,8 +14,6 @@ from virex_bench.strategies.pot.common import (
     strip_ansi,
 )
 
-# --- strip_ansi ---
-
 
 def test_strip_ansi_removes_color_codes() -> None:
     assert strip_ansi("\x1b[31mred text\x1b[0m") == "red text"
@@ -31,9 +29,6 @@ def test_strip_ansi_passthrough_plain_text() -> None:
 
 def test_strip_ansi_empty_string() -> None:
     assert strip_ansi("") == ""
-
-
-# --- parse_code ---
 
 
 def test_parse_code_raw_code_no_fences() -> None:
@@ -127,9 +122,6 @@ def test_parse_code_does_not_append_for_single_line() -> None:
     assert parsed == 'result = {"answer": "Yes"}'
 
 
-# --- format_solver_result ---
-
-
 def test_format_solver_result_success() -> None:
     rendered = format_solver_result("x = 1", '{"answer": "Yes"}', None)
     assert "Z3 Program:" in rendered
@@ -151,11 +143,8 @@ def test_format_solver_result_failure() -> None:
 def test_format_solver_result_success_output_empty_string() -> None:
     """An empty-string output (program ran but printed nothing) is still success."""
     rendered = format_solver_result("x = 1", "", None)
-    assert "=== PROGRAM OUTPUT ===" in rendered
-    assert "FAILED" not in rendered
-
-
-# --- POTConfig validation ---
+    assert "Program Output:" in rendered
+    assert "failed" not in rendered
 
 
 def _valid_config_kwargs() -> dict[str, object]:

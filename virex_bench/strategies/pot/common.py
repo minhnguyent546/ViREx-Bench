@@ -25,9 +25,6 @@ from virex_bench.logger import init_logger
 logger = init_logger(__name__)
 
 
-# --- Signatures ---
-
-
 class ProgramGenerationSignature(dspy.Signature):
     """Translate the logical structure of the premises into an executable Python program
     using the pre-loaded Z3 symbolic API, then run it to derive a logical verdict.
@@ -245,9 +242,6 @@ POT_GENERATE_RATIONALE = dspy.OutputField(
 )
 
 
-# --- Config ---
-
-
 @dataclass
 class POTConfig:
     """Knobs for the PoT-Z3 generate -> execute -> regenerate loop.
@@ -293,9 +287,6 @@ class POTConfig:
                         f"{role}_config['temperature'] must be a number in [0, 2], "
                         f"got {temperature!r}"
                     )
-
-
-# --- Pure-Python helpers ---
 
 
 _ANSI_RE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
