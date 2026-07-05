@@ -30,7 +30,7 @@ modeled on [`mteb`](https://github.com/embeddings-benchmark/mteb) — a CLI is s
 
 ## Commands
 
-Always prefix Python/tool commands with `uv run`:
+Always prefix Python/tool commands with `uv run --no-sync`, omit the `--no-sync` flag only when you actually needed to avoid syncing packages everytime (which take times).
 
 ```bash
 # Lint
