@@ -23,7 +23,7 @@ if [[ $SPEC_DECODING_METHOD == "MTP" ]]; then
 elif [[ $SPEC_DECODING_METHOD == "OFF" ]]; then
   SPECULATIVE_CONFIG=''
 else
-  echo "Invalid SPEC_DECODING_METHOD = $SPEC_DECODING_METHOD." >&2
+  echo "Invalid SPEC_DECODING_METHOD = $SPEC_DECODING_METHOD. Expected one of MTP or OFF" >&2
   exit 1
 fi
 

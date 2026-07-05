@@ -46,7 +46,7 @@ elif [ "$SPEC_DECODING_METHOD" = "OFF" ]; then
   # No speculative decoding
   SPEC_ARGS=()
 else
-  echo "Unknown SPEC_DECODING_METHOD: $SPEC_DECODING_METHOD" >&2
+  echo "Unknown SPEC_DECODING_METHOD: $SPEC_DECODING_METHOD. Expected one of DFLASH, MTP or OFF" >&2
   exit 1
 fi
 
