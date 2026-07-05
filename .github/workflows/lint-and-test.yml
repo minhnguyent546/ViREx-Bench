@@ -25,7 +25,7 @@ jobs:
       - name: Check imports
         run: |
           export PYTHONPATH="${{ github.workspace }}"
-          uv run --no-sync python .github/workflows/check_imports.py --src_path virex_bench
+          uv run --frozen python .github/workflows/check_imports.py --src_path virex_bench
 
   lint-with-ruff:
       runs-on: ubuntu-latest
@@ -41,11 +41,11 @@ jobs:
 
         - name: Lint with ruff
           run: |
-            uv run --no-sync ruff check --output-format=github virex_bench tests scripts
+            uv run --frozen ruff check --output-format=github virex_bench tests scripts
 
         - name: Check formatting with ruff
           run: |
-            uv run --no-sync ruff format --check --output-format=github virex_bench tests scripts
+            uv run --frozen ruff format --check --output-format=github virex_bench tests scripts
 
   test-with-pytest:
       runs-on: ubuntu-latest
@@ -65,4 +65,4 @@ jobs:
 
         - name: Run tests with pytest
           run: |
-            uv run --no-sync pytest tests -v
+            uv run --frozen pytest tests -v
