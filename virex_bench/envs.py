@@ -48,10 +48,12 @@ if TYPE_CHECKING:
     VIREX_BENCH_JUDGE_API_KEY: str | None = None
 
     # DeepSeek model used by the LLM-as-a-judge metric.
-    VIREX_BENCH_JUDGE_MODEL: Literal["deepseek-v4-pro", "deepseek-v4-flash"] = "deepseek-v4-flash"
-
-    # Maximum number of attempts (including the first call) for transient LM
-    # connection errors (timeouts, connection resets, HTTP 429/500/503).
+    VIREX_BENCH_JUDGE_MODEL: Literal[
+        "deepseek/deepseek-v4-pro",
+        "deepseek/deepseek-v4-flash",
+        "opencode-go/deepseek-v4-pro",
+        "opencode-go/deepseek-v4-flash",
+    ] = "deepseek/deepseek-v4-flash"
     VIREX_BENCH_LM_MAX_RETRIES: int = 3
     # Initial wait between LM retries, in seconds.
     VIREX_BENCH_LM_RETRY_MIN_WAIT: float = 1.0
@@ -260,8 +262,13 @@ environment_variables: dict[str, Callable[[], Any]] = {
     "VIREX_BENCH_JUDGE_API_KEY": lambda: os.environ.get("VIREX_BENCH_JUDGE_API_KEY", None),
     "VIREX_BENCH_JUDGE_MODEL": env_with_choices(
         "VIREX_BENCH_JUDGE_MODEL",
-        "deepseek-v4-flash",
-        ["deepseek-v4-pro", "deepseek-v4-flash"],
+        "deepseek/deepseek-v4-flash",
+        [
+            "deepseek/deepseek-v4-pro",
+            "deepseek/deepseek-v4-flash",
+            "opencode-go/deepseek-v4-pro",
+            "opencode-go/deepseek-v4-flash",
+        ],
         case_sensitive=False,
     ),
     # --- LM retry (transient connection / HTTP errors) ---
