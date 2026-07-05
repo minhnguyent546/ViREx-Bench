@@ -15,7 +15,6 @@ def test_build_judge_lm_uses_generic_judge_api_key(monkeypatch: pytest.MonkeyPat
 
     monkeypatch.delenv("VIREX_BENCH_JUDGE_MODEL", raising=False)
     monkeypatch.setenv("VIREX_BENCH_JUDGE_API_KEY", "test-judge-key")
-    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
     monkeypatch.setattr(judge_module, "BaseLM", _FakeBaseLM)
 
     judge_module.build_judge_lm()
@@ -27,9 +26,8 @@ def test_build_judge_lm_uses_generic_judge_api_key(monkeypatch: pytest.MonkeyPat
 def test_build_judge_lm_requires_generic_judge_api_key(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("VIREX_BENCH_JUDGE_MODEL", "deepseek-v4-pro")
+    monkeypatch.setenv("VIREX_BENCH_JUDGE_MODEL", "deepseek/deepseek-v4-pro")
     monkeypatch.delenv("VIREX_BENCH_JUDGE_API_KEY", raising=False)
-    monkeypatch.setenv("DEEPSEEK_API_KEY", "legacy-key")
 
     with pytest.raises(RuntimeError, match="VIREX_BENCH_JUDGE_API_KEY"):
         judge_module.build_judge_lm()
