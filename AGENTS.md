@@ -16,9 +16,9 @@ The framework targets two orthogonal research axes (planned scope listed; see ea
 registry for what is currently implemented):
 
 - **Prompting / inference-time scaling** (`strategies/`): Chain-of-Thought (CoT),
-  Tree-of-Thought (ToT), Self-Consistency, Program-of-Thought with symbolic reasoning
-  (Z3 solver), and Monte-Carlo Tree-of-Thought (MCToT). *Implemented: direct baseline,
-  CoT, ToT (beam + DFS search).*
+  Tree-of-Thought (ToT) with pluggable search (beam, DFS, MCTS), Cumulative Reasoning
+  (CR), Self-Consistency, and Program-of-Thought with symbolic reasoning (Z3 solver).
+  *Implemented: direct baseline, CoT, CR, ToT (beam + DFS + MCTS search).*
 - **Decoding** (`decoding/`): the baseline (single candidate, or multiple candidates
   aggregated by majority vote), Best-of-N with a verifier, and speculative decoding to
   speed up inference. *Implemented: single-pass baseline, self-consistency (N-sample
@@ -77,6 +77,7 @@ virex_bench/
 │   └── build_cli.py #  build_parser / main + subcommand handlers
 ├── envs.py         # centralized, lazily-read environment variables (vLLM-style)
 ├── logger.py       # init_logger(__name__) — shared logging setup
+├── utils.py        # shared helpers (premises_to_text — numbered premise block)
 ├── types/          # pydantic data models + type aliases (mirrors mteb/types)
 │   ├── __init__.py #   re-exports all public types
 │   ├── _task.py    #   ReasoningExample, DatasetConfig, TaskMetadata
@@ -91,19 +92,23 @@ virex_bench/
 │   ├── base.py     #   BaseLM(dspy.LM) wrapper
 │   └── backends.py #   load_backend: build a BaseLM for an OpenAI-compatible endpoint
 ├── strategies/     # PROMPTING / inference-time scaling (dspy.Module subclasses)
-│   ├── base.py     #   ReasoningStrategy base class
-│   ├── registry.py #   get_strategy / list_strategies (registered: direct, cot, tot)
+│   ├── base.py     #   ReasoningStrategy base class (+ accepts_variant flag)
+│   ├── registry.py #   get_strategy / list_strategies + composite-name parsing (direct, cot, cr, tot[-beam|-dfs|-mcts])
 │   ├── direct.py   #   baseline: direct answer
 │   ├── cot.py      #   Chain-of-Thought
 │   ├── modules.py  #   reusable dspy modules: ChainOfThought, DualTask2ChainOfThought, ThinkingCaptureLM
+│   ├── cr/         #   Cumulative Reasoning strategy package (Zhang et al., 2023)
+│   │   ├── strategy.py # CRStrategy — propose/verify accumulation loop + solver
+│   │   └── common.py   # shared signatures + helpers (proposer/verifiers, CRConfig, verdict buckets)
 │   └── tot/        #   Tree-of-Thoughts strategy package (Yao et al., 2023)
 │       ├── strategy.py # ToTStrategy — propose/evaluate/aggregate over a thought tree
 │       ├── common.py  # shared signatures + helpers (proposer/evaluator, scoring, dedupe)
-│       └── search/     # pluggable search algorithms (beam, DFS; MCTS planned)
+│       └── search/     # pluggable search algorithms (beam, DFS, MCTS)
 │           ├── __init__.py # search registry: build_search / list_search
 │           ├── base.py     # SearchConfig, SearchResult, ThoughtSearch ABC
 │           ├── beam.py     # BeamSearch (ToT's BFS)
-│           └── dfs.py      # DFSSearch (backtracking + value pruning)
+│           ├── dfs.py      # DFSSearch (backtracking + value pruning)
+│           └── mcts.py     # MCTSSearch (Monte-Carlo Tree Search)
 ├── decoding/       # DECODING / answer aggregation
 │   ├── base.py     #   DecodingStrategy base + SinglePass (single-candidate baseline)
 │   ├── registry.py #   get_decoding / list_decoding
@@ -117,7 +122,7 @@ virex_bench/
 data/               # datasets (managed externally — do not edit by hand)
 notebooks/          # dataset-prep notebooks (e.g. eval-round → HF dataset conversion)
 scripts/            # dataset translation helpers + model-serving launchers (serving/)
-tests/              # pytest suite — mirrors the package layout (cli / evaluation / strategies [+ tot])
+tests/              # pytest suite — mirrors the package layout (cli / evaluation / strategies [+ cr, tot])
 results/            # benchmark run outputs
 ```
 
