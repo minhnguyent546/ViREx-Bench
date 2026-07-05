@@ -286,10 +286,7 @@ class MCTSSearch(ThoughtSearch):
                     premises=premises,
                     question=question,
                     reasoning_so_far=render_thought_path(node.path),
-                    config={
-                        "n": config.branching_factor,
-                        "temperature": config.propose_temperature,
-                    },
+                    config=config.propose_sampling_config,
                 )
             except dspy.ContextWindowExceededError:
                 logger.debug(
@@ -310,10 +307,7 @@ class MCTSSearch(ThoughtSearch):
                         premises=premises,
                         question=question,
                         reasoning_path=render_thought_path(child_path),
-                        config={
-                            "n": config.n_eval_samples,
-                            "temperature": config.evaluate_temperature,
-                        },
+                        config=config.evaluate_sampling_config,
                     )
                 except dspy.ContextWindowExceededError:
                     logger.debug(
@@ -358,10 +352,7 @@ class MCTSSearch(ThoughtSearch):
                     premises=premises,
                     question=question,
                     reasoning_path=render_thought_path(node.path),
-                    config={
-                        "n": config.n_eval_samples,
-                        "temperature": config.evaluate_temperature,
-                    },
+                    config=config.evaluate_sampling_config,
                 )
             except dspy.ContextWindowExceededError:
                 logger.debug(
@@ -394,13 +385,13 @@ class MCTSSearch(ThoughtSearch):
                 break
             if not frontier.is_expanded and frontier.depth < config.max_depth:
                 expand(frontier)
-                # An empty/dead-end root expansion: nothing to search. Mirror
-                # beam/DFS stall (empty path, zero score) and stop immediately.
+                # Empty/dead-end root expansion: nothing to search. Mirror
+                # beam/DFS stall and stop immediately.
                 if frontier is root and not root.children:
                     break
             else:
-                # Terminal (max depth) or expanded dead-end (no children):
-                # re-evaluate to refine Q (MCTSr repeated sampling).
+                # Terminal (max depth) or expanded dead-end: re-evaluate to
+                # refine Q (MCTSr repeated sampling).
                 reeval_count += 1
                 reevaluate(frontier)
 

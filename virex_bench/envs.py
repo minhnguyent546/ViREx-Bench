@@ -76,12 +76,14 @@ if TYPE_CHECKING:
     VIREX_BENCH_TOT_BEAM_WIDTH: int = 3
     # Independent evaluator votes averaged to score each candidate path.
     VIREX_BENCH_TOT_EVAL_SAMPLES: int = 3
-    # Sampling temperature for the proposer (higher -> more diverse thoughts).
-    VIREX_BENCH_TOT_PROPOSE_TEMPERATURE: float = 0.7
-    # Sampling temperature for the evaluator (0.0 -> deterministic scoring).
-    VIREX_BENCH_TOT_EVALUATE_TEMPERATURE: float = 0.0
-    # Search algorithm for the bare `tot` strategy (CLI composite names like
-    # `tot-beam` override this). Choices: beam, dfs, mcts.
+    # Proposer sampling temperature. None (default) -> inherit the LM's
+    # `--model-kwargs` profile; set higher (e.g. 0.7) for more diverse thoughts.
+    VIREX_BENCH_TOT_PROPOSE_TEMPERATURE: float | None = None
+    # Evaluator sampling temperature. None (default) -> inherit the LM's
+    # `--model-kwargs` profile; set to 0.0 for deterministic scoring.
+    VIREX_BENCH_TOT_EVALUATE_TEMPERATURE: float | None = None
+    # Search algorithm for the bare `tot` strategy. CLI composites like `tot-beam`
+    # override this. Choices: beam, dfs, mcts.
     VIREX_BENCH_TOT_SEARCH_ALGORITHM: str = "beam"
     # Fuzzy dedupe threshold for proposed thoughts. Higher is more conservative.
     VIREX_BENCH_TOT_DEDUPE_SIMILARITY_THRESHOLD: float = 0.9
@@ -291,11 +293,11 @@ environment_variables: dict[str, Callable[[], Any]] = {
     "VIREX_BENCH_TOT_EVAL_SAMPLES": lambda: int(
         os.environ.get("VIREX_BENCH_TOT_EVAL_SAMPLES", "3")
     ),
-    "VIREX_BENCH_TOT_PROPOSE_TEMPERATURE": lambda: float(
-        os.environ.get("VIREX_BENCH_TOT_PROPOSE_TEMPERATURE", "0.7")
+    "VIREX_BENCH_TOT_PROPOSE_TEMPERATURE": lambda: maybe_convert_float(
+        os.environ.get("VIREX_BENCH_TOT_PROPOSE_TEMPERATURE", None)
     ),
-    "VIREX_BENCH_TOT_EVALUATE_TEMPERATURE": lambda: float(
-        os.environ.get("VIREX_BENCH_TOT_EVALUATE_TEMPERATURE", "0.0")
+    "VIREX_BENCH_TOT_EVALUATE_TEMPERATURE": lambda: maybe_convert_float(
+        os.environ.get("VIREX_BENCH_TOT_EVALUATE_TEMPERATURE", None)
     ),
     "VIREX_BENCH_TOT_BEAM_EARLY_STOP_THRESHOLD": lambda: maybe_convert_float(
         os.environ.get("VIREX_BENCH_TOT_BEAM_EARLY_STOP_THRESHOLD", None)

@@ -316,14 +316,12 @@ class CRStrategy(ReasoningStrategy):
             "depth_reached": total_accumulated,
             "best_score": float(total_accumulated >= 1),
             "context_overflow": overflowed,
-            # Cost in "LLM request" units (one dspy.Predict invocation each),
-            # incl. the final aggregate call -- the direct analog of a CoT/direct
-            # single call, so total_llm_calls is comparable 1:1.
+            # "LLM request" units incl. the final aggregate call (the direct
+            # analog of CoT/direct's single call, comparable 1:1).
             "total_llm_calls": propose_calls + validity_calls + meaningfulness_calls + 1,
-            # CR proposes one completion per call and each verifier yields one
-            # completion; the aggregate call yields 1 completion. (No `n`
-            # sampling -- unlike ToT's branching proposer/evaluator.)
-            "total_completions": propose_calls + validity_calls + meaningfulness_calls + 1,
+            # Completions: each propose call yields n_samples completions; verify
+            # and aggregate calls yield 1 each.
+            "total_completions": propose_completions + validity_calls + meaningfulness_calls + 1,
         }
         return prediction
 

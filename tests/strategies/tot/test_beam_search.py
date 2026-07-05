@@ -59,6 +59,23 @@ class _FakeEvaluator:
         return _FakePrediction(score=scores)
 
 
+class _ConfigRecordingModule:
+    """Records the ``config`` kwarg of each call; returns a fixed canned prediction.
+
+    Used to assert the search loop forwards the pre-computed sampling config
+    (temperature-omitted when inherited, temperature-pinned when set) verbatim.
+    Returning constant data keeps it robust to however many calls the search makes.
+    """
+
+    def __init__(self, prediction: _FakePrediction) -> None:
+        self.recorded: list[dict[str, Any]] = []
+        self._prediction = prediction
+
+    def __call__(self, **kwargs: Any) -> _FakePrediction:
+        self.recorded.append(dict(kwargs.get("config") or {}))
+        return self._prediction
+
+
 class _OverflowProposer:
     """Acts like ``_FakeProposer`` but raises on its Nth call (1-indexed)."""
 
@@ -332,3 +349,66 @@ def test_beam_overflow_at_root_returns_empty_path() -> None:
     assert result.depth_reached == 0
     assert result.propose_calls == 0
     assert result.evaluate_calls == 0
+
+
+def test_beam_forwards_inherited_sampling_config() -> None:
+    """The search loop forwards the pre-computed sampling config verbatim.
+
+    When temperatures are None the proposer/evaluator receive a dict with `n`
+    only -- no `temperature` key -- so dspy inherits the LM's --model-kwargs
+    profile (CR's inheritance policy). This guards against a regression to the
+    old inline dict, which unconditionally wrote ``"temperature": None``.
+    """
+    config = _make_config(
+        max_depth=1,
+        beam_width=1,
+        branching_factor=2,
+        propose_temperature=None,
+        evaluate_temperature=None,
+    )
+    proposer = _ConfigRecordingModule(_FakePrediction(next_thought=["A", "B"]))
+    evaluator = _ConfigRecordingModule(_FakePrediction(score=[5]))
+    search = BeamSearch(config)
+    search.search(
+        premises=["p1"],
+        question="q",
+        propose=proposer,  # type: ignore[arg-type]
+        evaluate=evaluator,  # type: ignore[arg-type]
+    )
+
+    recorded = [*proposer.recorded, *evaluator.recorded]
+    assert recorded, "expected at least one propose/evaluate call"
+    for call_config in recorded:
+        assert "n" in call_config
+        assert "temperature" not in call_config
+
+
+def test_beam_forwards_pinned_sampling_config() -> None:
+    """When temperatures are pinned, the search forwards them verbatim and keeps
+    propose/evaluate on their respective roles (distinguished by `n`)."""
+    config = _make_config(
+        max_depth=1,
+        beam_width=1,
+        branching_factor=2,
+        propose_temperature=0.9,
+        evaluate_temperature=0.1,
+    )
+    proposer = _ConfigRecordingModule(_FakePrediction(next_thought=["A", "B"]))
+    evaluator = _ConfigRecordingModule(_FakePrediction(score=[5]))
+    search = BeamSearch(config)
+    search.search(
+        premises=["p1"],
+        question="q",
+        propose=proposer,  # type: ignore[arg-type]
+        evaluate=evaluator,  # type: ignore[arg-type]
+    )
+
+    # Propose calls carry branching_factor as `n`; evaluate calls carry n_eval_samples.
+    propose_configs = proposer.recorded
+    evaluate_configs = evaluator.recorded
+    assert propose_configs, "expected at least one proposer call"
+    assert evaluate_configs, "expected at least one evaluator call"
+    assert all(c["n"] == config.branching_factor for c in propose_configs)
+    assert all(c["temperature"] == 0.9 for c in propose_configs)
+    assert all(c["n"] == config.n_eval_samples for c in evaluate_configs)
+    assert all(c["temperature"] == 0.1 for c in evaluate_configs)

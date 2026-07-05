@@ -116,10 +116,7 @@ class DFSSearch(ThoughtSearch):
                 premises=premises,
                 question=question,
                 reasoning_so_far=render_thought_path(node.path),
-                config={
-                    "n": config.branching_factor,
-                    "temperature": config.propose_temperature,
-                },
+                config=config.propose_sampling_config,
             )
             propose_calls += 1
             thoughts = dedupe_thoughts(completion_values(proposed, "next_thought"))
@@ -131,10 +128,7 @@ class DFSSearch(ThoughtSearch):
                     premises=premises,
                     question=question,
                     reasoning_path=render_thought_path(child_path),
-                    config={
-                        "n": config.n_eval_samples,
-                        "temperature": config.evaluate_temperature,
-                    },
+                    config=config.evaluate_sampling_config,
                 )
                 evaluate_calls += 1
                 score = mean_score(completion_values(evaluated, "score"))

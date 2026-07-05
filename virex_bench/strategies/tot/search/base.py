@@ -6,7 +6,8 @@ modules into ``search()``, keeping each algorithm LM-free and unit-testable.
 """
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Any
 
 import dspy
 
@@ -31,11 +32,11 @@ class SearchConfig:
     max_depth: int
     branching_factor: int
     n_eval_samples: int
-    propose_temperature: float
-    evaluate_temperature: float
-    # Variant-specific semantics, resolved by _build_search_config: stop-on-success
-    # for beam (early_stop_threshold); ToT's v_th pruning for DFS
-    # (early_stop_threshold = prune threshold); MCTS stop-on-success (success_threshold).
+    propose_temperature: float | None
+    evaluate_temperature: float | None
+    # Variant-specific, resolved by _build_search_config: stop-on-success for
+    # beam (early_stop_threshold); ToT's v_th pruning for DFS
+    # (early_stop_threshold); MCTS stop-on-success (success_threshold).
     early_stop_threshold: float | None
     # algorithm-specific (optional; ignored by algos that don't use them)
     beam_width: int | None = None  # beam
@@ -44,6 +45,12 @@ class SearchConfig:
     success_threshold: float | None = (
         None  # DFS / MCTS stop-on-success (beam uses early_stop_threshold)
     )
+    # Per-call sampling overrides (n + optional temperature), derived once in
+    # __post_init__. Unset temperature -> key omitted so dspy inherits the LM's
+    # --model-kwargs profile (CR's inheritance policy); building these up-front
+    # keeps the hot search loop a plain dict read.
+    propose_sampling_config: dict[str, Any] = field(init=False)
+    evaluate_sampling_config: dict[str, Any] = field(init=False)
 
     def __post_init__(self) -> None:
         if self.max_depth < 1:
@@ -52,6 +59,13 @@ class SearchConfig:
             raise ValueError(f"branching_factor must be >= 1, got {self.branching_factor}")
         if self.n_eval_samples < 1:
             raise ValueError(f"n_eval_samples must be >= 1, got {self.n_eval_samples}")
+
+        self.propose_sampling_config = {"n": self.branching_factor}
+        if self.propose_temperature is not None:
+            self.propose_sampling_config["temperature"] = self.propose_temperature
+        self.evaluate_sampling_config = {"n": self.n_eval_samples}
+        if self.evaluate_temperature is not None:
+            self.evaluate_sampling_config["temperature"] = self.evaluate_temperature
 
 
 class ThoughtSearch(ABC):
