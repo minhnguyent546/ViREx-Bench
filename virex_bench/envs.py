@@ -16,22 +16,20 @@ import os
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Literal
 
-# Type-only declarations so Pyright/IDEs see properly typed module attributes even
-# though the values are produced dynamically by `__getattr__`. This block is never
-# executed at runtime (`TYPE_CHECKING` is always False).
+# Type-only declarations so static checkers see typed attributes; the values are
+# produced dynamically by `__getattr__` (this block never runs at runtime).
 if TYPE_CHECKING:
     # Logging verbosity for the `virex_bench` logger (matched case-insensitively).
     VIREX_BENCH_LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
 
-    # Controls ANSI color in log output: "auto" colors only when the stream is a TTY,
-    # "1" always colors, "0" never colors.
+    # ANSI color in log output: "auto" (TTY only), "1" always, "0" never.
     VIREX_BENCH_LOG_COLOR: Literal["auto", "0", "1"] = "auto"
 
-    # Standard cross-tool opt-out (https://no-color.org): when set to any non-empty
-    # value, disables colored output regardless of VIREX_BENCH_LOG_COLOR.
+    # Standard cross-tool opt-out (https://no-color.org); any non-empty value
+    # disables colored output regardless of VIREX_BENCH_LOG_COLOR.
     NO_COLOR: bool = False
 
-    # Default directory benchmark results are written into when `--output-dir` is unset.
+    # Default output directory when `--output-dir` is unset.
     VIREX_BENCH_OUTPUT_DIR: str = "results"
 
     # Base URL of the OpenAI-compatible endpoint (e.g. "http://localhost:8000/v1").
@@ -40,8 +38,7 @@ if TYPE_CHECKING:
     # API key for the OpenAI-compatible endpoint.
     OPENAI_API_KEY: str | None = None
 
-    # Access token for the HuggingFace Hub (used to load task datasets). Optional for
-    # public datasets; required for gated or private ones.
+    # HuggingFace Hub access token (required for gated/private task datasets).
     HF_TOKEN: str | None = None
 
     # API key for the judge model provider, used by the LLM-as-a-judge metric.
@@ -54,21 +51,20 @@ if TYPE_CHECKING:
         "opencode-go/deepseek-v4-pro",
         "opencode-go/deepseek-v4-flash",
     ] = "deepseek/deepseek-v4-flash"
+
+    # Max attempts (incl. the first call) for transient LM errors (timeouts, resets, 429/500/503).
     VIREX_BENCH_LM_MAX_RETRIES: int = 3
-    # Initial wait between LM retries, in seconds.
+    # Initial wait between LM retries (seconds).
     VIREX_BENCH_LM_RETRY_MIN_WAIT: float = 1.0
-    # Maximum (capped) wait between LM retries, in seconds.
+    # Capped max wait between LM retries (seconds).
     VIREX_BENCH_LM_RETRY_MAX_WAIT: float = 30.0
-    # Maximum random jitter added to each LM retry wait, in seconds.
+    # Max random jitter added to each LM retry wait (seconds).
     VIREX_BENCH_LM_RETRY_JITTER: float = 1.0
 
-    # --- Tree-of-Thoughts (ToT) strategy tuning ---
-    # All ToT knobs are optional; when unset the defaults below are used. Tune a
-    # run with e.g. `VIREX_BENCH_TOT_MAX_DEPTH=4 uv run vb run --strategy tot ...`.
+    # --- Tree-of-Thoughts (ToT) tuning ---
 
-    # Number of reasoning steps (tree depth) explored before committing an answer.
-    # Tuned for the dataset, whose chains can reach 10+ steps; lower per-run for
-    # shorter-chain subsets. Affects beam (D*B*(1+b) LM calls) and DFS alike.
+    # Number of reasoning steps explored (tree depth). Tuned for the dataset
+    # (chains can reach 10+ steps); lower per-run for shorter-chain subsets.
     VIREX_BENCH_TOT_MAX_DEPTH: int = 10
     # Candidate next-thoughts requested per node per step (proposer branching factor).
     VIREX_BENCH_TOT_BRANCHING_FACTOR: int = 3
@@ -89,65 +85,43 @@ if TYPE_CHECKING:
     VIREX_BENCH_TOT_DEDUPE_SIMILARITY_THRESHOLD: float = 0.9
     # --- Per-variant knobs (semantics differ by algorithm; resolved by
     # _build_search_config in strategies/tot/strategy.py). ---
-    # Beam: stop the WHOLE search once the best path scores >= this (stop-on-success).
-    # The env returns None when unset/empty; _build_search_config applies the 9.0
-    # default (the evaluator reserves 9-10 for paths that have already derived the
-    # answer). Setting this to "0" disables the threshold. DFS uses
-    # TOT_DFS_PRUNE_THRESHOLD instead.
+
+    # Beam: stop the search once the best path scores >= this. None when unset;
+    # _build_search_config applies the 9.0 default. "0" disables the threshold.
+    # DFS uses TOT_DFS_PRUNE_THRESHOLD instead.
     VIREX_BENCH_TOT_BEAM_EARLY_STOP_THRESHOLD: float | None = None
-    # DFS: ToT's value-pruning threshold (v_th). Children scored below this are
-    # evaluated & counted but NOT expanded. The env returns None when unset/empty;
-    # _build_search_config applies the 3.0 default (the evaluator reserves 1-3 for
-    # "dead end" paths, so this prunes only true dead-ends while letting "on track
-    # but incomplete" steps survive). Setting this to "0" disables
-    # pruning. Beam uses TOT_BEAM_EARLY_STOP_THRESHOLD instead.
+    # DFS: value-pruning threshold (v_th). Children scored below this are
+    # evaluated & counted but NOT expanded. None when unset; _build_search_config
+    # applies the 3.0 default. "0" disables pruning. Beam uses
+    # TOT_BEAM_EARLY_STOP_THRESHOLD instead.
     VIREX_BENCH_TOT_DFS_PRUNE_THRESHOLD: float | None = None
-    # DFS: stop-on-success threshold. When the best path's evaluator score reaches
-    # this, the entire search stops immediately -- analogous to beam's
-    # TOT_BEAM_EARLY_STOP_THRESHOLD. The env returns None when unset/empty;
-    # _build_search_config applies the 9.0 default. Setting this to "0" disables
-    # the stop-on-success.
+    # DFS: stop-on-success threshold (analogous to beam's). None when unset;
+    # _build_search_config applies the 9.0 default. "0" disables it.
     VIREX_BENCH_TOT_DFS_STOP_THRESHOLD: float | None = None
-    # DFS: hard cap on node expansions (one proposer call each). Unset/empty lets
-    # DFSSearch auto-derive max_depth * branching_factor. Beam ignores this.
+    # DFS: hard cap on node expansions (one proposer call each). Unset/empty
+    # lets DFSSearch auto-derive max_depth * branching_factor. Beam ignores this.
     VIREX_BENCH_TOT_DFS_MAX_ITERATIONS: int | None = None
     # MCTS: UCT exploration constant (c). Forward-declared.
     VIREX_BENCH_TOT_MCTS_EXPLORATION_CONSTANT: float = 1.414
-    # MCTS: hard cap on iterations. The env returns None when unset/empty;
-    # MCTSSearch then applies the 30-iteration default (empirically tuned).
-    # Ignored by beam/DFS.
+    # MCTS: hard cap on iterations. None when unset; MCTSSearch applies the
+    # 30-iteration default. Ignored by beam/DFS.
     VIREX_BENCH_TOT_MCTS_MAX_ITERATIONS: int | None = None
-    # MCTS: stop-on-success threshold (analogous to beam/DFS). When the max raw
-    # evaluator score seen during the search reaches it, MCTS halts early. The
-    # env returns None when unset/empty; _build_search_config applies the 9.0
-    # default (the evaluator reserves 9-10 for paths that have already derived
-    # the answer). Setting this to "0" disables the stop-on-success.
+    # MCTS: stop-on-success threshold (analogous to beam/DFS). None when unset;
+    # _build_search_config applies the 9.0 default. "0" disables it.
     VIREX_BENCH_TOT_MCTS_STOP_THRESHOLD: float | None = None
 
     # --- Cumulative Reasoning (CR) strategy ---
-    # CR accumulates verified propositions, then solves. All knobs are optional;
-    # when unset the defaults below are used. Tune a run with e.g.
-    # `VIREX_BENCH_CR_TARGET_PROPOSITIONS=5 uv run vb run --strategy cr ...`.
 
     # Cap on accepted propositions accumulated before the Solver runs. Default 7
-    # covers ~96% of gold reasoning chains in the dataset (the `premises_used`
-    # histogram tops out at 10). Lower for cheaper experiments (3 -> ~71%,
-    # 5 -> ~87%); raise toward 10 for max fidelity. See the strategy plan for
-    # the full coverage/cost table.
+    # covers ~96% of gold reasoning chains in the dataset (chains top out at 10).
+    # Lower for cheaper runs (3 -> ~71%, 5 -> ~87%); raise toward 10 for max fidelity.
     VIREX_BENCH_CR_TARGET_PROPOSITIONS: int = 7
-    # Cap on rejected/duplicate proposals before the loop gives up and solves
-    # with whatever it accumulated. Guards against a proposer that keeps emitting
-    # junk on a hard example.
+    # Cap on rejected/duplicate proposals before the loop gives up. Guards a
+    # proposer that keeps emitting junk on a hard example.
     VIREX_BENCH_CR_MAX_FAILED_ATTEMPTS: int = 6
-    # Verifier gate configuration. "multi" (default) runs a meaningfulness
-    # pre-filter then a validity check -- more robust, one extra LLM call per
-    # proposal. "single" runs only the validity check.
+    # Verifier gate config. "multi" (default) = meaningfulness pre-filter then a
+    # validity check; "single" = validity check only.
     VIREX_BENCH_CR_VERIFIER_MODE: Literal["single", "multi"] = "multi"
-    # Sampling temperature for the proposer. Unset/empty -> inherit the LM's
-    # `--model-kwargs` profile (the default: modern cards like Qwen3's publish a
-    # tuned temp+penalty system and forbid greedy decoding, so we do not force a
-    # role-specific temperature). Proposer diversity comes from the per-call `n`
-    # rather than a cranked temperature. Set this to override temperature only.
     # Proposer sampling temperature. None -> inherit the LM's `--model-kwargs`
     # profile (we do not force a role-specific temperature).
     VIREX_BENCH_CR_PROPOSE_TEMPERATURE: float | None = None
@@ -166,9 +140,9 @@ if TYPE_CHECKING:
     VIREX_BENCH_SC_NUM_SAMPLES: int = 5
     # Maximum parallel workers for the path thread pool.
     VIREX_BENCH_SC_MAX_WORKERS: int = 5
-    # Per-path wall-clock timeout in seconds.
+    # Per-path wall-clock timeout (seconds).
     VIREX_BENCH_SC_SOLVE_TIMEOUT: int = 360
-    # Aggregator LM call timeout in seconds.
+    # Aggregator LM call timeout (seconds).
     VIREX_BENCH_SC_AGGREGATE_TIMEOUT: int = 120
     # Whether to use the LLM aggregator (False = deterministic vote only).
     VIREX_BENCH_SC_USE_AGGREGATOR: bool = True
@@ -234,12 +208,11 @@ def maybe_convert_bool(value: str | None) -> bool | None:
     return bool(int(value))
 
 
-# Single source of truth. Each value is a zero-argument callable that reads `os.environ`
-# when invoked, keeping access lazy. Group with comments as the set grows.
+# Single source of truth. Each value is a zero-arg callable that reads `os.environ`
+# at invocation time, keeping access lazy.
 environment_variables: dict[str, Callable[[], Any]] = {
     # --- Logging ---
-    # Output is upper-cased so it can be passed straight to `logging.setLevel`, which
-    # only accepts canonical upper-case level names.
+    # Upper-cased so it can be passed straight to `logging.setLevel`.
     "VIREX_BENCH_LOG_LEVEL": lambda: env_with_choices(
         "VIREX_BENCH_LOG_LEVEL",
         "INFO",

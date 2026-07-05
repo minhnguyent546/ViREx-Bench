@@ -5,9 +5,6 @@ Level-by-level greedy beam search: at each depth, every frontier node proposes
 evaluator (averaged over ``n_eval_samples`` votes); the ``beam_width`` best
 survive to the next layer. The highest-scoring path seen across all depths is
 returned as the winner.
-
-Lifted verbatim from the original single-file ``strategies/tot.py`` forward
-loop; only the bookkeeping (counter tracking + ``SearchResult`` return) is new.
 """
 
 import dspy
@@ -104,11 +101,9 @@ class BeamSearch(ThoughtSearch):
                 )
                 break
             # TODO: plateau/stall detection -- break when best_leaf.score does not
-            # strictly improve for `patience` consecutive depths. This catches
-            # chains that flatline below early_stop_threshold (e.g. the proposer
-            # emitting "no further reasoning needed" filler the evaluator scores
-            # identically to real progress). Needs a `patience` knob on
-            # SearchConfig + a VIREX_BENCH_TOT_BEAM_PATIENCE env var.
+            # strictly improve for `patience` consecutive depths (catches
+            # chains that flatline below early_stop_threshold). Needs a `patience`
+            # knob on SearchConfig + a VIREX_BENCH_TOT_BEAM_PATIENCE env var.
             if not candidates:
                 logger.debug(f"ToT search stalled at depth {depth + 1} (no candidates)")
                 break

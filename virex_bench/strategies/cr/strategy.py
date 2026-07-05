@@ -3,43 +3,34 @@
 CR accumulates *verified* intermediate propositions into a growing "cumulative
 context," then feeds that context to a Solver that commits the final answer.
 We implement the FOLIO/logic variant -- the natural fit for a logical-reasoning
-dataset and CR's flagship result (~98% on FOLIO).
+dataset.
 
 The loop is a single linear accumulation (unlike ToT's branching search), so
 there is no pluggable ``search/`` subpackage:
 
-1. **Propose** -- sample one candidate proposition deduced from the premises
-   (+ already-accumulated propositions).
-2. **Verify** -- three-valued verdict gate. The verifier answers two independent
-   boolean questions (``is_entailed``, ``is_contradicted``) in a single call;
-   their combination yields one of three verdicts: *entailed*, *contradicted*,
-   or *undetermined* (neither -- the premises don't settle it). Every verdict is
-   accumulated into its respective bucket; only filler / duplicate / parse-error
-   proposals count as failures. Two modes:
-   - ``single``: one validity check.
-   - ``multi`` (default): a meaningfulness pre-filter then a validity check --
-     more robust, at the cost of one extra LLM call per proposal.
-3. Repeat until ``target_propositions`` total propositions are accumulated or
-   ``max_failed_attempts`` filler/duplicate proposals are rejected.
+1. **Propose** -- sample ``n_propose_samples`` candidate propositions deduced
+   from the premises (+ already-accumulated propositions). Candidates are
+   deduped within the batch; each is tried in order (filler / duplicate
+   candidates are skipped before any verify call) until one passes verification.
+2. **Verify** -- three-valued verdict gate: the verifier answers
+   ``is_entailed`` / ``is_contradicted`` in a single call, yielding one of
+   *entailed*, *contradicted*, *undetermined*. Every verdict is accumulated into
+   its bucket; only filler / duplicate / parse-error proposals count as
+   failures (parse errors still consume LLM calls -- they just avoid
+   incrementing the failed-proposal counter). ``multi`` mode (default) adds a
+   meaningfulness pre-filter.
+3. Repeat until ``target_propositions`` propositions are accumulated or
+   ``max_failed_attempts`` failed propose calls are rejected.
 4. **Solve** -- feed premises + the three verdict buckets into the task
-   signature (with an added ``accumulated_context`` input) so the model commits
-   a well-formed answer. The *undetermined* bucket is the positive signal for
-   "Không chắc chắn" (Uncertain) -- it tells the solver the premises may not
-   settle the question.
+   signature (with an added ``accumulated_context`` input). The *undetermined*
+   bucket is the positive signal for "Không chắc chắn" (Uncertain).
 
 The recorded ``reasoning`` on the returned prediction is the rendered bucket
-block, so the evaluator and judge see the actual CR trace -- the same convention
-ToT uses for its thought path.
-
-Config knobs are read from environment variables (see :mod:`virex_bench.envs`,
-prefix ``VIREX_BENCH_CR_*``). The LM is picked up from ``dspy.settings.lm``
-(set by the evaluator) -- per-call ``config`` overrides temperature so no global
-state is mutated, keeping the strategy safe under the evaluator's thread pool.
-Per-role temperatures default to ``None`` (inherit the LM's ``--model-kwargs``
-profile); dspy merges per-call config on top of those kwargs, so even when an
-override is set the other sampling params (top_p, top_k, penalties) persist --
-only ``temperature`` (and ``n``) is forced. See the strategy plan's "Sampling
-params" section for the rationale.
+block (the same convention ToT uses for its thought path). Config knobs come
+from the ``VIREX_BENCH_CR_*`` env vars; per-call ``config`` overrides
+temperature but leaves the LM's other sampling params (top_p, top_k, penalties)
+inherited from ``--model-kwargs``, so no global state is mutated -- the strategy
+stays safe under the evaluator's thread pool.
 """
 
 import dspy
@@ -305,8 +296,8 @@ class CRStrategy(ReasoningStrategy):
             "verifier_mode": config.verifier_mode,
             "nodes_visited": total_accumulated,
             "propose_calls": propose_calls,
-            # Map verify calls into the evaluate_calls slot so per-strategy cost
-            # tables stay comparable (ToT reports its evaluator calls here too).
+            # Map verify calls into evaluate_calls so per-strategy cost tables
+            # stay comparable (ToT reports its evaluator calls here too).
             "evaluate_calls": validity_calls + meaningfulness_calls,
             "validity_calls": validity_calls,
             "meaningfulness_calls": meaningfulness_calls,
@@ -337,23 +328,14 @@ class CRStrategy(ReasoningStrategy):
 
         ``verdict`` is ``None`` when the proposition is rejected (failed the
         meaningfulness pre-filter, or a verifier emitted an unparseable
-        response). A ``None`` verdict increments ``failed`` in ``forward``.
-
-        Otherwise ``verdict`` is one of ``"entailed"``, ``"contradicted"``, or
-        ``"undetermined"`` -- all three are accumulated evidence (into their
-        respective buckets) and do NOT count as failures.
-
-        - ``multi`` mode: a meaningfulness pre-filter then the validity check.
-        - ``single`` mode: just the validity check.
-
-        An ``AdapterParseError`` from either verifier (e.g. the LM emitting the
-        field label ``is_mean`` instead of ``is_meaningful``) is recovered
-        rather than propagated: the call still consumed an LLM request so it is
-        counted, then the proposition is conservatively rejected -- the same
-        default-false stance ``parse_bool`` uses, and the same recovery policy
-        the proposer loop applies. A rejection increments ``failed`` in
-        ``forward``, so ``max_failed_attempts`` still bounds how long a run of
-        unparseable verifier responses can churn.
+        response); ``forward`` increments ``failed`` in that case. Otherwise
+        ``verdict`` is one of ``"entailed"``, ``"contradicted"``, or
+        ``"undetermined"`` -- all three are accumulated evidence and do NOT
+        count as failures. ``AdapterParseError`` from either verifier is
+        recovered (not propagated): the LLM call is counted, then the
+        proposition is conservatively rejected -- the same default-false stance
+        ``parse_bool`` uses, and the same recovery policy the proposer loop
+        applies.
         """
         config = self.config
         meaningfulness_calls = 0

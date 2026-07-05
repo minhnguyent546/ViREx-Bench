@@ -2,16 +2,16 @@
 
 ToT deliberates over a problem by maintaining a *tree of partial reasoning
 states* and searching over it, instead of committing to a single chain like
-CoT. The search algorithm is pluggable (beam, DFS, MCTS) and is selected via
-the CLI composite name (``tot-beam``, ``tot-dfs``, ``tot-mcts``) or, for the
-bare ``tot`` name, the ``VIREX_BENCH_TOT_SEARCH_ALGORITHM`` env var.
+CoT. The search algorithm is pluggable (beam, DFS, MCTS), selected via the CLI
+composite name (``tot-beam``, ``tot-dfs``, ``tot-mcts``) or, for the bare
+``tot`` name, the ``VIREX_BENCH_TOT_SEARCH_ALGORITHM`` env var.
 
 Each search step performs three operations, each backed by an internal
-:class:`dspy.Signature` (these are strategy-internal, not defined by the task —
-the task only supplies the final answer contract):
+:class:`dspy.Signature` (strategy-internal; the task only supplies the final
+answer contract):
 
 1. **Propose** — from each frontier node, sample several distinct next reasoning
-   steps (a thought) given the premises, question, and the reasoning so far.
+   steps given the premises, question, and the reasoning so far.
 2. **Evaluate** — score how promising each candidate thought-path is on a 1-10
    scale (averaged over ``n_eval_samples`` independent votes).
 3. **Select** — the search algorithm's own policy (e.g. beam: keep the
@@ -21,13 +21,11 @@ After the search, a final **aggregate** step feeds the best explored thought-pat
 back into the task signature (with an added ``reasoning_path`` input) so the
 model commits to a well-formed answer grounded in the exploration. The recorded
 ``reasoning`` on the returned prediction is the chosen thought-path, so the
-evaluator and judge see the actual ToT trace.
-
-Config knobs are read from environment variables (see :mod:`virex_bench.envs`,
-prefix ``VIREX_BENCH_TOT_*``). The LM is picked up from ``dspy.settings.lm``
-(set by the evaluator) — per-call ``config`` overrides temperature / ``n`` so no
-global state is mutated, keeping the strategy safe under the evaluator's thread
-pool.
+evaluator and judge see the actual ToT trace (same convention CR uses for its
+bucket block). Config knobs come from the
+``VIREX_BENCH_TOT_*`` env vars; per-call ``config`` overrides temperature / ``n``
+without mutating global state, keeping the strategy safe under the evaluator's
+thread pool.
 """
 
 import dspy
@@ -60,21 +58,16 @@ def _resolve_threshold(raw: float | None, default: float) -> float | None:
 def _build_search_config(search_algorithm: str) -> SearchConfig:
     """Populate a :class:`SearchConfig` from the ``VIREX_BENCH_TOT_*`` env vars.
 
-    The propose/evaluate operation knobs (depth, branching, eval samples,
-    temperatures, dedupe) are shared across all algorithms. The threshold and
-    budget cap are variant-specific -- ``early_stop_threshold`` is stop-on-success
-    for beam and ToT's ``v_th`` pruning for DFS; ``success_threshold`` is DFS's
-    stop-on-success (analogous to beam's ``early_stop_threshold``);
-    ``max_iterations`` caps DFS/MCTS and is unused by beam -- so the right env var
-    is selected per ``search_algorithm``.
+    The propose/evaluate knobs are shared across all algorithms; the threshold
+    and budget cap are variant-specific -- ``early_stop_threshold`` is
+    stop-on-success for beam and ToT's ``v_th`` pruning for DFS;
+    ``success_threshold`` is the DFS/MCTS stop-on-success; ``max_iterations``
+    caps DFS/MCTS and is unused by beam.
 
-    Threshold env vars are parsed by ``maybe_convert_float`` (pure converter) and
-    return ``None`` when unset/empty, or ``0.0`` when set to ``"0"``. Since the
-    thresholds live on the evaluator's 1-10 scale, ``0`` is never a useful real
-    threshold -- it is the explicit disable sentinel. ``_resolve_threshold``
-    applies the algorithm default when the env is unset, and maps ``0`` to
-    ``None`` (disabled) so consumers can keep their existing ``if x is not None``
-    guard.
+    Threshold env vars return ``None`` when unset/empty, or ``0.0`` when set to
+    ``"0"``. Since thresholds live on the evaluator's 1-10 scale, ``0`` is the
+    explicit disable sentinel. ``_resolve_threshold`` applies the algorithm
+    default when unset and maps ``0`` to ``None`` (disabled).
     """
     beam_width: int | None = None
     exploration_constant: float | None = None
@@ -90,16 +83,14 @@ def _build_search_config(search_algorithm: str) -> SearchConfig:
         max_iterations = envs.VIREX_BENCH_TOT_DFS_MAX_ITERATIONS
         success_threshold = _resolve_threshold(envs.VIREX_BENCH_TOT_DFS_STOP_THRESHOLD, 9.0)
     elif search_algorithm == "mcts":
-        # MCTS does not use early_stop_threshold (ToT's v_th pruning is DFS-only);
-        # its stop-on-success knob is ``success_threshold`` (analogous to DFS),
-        # defaulting to 9.0 when unset.
+        # MCTS has no v_th pruning (DFS-only); its stop-on-success is
+        # ``success_threshold`` (analogous to DFS), defaulting to 9.0 when unset.
         early_stop_threshold = None
         max_iterations = envs.VIREX_BENCH_TOT_MCTS_MAX_ITERATIONS
         exploration_constant = envs.VIREX_BENCH_TOT_MCTS_EXPLORATION_CONSTANT
         success_threshold = _resolve_threshold(envs.VIREX_BENCH_TOT_MCTS_STOP_THRESHOLD, 9.0)
     else:
-        # build_search validates the algorithm before this is called, so an unknown
-        # value here is a programming error, not a user-facing one.
+        # build_search validates the algorithm before this is called.
         raise KeyError(f"Unknown search algorithm {search_algorithm!r}")
 
     return SearchConfig(
@@ -122,11 +113,12 @@ class ToTStrategy(ReasoningStrategy):
     The search algorithm is delegated to a :class:`ThoughtSearch` instance
     (beam, DFS, or MCTS), selected via the ``variant`` kwarg (CLI composite
     name) or the ``VIREX_BENCH_TOT_SEARCH_ALGORITHM`` env var (bare ``tot``).
+    All knobs default from the ``VIREX_BENCH_TOT_*`` env vars.
 
-    All knobs default from the ``VIREX_BENCH_TOT_*`` env vars. Cost varies by
-    algorithm — beam is roughly ``max_depth * beam_width`` proposer calls and
-    ``max_depth * beam_width * branching_factor`` evaluator calls per example,
-    far higher than CoT's single call, which is the tradeoff ToT exists to study.
+    Cost varies by algorithm -- beam is roughly ``max_depth * beam_width``
+    proposer calls and ``max_depth * beam_width * branching_factor`` evaluator
+    calls per example, far higher than CoT's single call, which is the tradeoff
+    ToT exists to study.
     """
 
     name = "tot"
@@ -154,10 +146,9 @@ class ToTStrategy(ReasoningStrategy):
 
         self.propose = dspy.Predict(ThoughtProposerSignature)
         self.evaluate = dspy.Predict(ThoughtEvaluatorSignature)
-        # Feed the explored path into the task signature as an extra input so the
-        # committed answer reuses the task's full output contract (answer,
-        # supporting_premise_indices, ...). `prepend` is the same mechanism the
-        # CoT module uses to add its `reasoning` output field.
+        # Feed the explored path into the task signature as an extra input so
+        # the committed answer reuses the task's full output contract. `prepend`
+        # is the same mechanism the CoT module uses for its `reasoning` field.
         aggregator_signature = self.signature.prepend(
             name="reasoning_path",
             field=dspy.InputField(
@@ -191,10 +182,9 @@ class ToTStrategy(ReasoningStrategy):
             "early_stop_threshold": self.config.early_stop_threshold,
             "beam_width": self.config.beam_width,
             "exploration_constant": self.config.exploration_constant,
-            # Read the resolved cap the search actually runs with, not the raw
-            # config value: DFS/MCTS derive a concrete budget when the env is unset
-            # (config.max_iterations stays None), so reporting self.config here would
-            # hide the effective value. Beam has no cap and reports None.
+            # Report the resolved cap the search actually runs with: DFS/MCTS derive a
+            # concrete budget when the env is unset (config.max_iterations stays
+            # None), so reporting self.config would hide it. Beam has no cap.
             "max_iterations": self.search.effective_max_iterations,
             "success_threshold": self.config.success_threshold,
         }
@@ -228,13 +218,12 @@ class ToTStrategy(ReasoningStrategy):
             "evaluate_calls": result.evaluate_calls,
             "depth_reached": result.depth_reached,
             "best_score": result.best_score,
-            # Cost in "LLM request" units (one dspy.Predict invocation each), incl.
-            # the final aggregate call that commits the answer -- the direct analog
-            # of a CoT/direct single call, so total_llm_calls is comparable 1:1.
+            # "LLM request" units incl. the final aggregate call (the direct analog of
+            # CoT/direct's single call, comparable 1:1).
             "total_llm_calls": result.propose_calls + result.evaluate_calls + 1,
-            # Cost in "generated completion" units (what drives GPU/token cost): each
-            # propose request samples `branching_factor` completions and each evaluate
-            # request samples `n_eval_samples`; the aggregate call yields 1 completion.
+            # "Generated completion" units (what drives GPU/token cost): each propose
+            # request samples `branching_factor` completions and each evaluate
+            # request samples `n_eval_samples`; the aggregate call yields 1.
             "total_completions": (
                 result.propose_calls * self.config.branching_factor
                 + result.evaluate_calls * self.config.n_eval_samples

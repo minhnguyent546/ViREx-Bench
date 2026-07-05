@@ -2,14 +2,10 @@
 
 CR (Zhang et al. 2023, arXiv:2308.04371) accumulates *verified* intermediate
 propositions into a growing "cumulative context," then feeds that context to a
-Solver that commits the final answer. We implement the FOLIO/logic variant --
-the natural fit for a logical-reasoning dataset and CR's flagship result.
-
-This module hosts the strategy-internal dspy.Signature contracts (proposer,
-verifier) and a few pure-Python helpers. It mirrors :mod:`virex_bench.strategies.tot.common`
-in spirit: propositions are near-identical in role to ToT thoughts, so the
-dedupe primitives (``dedupe_thoughts`` / ``jaccard_similarity``) are imported
-from there rather than reimplemented.
+Solver that commits the final answer. We implement the FOLIO/logic variant.
+Propositions are near-identical in role to ToT thoughts, so the
+``dedupe_thoughts`` / ``jaccard_similarity`` primitives are imported from
+:mod:`virex_bench.strategies.tot.common` rather than reimplemented.
 """
 
 import re
@@ -183,13 +179,10 @@ _FALSY = {"false", "no", "0", "f", "n", ""}
 
 
 def parse_bool(raw: object) -> bool:
-    """Parse a verifier's ``is_entailed`` / ``is_contradicted`` / ``is_meaningful`` output tolerantly.
+    """Parse a verifier's ``bool`` output tolerantly (accept "True", "yes", "0", ...).
 
-    DSPy-typed ``bool`` outputs usually arrive as Python ``bool`` already, but
-    models occasionally emit strings ("True", "yes", "False", "0"). We accept
-    the common truthy/falsy spellings (case-insensitive); anything unparseable
-    is treated as ``False`` (the conservative verdict for a verifier gate -- a
-    rejected proposition never poisons the cumulative context).
+    Anything unparseable defaults to ``False`` -- the conservative verdict for a
+    verifier gate, so a rejected proposition never poisons the cumulative context.
     """
     if isinstance(raw, bool):
         return raw
@@ -206,9 +199,10 @@ def parse_bool(raw: object) -> bool:
     return match.group() in _TRUTHY
 
 
-# Vietnamese + English sentinel phrases the proposer emits when it has nothing
-# new to add. Matched as a cheap Python pre-filter before any LLM verifier call
-# (mirrors FOLIO's ``is_something`` idea). Kept lowercase; matched by substring.
+# Sentinel phrases the proposer emits when it has nothing new to add. Used as a
+# cheap Python pre-filter before any LLM verifier call. Matched by substring.
+# Kept lowercase: `is_empty_or_none_proposition` lowercases the input before
+# matching, so any uppercase marker added here would silently never match.
 _EMPTY_PROPOSITION_MARKERS = (
     "không có mệnh đề",  # "no proposition" (Vietnamese)
     "không có mệnh đề mới",
@@ -223,12 +217,10 @@ _EMPTY_PROPOSITION_MARKERS = (
 
 
 def is_empty_or_none_proposition(text: object) -> bool:
-    """Heuristic sentinel check for a "no further proposition" proposal.
+    """Heuristic sentinel check for an empty / "no new proposition" proposal.
 
-    Returns True when ``text`` is empty/whitespace or matches one of the
-    Vietnamese/English filler markers the proposer is instructed to emit when
-    nothing new can be deduced. Used to short-circuit the verifier (a filler
-    proposal should not cost an LLM verify call).
+    Used to short-circuit the verifier so a filler proposal never costs an LLM
+    verify call.
     """
     if text is None:
         return True

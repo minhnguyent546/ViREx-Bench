@@ -1,34 +1,28 @@
 """Depth-first search with backtracking over the thought tree (ToT's "DFS").
 
 Implements ToT's DFS (Yao et al. 2023, Algorithm 2): from a node, propose
-``branching_factor`` candidate next-thoughts, evaluate each, **prune** children whose
-evaluator score falls below ``early_stop_threshold`` (ToT's value-pruning threshold
-``v_th`` -- defaults to 3.0, the "dead end" boundary of the evaluator's 1-10 scale), then
-recurse depth-first into the highest-scoring surviving child. When a node has no
-surviving children (a dead-end) the search **backtracks** to the parent and tries the
-next sibling.
+``branching_factor`` candidate next-thoughts, evaluate each, **prune** children
+whose evaluator score falls below ``early_stop_threshold`` (ToT's value-pruning
+threshold ``v_th``, defaults to 3.0 -- the "dead end" boundary of the 1-10
+scale), then recurse depth-first into the highest-scoring surviving child. When
+a node has no surviving children the search **backtracks** to try the next
+sibling.
 
-A **stop-on-success** threshold (``config.success_threshold``) halts the entire search
-once the best path scores >= this value -- analogous to beam's
-``early_stop_threshold``. Without it, DFS always exhausts its ``max_iterations`` budget
-even after finding a perfect path.
+A **stop-on-success** threshold (``config.success_threshold``) halts the entire
+search once the best path scores >= this value -- analogous to beam's
+``early_stop_threshold``. Without it, DFS exhausts its ``max_iterations``
+budget even after finding a perfect path.
 
-Unlike beam, DFS keeps no frontier: it commits to one path at a time and can recover
-branches beam would prune irrevocably. It has no natural budget cap, so
-``config.max_iterations`` caps the number of node expansions (one proposer call each) as a
-hard safety valve; the pruning threshold does the real budget control in the common case.
-When ``max_iterations`` is unset it defaults to ``max_depth * branching_factor``
-expansions so ``tot-dfs`` runs out of the box without risking exponential blowup.
-
-Context-window overflows on a deep branch are caught **per-branch**: the overflowing
-branch is treated as a dead-end and DFS backtracks to try shorter siblings, rather than
-aborting the entire search. An overflow on the root expansion (rare) falls through to the
-outer handler and returns the best path found so far.
-
-Note on the shared threshold: ``early_stop_threshold`` is ToT's ``v_th`` here -- children
-scored below it are evaluated and counted toward ``nodes_visited`` but are not expanded.
-Beam reuses the same config field as a stop-on-success threshold; see each algorithm's
-docstring for its exact semantics.
+Unlike beam, DFS keeps no frontier and can recover branches beam would prune
+irrevocably. ``config.max_iterations`` caps the number of node expansions (one
+proposer call each) as a hard safety valve; the pruning threshold does the real
+budget control in the common case. When ``max_iterations`` is unset it defaults
+to ``max_depth * branching_factor`` so ``tot-dfs`` runs without risking
+exponential blowup. Context-window overflows on a deep branch are caught
+**per-branch**:
+the overflowing branch is treated as a dead-end and DFS backtracks; an overflow
+on the root expansion falls through to the outer handler and returns the best
+path so far.
 """
 
 from dataclasses import dataclass
@@ -53,9 +47,8 @@ logger = init_logger(__name__)
 class _DFSFrame:
     """One stack frame: a node, its surviving children, and the next-sibling index.
 
-    Surviving children are sorted best-first (highest score first) so DFS descends into
-    the most promising child first; ``next_index`` tracks which sibling to try next when
-    the search backtracks to this frame.
+    Surviving children are sorted best-first so DFS descends into the most promising
+    child first; ``next_index`` tracks which sibling to try next on backtrack.
     """
 
     node: ThoughtNode
@@ -72,8 +65,7 @@ class DFSSearch(ThoughtSearch):
         super().__init__(config)
         max_iterations = config.max_iterations
         if max_iterations is None:
-            # DFS has no natural cap; default to a tree-shape-aware safety valve so
-            # `tot-dfs` runs out of the box without risking exponential blowup.
+            # DFS has no natural cap; default to a tree-shape-aware safety valve.
             max_iterations = config.max_depth * config.branching_factor
         if max_iterations < 1:
             raise ValueError(f"max_iterations must be >= 1, got {max_iterations}")
@@ -105,10 +97,10 @@ class DFSSearch(ThoughtSearch):
         def expand(node: ThoughtNode) -> list[ThoughtNode]:
             """Propose, evaluate, and prune the children of ``node``.
 
-            Returns surviving children (score >= ``early_stop_threshold`` when set),
-            sorted by score descending so the best is recursed into first. Every
-            evaluated child updates the shared counters and ``best_leaf`` -- consistent
-            with beam's ``nodes_visited`` = expanded-and-evaluated definition.
+            Returns surviving children (score >= ``early_stop_threshold`` when
+            set), sorted best-first. Every evaluated child updates the shared
+            counters and ``best_leaf`` (matching beam's
+            ``nodes_visited`` = expanded-and-evaluated definition).
             """
             nonlocal propose_calls, evaluate_calls, nodes_visited, depth_reached, best_leaf
 
@@ -145,9 +137,9 @@ class DFSSearch(ThoughtSearch):
             survivors.sort(key=lambda candidate: candidate.score, reverse=True)
             return survivors
 
-        # Iterative DFS with an explicit stack. The root is expanded first (its children
-        # are depth 1); the root itself is never scored, mirroring beam's uncounted root
-        # placeholder. Each frame tracks which surviving child to descend into next.
+        # Iterative DFS with an explicit stack. The root is expanded first (its
+        # children are depth 1); the root itself is never scored, mirroring beam's
+        # uncounted root placeholder.
         root = ThoughtNode(path=[], score=0.0, depth=0)
         try:
             stack: list[_DFSFrame] = [_DFSFrame(node=root, survivors=expand(root), next_index=0)]

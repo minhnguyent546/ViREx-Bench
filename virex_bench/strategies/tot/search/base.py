@@ -71,17 +71,15 @@ class SearchConfig:
 class ThoughtSearch(ABC):
     """Search a tree of thought-paths using an injected proposer and evaluator.
 
-    A node counts as **visited** when it is **expanded** -- i.e. it received at
-    least one proposer expansion AND was scored by the evaluator. This count
-    (``SearchResult.nodes_visited``) is comparable across algorithms. For MCTS,
-    it equals the number of **expansion** steps, *not* the number of
-    selection-phase traversals (which would inflate the count unfairly vs
-    beam/DFS).
+    A node counts as **visited** when it is **expanded** (received at least one
+    proposer expansion AND was scored by the evaluator). This count
+    (``SearchResult.nodes_visited``) is comparable across algorithms; for MCTS
+    it equals the number of expansion steps, not selection-phase traversals.
 
-    The proposer/evaluator are DSPy modules owned and injected by
-    :class:`~virex_bench.strategies.tot.strategy.ToTStrategy`; the search
-    algorithm stays pure-algorithm (no LM construction). This keeps it
-    unit-testable with fake callables.
+    The proposer/evaluator are DSPy modules injected by
+    :class:`~virex_bench.strategies.tot.strategy.ToTStrategy`; the search stays
+    pure-algorithm (no LM construction), keeping it unit-testable with fake
+    callables.
     """
 
     name: str  # "beam" | "dfs" | "mcts"
@@ -94,9 +92,9 @@ class ThoughtSearch(ABC):
         """The iteration budget this search actually runs with, for the report.
 
         Beam has a fixed ``max_depth`` budget and no iteration cap, so the raw
-        ``config.max_iterations`` (None) is already accurate. DFS and MCTS derive a
-        concrete cap when the env leaves ``config.max_iterations`` unset, so they
-        override this to report the resolved value instead of a misleading None.
+        ``config.max_iterations`` (None) is already accurate. DFS and MCTS
+        derive a concrete cap when the env leaves it unset, so they override
+        this to report the resolved value.
         """
         return self.config.max_iterations
 

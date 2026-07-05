@@ -1,62 +1,48 @@
 """Monte-Carlo Tree Search over the thought tree (ToT's "MCTS", Phase 3).
 
-Implements a UCT-driven MCTS (Kocsis & Szepesvari 2006; Browne et al. 2012)
-adapted for LLM reasoning, following the LLM-MCTS literature (RAP, MCTSr,
-AlphaMath, LATS). The key adaptations, grounded in that literature and recorded
-in ``.plans/refactor-tot-pluggable-search.md`` (Phase 3), are:
+UCT-driven MCTS (Kocsis & Szepesvari 2006; Browne et al. 2012) adapted for LLM
+reasoning per the LLM-MCTS literature (RAP, MCTSr, AlphaMath, LATS). Key
+adaptations:
 
-1. **No separate rollout -- the evaluator IS the value function** (AlphaGo
-   Zero / MCTSr / AlphaMath ``lambda=0`` style): the value backpropagated from
-   a newly expanded child is just its normalized evaluator score. A separate
-   "complete-the-reasoning" rollout call would (a) cost an extra LM call per
-   iteration, (b) compound multi-step rollout noise on top of the already-noisy
-   evaluator, and (c) be redundant -- ``evaluate`` already estimates "how close
-   to a correct final answer" (a value function ``V(s)``). Collapsing simulation
-   into the evaluator keeps ``total_llm_calls = propose_calls + evaluate_calls
-   + 1`` comparable across beam/DFS/MCTS.
+1. **No separate rollout -- the evaluator IS the value function** (AlphaGo Zero
+   / MCTSr ``lambda=0`` style): the value backpropagated from a newly expanded
+   child is its normalized evaluator score. A separate rollout call would cost
+   an extra LM call per iteration and compound multi-step rollout noise on top
+   of the already-noisy evaluator; ``evaluate`` already estimates "how close to
+   a correct final answer". This keeps ``total_llm_calls = propose_calls +
+   evaluate_calls + 1`` comparable across beam/DFS/MCTS.
 
-2. **Reward normalization to [0,1]**: UCT's exploration constant ``c`` is
-   calibrated for [0,1] rewards (it originates from the Bernoulli win-rate
-   bandit). Evaluator scores are 1-10, so they are normalized via
-   ``(score - 1) / 9`` internally; the default ``c = sqrt(2) ~= 1.414`` is then
-   correct. ``SearchResult.best_score`` is reported in the raw 1-10 scale
-   (``denormalize(Q) = Q * 9 + 1``) so it stays comparable to beam/DFS.
+2. **Reward normalization to [0,1]**: evaluator scores (1-10) are normalized
+   via ``(score - 1) / 9`` for UCT; ``best_score`` is reported in the raw 1-10
+   scale via ``denormalize(Q) = Q * 9 + 1``.
 
-3. **Mean backpropagation** (``Q = W / N``): each expansion contributes one
-   value per child (its normalized score); backprop updates ``W`` and ``N`` up
-   to the root. Mean (not max) is recommended for low-simulation regimes and
-   does not amplify the evaluator's ~24% false-positive rate (Coulom 2006).
+3. **Mean backpropagation** (``Q = W / N``) -- recommended for low-simulation
+   regimes and does not amplify the evaluator's false-positive rate (Coulom 2006).
 
-4. **Full expansion per iteration** (MCTSr-style): each iteration selects a
-   frontier leaf, proposes ``branching_factor`` children (1 propose call), and
-   evaluates *all* deduped children (b evaluate calls), adding every child to
-   the tree and backpropagating its value. This matches beam/DFS's per-node cost
-   profile (1 propose + b evaluate per expansion) and makes ``nodes_visited``
-   directly comparable: every evaluated child counts, exactly as in beam/DFS.
+4. **Full expansion per iteration** (MCTSr-style): select a frontier leaf,
+   propose ``branching_factor`` children, evaluate *all* deduped children, and
+   backpropagate each. Matches beam/DFS's per-node cost and ``nodes_visited``
+   (every evaluated child counts).
 
-5. **Best-scored final selection**: after the budget is spent, return the
-   explored node with the highest evaluator score (tie: shorter path). This
-   matches beam/DFS's "best path seen" behavior and avoids discarding a complete
-   high-scoring derivation just because robust-child leaf visits are sparse under
-   small budgets. Robust-child is still logged as a diagnostic.
+5. **Best-scored final selection**: return the explored node with the highest
+   evaluator score (tie: shorter path), matching beam/DFS's "best path seen"
+   behavior and avoiding discarding a complete high-scoring derivation just
+   because robust-child leaf visits are sparse under small budgets; robust-child
+   is logged as a diagnostic.
 
-6. **Re-evaluation on revisit** (MCTSr repeated sampling): when selection
-   reaches a non-expandable leaf (a max-depth terminal or an expanded
-   dead-end with no children), it is re-evaluated with a fresh evaluator call
-   and the new sample is backpropagated. These re-evaluations count toward
-   ``evaluate_calls`` but NOT ``nodes_visited`` (no proposer call -> not an
-   expansion per the canonical definition), so for MCTS
-   ``evaluate_calls >= nodes_visited`` is expected and informative.
+6. **Re-evaluation on revisit** (MCTSr repeated sampling): a non-expandable leaf
+   (max-depth terminal or expanded dead-end) is re-evaluated and the new sample
+   is backpropagated. These count toward ``evaluate_calls`` but NOT
+   ``nodes_visited`` (no proposer call), so for MCTS ``evaluate_calls >=
+   nodes_visited`` is expected.
 
-Each iteration therefore has exactly one proposer call (the only LM calls per
-iteration) plus ``b`` evaluator calls on expansion, or one evaluator call on
-re-evaluation. Early stop mirrors beam/DFS: if the max raw score seen this run
-reaches ``config.success_threshold`` the search halts.
-Context-window overflows are caught per-branch, consistent with DFS: an
-overflow on propose marks the node exhausted for future selection; an overflow
-on a child's evaluate skips that child; an overflow on re-evaluation exhausts
-that leaf. An empty root expansion (no proposals, or root propose overflow)
-returns the empty path, mirroring beam/DFS stall.
+Each iteration is one proposer call plus ``b`` evaluator calls (on expansion)
+or one evaluator call (on re-evaluation). Early stop mirrors beam/DFS: halts
+when the max raw score reaches ``config.success_threshold``. Context-window
+overflows are caught per-branch (consistent with DFS): overflow on propose
+exhausts the node; on a child's evaluate skips that child; on re-evaluation
+exhausts the leaf. An empty root expansion returns the empty path (mirrors
+beam/DFS stall).
 """
 
 from __future__ import annotations
@@ -85,8 +71,7 @@ _EVAL_MAX_SCORE = 10
 _SCORE_RANGE = _EVAL_MAX_SCORE - _EVAL_MIN_SCORE
 
 # Numerical safety inside UCT (MCTSr Eq. 4 form): guards against log(0) /
-# divide-by-zero. Children always have visits >= 1 (evaluated on creation), so
-# this is purely defensive.
+# divide-by-zero. Children always have visits >= 1 (evaluated on creation).
 _LOG_OFFSET = 1
 _VISIT_EPSILON = 1e-6
 
@@ -106,10 +91,9 @@ def _denormalize_score(value: float) -> float:
 def _robust_child_selection(root: _MCTSNode) -> tuple[_MCTSNode | None, list[str], float]:
     """Pick the most-visited root-to-leaf path; score = denormalize(leaf.Q).
 
-    Robust-child (most-visited, tiebreak highest ``Q``) final selection is the
-    core anti-false-positive mechanism: visit count dampens evaluator noise
-    while max-child would inherit the beam/DFS failure mode. Returns
-    ``(None, [], 0)`` when the root produced no children (empty/dead-end stall).
+    Robust-child selection dampens evaluator noise via visit count (max-child
+    would inherit the beam/DFS false-positive failure mode). Returns
+    ``(None, [], 0)`` when the root produced no children.
     """
     if not root.children:
         logger.debug("ToT MCTS robust_child: empty root -> no path")
@@ -147,16 +131,15 @@ class _MCTSNode:
     """One node of the MCTS tree.
 
     ``visits`` (N) and ``total_value`` (W) implement ``Q = W / N`` over
-    normalized [0,1] rewards. The node's own evaluator score is kept raw
-    (1-10) in ``score`` (0.0 for the un-scored root) for diagnostics; the value
-    that flows through UCT and backprop is the normalized one. ``is_expanded``
-    distinguishes "propose has been called here" (so selection should descend
-    via UCT) from "not yet expanded" (frontier -> expand) and "expanded with no
-    children" (dead-end -> re-evaluate). ``is_terminal`` means the evaluator
-    already scored the path at the success threshold, so extra thoughts would
-    likely be redundant. ``is_exhausted`` means the branch hit a context-window
-    overflow, reached a terminal success, or all descendants are exhausted; it
-    stays available to final selection, but UCT will not spend more budget on it.
+    normalized [0,1] rewards. ``score`` is the node's raw 1-10 evaluator score
+    (0.0 for the un-scored root) for diagnostics; the value flowing through
+    UCT/backprop is normalized. ``is_expanded`` distinguishes "propose has been
+    called here" (descend via UCT) from "not yet expanded" (frontier -> expand)
+    and "expanded with no children" (dead-end -> re-evaluate). ``is_terminal``
+    means the evaluator scored the path at the success threshold (more thoughts
+    would be redundant). ``is_exhausted`` means an overflow / terminal / all
+    descendants exhausted; the node stays available to final selection but UCT
+    spends no more budget on it.
     """
 
     path: list[str]
@@ -189,7 +172,7 @@ class MCTSSearch(ThoughtSearch):
         if max_iterations is None:
             # MCTS has no natural cap -- the iteration budget IS the search.
             # 30 full expansions (1 propose + b evaluate each) is the
-            # empirically tuned default for the Vietnamese reasoning dataset.
+            # empirically tuned default.
             max_iterations = _DEFAULT_MAX_ITERATIONS
         if max_iterations < 1:
             raise ValueError(f"max_iterations must be >= 1, got {max_iterations}")
@@ -230,12 +213,11 @@ class MCTSSearch(ThoughtSearch):
         def uct_select(node: _MCTSNode) -> _MCTSNode | None:
             """Descend from ``node`` via UCT to a frontier (actionable) node.
 
-            Stops when the current node is not expandable in the usual way:
-            not-yet-expanded nodes (frontier -> expand), max-depth terminals,
-            and expanded dead-ends (no children) are all returned as-is so the
-            main loop can take the right action (expand vs re-evaluate). Exhausted
-            branches are skipped so an overflowed leaf cannot consume the rest of
-            the budget through repeated selection.
+            Frontier nodes (not yet expanded), max-depth terminals, and expanded
+            dead-ends are returned as-is so the main loop can take the right
+            action (expand vs re-evaluate). Exhausted branches are skipped so an
+            overflowed leaf cannot consume the budget through repeated
+            selection.
             """
             if node.is_exhausted:
                 return None
@@ -276,8 +258,8 @@ class MCTSSearch(ThoughtSearch):
             """Propose, evaluate all deduped children, add them, backprop each.
 
             Returns False if the proposer call overflowed (the node is marked
-            expanded and exhausted); True otherwise. Per-child evaluate overflows
-            skip just that child (graceful degradation, consistent with DFS).
+            expanded + exhausted); True otherwise. Per-child evaluate overflows
+            skip just that child (consistent with DFS).
             """
             nonlocal propose_calls, evaluate_calls, nodes_visited, depth_reached, max_raw_score
 
@@ -341,10 +323,9 @@ class MCTSSearch(ThoughtSearch):
         def reevaluate(node: _MCTSNode) -> None:
             """Re-evaluate a non-expandable leaf and backprop the new sample.
 
-            Refines ``Q`` for promising deep leaves (MCTSr repeated sampling)
-            and prevents the search from stalling when all frontier nodes are
-            terminals. Does NOT count toward ``nodes_visited`` (no proposer
-            call -> not an expansion per the canonical definition).
+            Refines ``Q`` for deep leaves (MCTSr repeated sampling) and prevents
+            stalling when all frontier nodes are terminals. Does NOT count toward
+            ``nodes_visited`` (no proposer call -> not an expansion).
             """
             nonlocal evaluate_calls, max_raw_score
             try:
