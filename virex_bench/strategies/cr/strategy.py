@@ -115,60 +115,34 @@ class CRStrategy(ReasoningStrategy):
         logger.info(f"CR config for {self.name}: {self.config}")
 
         self.propose = dspy.Predict(PropositionProposerSignature)
-        # forcing a falsification-first analysis that the booleans anchor to.
         self.verify_validity = ChainOfThought(
             PropositionValiditySignature,
             rationale_field=dspy.OutputField(
                 desc=(
-                    "Counterexample search. Actively try to FALSIFY the proposition: "
-                    "search for ONE consistent scenario (a model of the premises) "
-                    "where it is FALSE despite all premises holding. Also try to "
-                    "find one where it is TRUE despite seeming ruled out. If you "
-                    "find a falsifying scenario, describe it and note the proposition "
-                    "is NOT necessarily true. If you find none, say so explicitly "
-                    "('Không tìm thấy phản ví dụ'). Your is_contradicted and "
-                    "is_entailed must be consistent with this analysis. Vietnamese "
-                    "or English."
+                    "Check for counterexamples: try to find a scenario where the proposition "
+                    "is FALSE despite all premises holding. If none exists, it may be entailed. "
+                    "Keep it concise. Vietnamese or English."
                 )
             ),
         )
         # Built always but only invoked when verifier_mode == "multi".
-        self.verify_meaningful = ChainOfThought(
-            PropositionMeaningfulnessSignature,
-            rationale_field=dspy.OutputField(
-                desc=(
-                    "A one-sentence justification for the is_meaningful verdict. "
-                    "Vietnamese or English."
-                )
-            ),
-        )
+        self.verify_meaningful = dspy.Predict(PropositionMeaningfulnessSignature)
 
         aggregator_signature = self.signature.prepend(
             name="accumulated_context",
             field=dspy.InputField(
                 desc=(
                     "Propositions verified against the premises, sorted into "
-                    "three buckets by logical verdict:\n"
-                    "- [Mệnh đề được xác nhận] (entailed) — necessarily TRUE. "
-                    "Use these as established facts.\n"
-                    "- [Mệnh đề bị bác bỏ] (contradicted) — necessarily FALSE. "
-                    "Rule these out.\n"
-                    "- [Mệnh đề không xác định] (undetermined) — the premises "
-                    "neither prove nor disprove these. Undetermined does NOT "
-                    "mean the proposition is false — it means there is "
-                    "INSUFFICIENT information to decide.\n\n"
-                    "Use the entailed and contradicted buckets as your "
-                    "established facts. If they settle the question, answer "
-                    "definitively. If the question turns on a point that only "
-                    "the undetermined bucket touches, the evidence is "
-                    "INSUFFICIENT — answer 'Không chắc chắn'. "
-                    "CAUTION: 'Không' means the answer is provably negative. "
-                    "Do NOT answer 'Không' merely because propositions are "
-                    "undetermined — that confuses 'cannot determine' with "
-                    "'is false'. If you cannot prove 'Có' and cannot prove "
-                    "'Không', the correct answer is 'Không chắc chắn'.\n"
-                    "When citing premises, return only the minimal chain "
-                    "that justifies the FINAL answer."
+                    "three buckets:\n"
+                    "- [Mệnh đề được xác nhận] (entailed) — necessarily TRUE.\n"
+                    "- [Mệnh đề bị bác bỏ] (contradicted) — necessarily FALSE.\n"
+                    "- [Mệnh đề không xác định] (undetermined) — insufficient "
+                    "information to decide.\n\n"
+                    "Use the entailed and contradicted facts to answer. If they "
+                    "settle the question, answer definitively. If not, answer "
+                    "'Không chắc chắn' (Uncertain). Note: 'Không' means the answer "
+                    "is provably negative — do not answer 'Không' just because "
+                    "propositions are undetermined."
                 )
             ),
             type_=str,
@@ -223,16 +197,10 @@ class CRStrategy(ReasoningStrategy):
                         accumulated_context=render_verdict_buckets(
                             entailed, contradicted, undetermined
                         ),
-                        # Empty dict -> dspy inherits --model-kwargs verbatim;
-                        # see CRConfig.propose_config for the rationale.
                         config=config.propose_config,
                     )
                 except AdapterParseError as error:
-                    # A malformed LM response (e.g. a bare "no new proposition"
-                    # line with no field label) is recoverable: count it as a
-                    # failed attempt and let the loop try again, rather than
-                    # killing the whole example. The loop's `max_failed_attempts`
-                    # budget still bounds how long this can go on.
+                    # Recoverable: count as a failed attempt and retry.
                     propose_calls += 1
                     failed += 1
                     logger.debug(
@@ -241,7 +209,7 @@ class CRStrategy(ReasoningStrategy):
                     )
                     continue
                 propose_calls += 1
-                proposition = str(proposed.proposition).strip()
+                proposition = str(proposed.next_proposition).strip()
 
                 # Cheap Python-side rejection: filler / "nothing new" proposals
                 # short-circuit before any LLM verifier call.
@@ -250,10 +218,9 @@ class CRStrategy(ReasoningStrategy):
                     continue
 
                 # Near-duplicate of an already-accumulated proposition -> reject.
-                # Check across ALL three buckets -- a proposition already in any
-                # bucket is not novel. ``dedupe_thoughts`` keeps first
-                # occurrences, so appending the candidate and re-deduping drops
-                # it iff it is a near-duplicate of something already accepted.
+                # ``dedupe_thoughts`` keeps first occurrences, so appending the
+                # candidate and re-deduping drops it iff it is a near-duplicate
+                # of something already accepted across all three buckets.
                 all_accumulated = [*entailed, *contradicted, *undetermined]
                 if all_accumulated:
                     rededuped = dedupe_thoughts(
@@ -264,8 +231,7 @@ class CRStrategy(ReasoningStrategy):
                         failed += 1
                         continue
 
-                # Verifier gate -- returns a three-valued verdict (or None on
-                # rejection: filler/parse-error/failed-meaningfulness).
+                # Verifier gate -> three-valued verdict (None on rejection).
                 (
                     delta_validity,
                     delta_meaningfulness,
@@ -390,7 +356,8 @@ class CRStrategy(ReasoningStrategy):
                 )
                 return validity_calls, meaningfulness_calls, None
             meaningfulness_calls += 1
-            if not parse_bool(meaningful.is_meaningful):
+
+            if not parse_bool(meaningful.is_useful):
                 return validity_calls, meaningfulness_calls, None
 
         try:

@@ -38,39 +38,26 @@ class PropositionProposerSignature(dspy.Signature):
 
     You are given the premises (the only source of truth), the question, and the
     propositions already accumulated. Produce a single new proposition that:
-      - is deduced STRICTLY from the premises (and any already-accumulated
-        propositions) -- no outside knowledge, no closed-world assumptions,
+      - is deduced STRICTLY from the premises -- no outside knowledge,
       - makes explicit forward progress toward answering the question,
       - is self-contained enough to be read on its own,
       - cites the 1-based premise index/indices it relies on.
 
-    Be concise: at most three short sentences. Do not include hidden thinking
-    traces or alternative branches.
-
-    Do NOT restate a proposition already present in `accumulated_context`. Write
-    the proposition in Vietnamese to match the task language.
-
-    ALWAYS emit the `proposition` output field, even when you cannot derive
-    anything new -- in that case set `proposition` to the literal string
-    "KHÔNG CÓ MỆNH ĐỀ MỚI" (Vietnamese for "no new proposition"). Never omit the
-    `proposition` field label or write the sentinel as a bare line.
+    Write in Vietnamese. Do NOT restate a proposition already present in `accumulated_context`.
     """
 
     premises: str = dspy.InputField(
-        desc="The premises as a numbered text block (Premise 1, Premise 2, ...); the only source of truth."
+        desc="The premises as a numbered text block; the only source of truth."
     )
     question: str = dspy.InputField(desc="The question to answer.")
     accumulated_context: str = dspy.InputField(
-        desc=(
-            "Propositions already accumulated and verified, organized by verdict "
-            "bucket. Empty on the first step."
-        )
+        desc="Propositions already accumulated and verified. Empty on the first step."
     )
-    proposition: str = dspy.OutputField(
+
+    next_proposition: str = dspy.OutputField(
         desc=(
             "A single new proposition in Vietnamese, citing the premise indices it uses "
-            "(e.g. 'Theo tiền đề 3, ...'). If nothing new can be derived, output "
-            "'KHÔNG CÓ MỆNH ĐỀ MỚI'."
+            "(e.g. 'Theo tiền đề 3, ...'). If nothing new can be derived, output 'KHÔNG CÓ MỆNH ĐỀ MỚI'."
         )
     )
 
@@ -78,36 +65,16 @@ class PropositionProposerSignature(dspy.Signature):
 class PropositionValiditySignature(dspy.Signature):
     """Judge the logical relationship between the premises and a candidate proposition.
 
-    You will write a counterexample search into the `reasoning` field FIRST
-    (see its description), then commit two booleans anchored in that analysis.
-    "Undetermined" is never a button you actively press -- it is the natural
-    result when BOTH booleans are "no".
-
-    ### CONTRADICTION (is_contradicted)
-    Is the `proposition` NECESSARILY FALSE given the premises? Set
-    is_contradicted = true ONLY when the premises logically force the
-    proposition's negation. Do NOT set it merely because the proposition seems
-    unlikely or improbable.
-
-    ### ENTAILMENT (is_entailed)
-    Is the `proposition` NECESSARILY TRUE given ONLY the stated premises and
-    any already-accepted propositions in `accumulated_context`? Set
+    Set is_contradicted = true ONLY when the premises logically force the
+    proposition's negation -- not merely because it seems unlikely. Set
     is_entailed = true ONLY when every scenario consistent with the premises
-    also satisfies the proposition. If you found even ONE falsifying scenario
-    in your `reasoning`, is_entailed MUST be false.
+    also satisfies the proposition -- if you found even one counterexample,
+    is_entailed MUST be false.
 
-    The four possible answer combinations and their meaning:
-    - is_entailed=false, is_contradicted=false => UNDETERMINED.
-          The premises neither prove nor disprove the proposition. This is a
-          common and valid outcome -- it is the correct signal that the question
-          may be unanswerable ("Không chắc chắn"). Set both to false whenever
-          you cannot prove or disprove the proposition from the premises alone.
-    - is_entailed=true, is_contradicted=false => ENTAILED.
-    - is_entailed=false, is_contradicted=true => CONTRADICTED.
-    - is_entailed=true, is_contradicted=true => Inconsistent premises (rare).
-
-    When in doubt, default to false for both -- undetermined is always a safe
-    and honest verdict. The bar for each flag is "necessarily", not "probably".
+    When both are false, the verdict is UNDETERMINED: the premises neither
+    prove nor disprove the proposition. This is a common and valid outcome.
+    When in doubt, default to false for both. The bar is "necessarily", not
+    "probably".
     """
 
     premises: str = dspy.InputField(
@@ -116,45 +83,34 @@ class PropositionValiditySignature(dspy.Signature):
     question: str = dspy.InputField(desc="The question to answer.")
     proposition: str = dspy.InputField(desc="The candidate proposition to verify.")
     accumulated_context: str = dspy.InputField(
-        desc=(
-            "Propositions already accumulated, organized by verdict bucket. "
-            "Empty on the first step."
-        ),
+        desc="Propositions already accumulated. Empty on the first step.",
         default="",
     )
+
     is_contradicted: bool = dspy.OutputField(
-        desc=(
-            "True if the proposition is necessarily false given the premises "
-            "(strict logical contradiction); false otherwise. Consistent with "
-            "your `reasoning` analysis."
-        )
+        desc="True if the proposition is necessarily false given the premises (strict logical contradiction)."
     )
     is_entailed: bool = dspy.OutputField(
-        desc=(
-            "True if the proposition is necessarily true given the premises "
-            "(strict logical entailment); false if you found any counterexample "
-            "in `reasoning`."
-        )
+        desc="True if the proposition is necessarily true given the premises (strict logical entailment)."
     )
 
 
 class PropositionMeaningfulnessSignature(dspy.Signature):
     """Cheap pre-filter: is this a meaningful, substantive proposition?
 
-    Used only in ``multi`` verifier mode, ahead of the (heavier) validity check.
-    ACCEPT (``is_meaningful = true``) when `proposition` is a substantive new
-    claim that could in principle advance the reasoning.
-
-    REJECT (``is_meaningful = false``) when `proposition` is any of:
-      - a non-answer / filler ("there is no proposition", "unknown", "unclear");
+    Set is_useful = false when the proposition is:
+      - a non-answer or filler ("unknown", "unclear", "no proposition");
       - empty or whitespace;
-      - a bare tautology that adds no information ("a thing is itself");
+      - a bare tautology that adds no information;
       - a restatement of the question rather than a deduced fact.
+
+    Otherwise set is_useful = true.
     """
 
     proposition: str = dspy.InputField(desc="The candidate proposition to screen.")
-    is_meaningful: bool = dspy.OutputField(
-        desc="True if the proposition is a substantive, non-filler claim worth verifying."
+
+    is_useful: bool = dspy.OutputField(
+        desc="True if the proposition is a substantive, non-filler claim worth verifying; false otherwise."
     )
 
 
@@ -177,16 +133,12 @@ class CRConfig:
     """``single`` = one validity check; ``multi`` = meaningfulness then validity."""
 
     propose_config: Mapping[str, Any]
-    """Per-call sampling override for the proposer. Empty mapping -> dspy
-    inherits the LM's ``--model-kwargs`` profile verbatim (the default; modern
-    cards like Qwen3's forbid greedy decoding and rely on a tuned temp+penalty
-    system). A populated dict forces only the keys it lists -- dspy merges it on
-    top of the LM kwargs, so other params (top_p, top_k, penalties) persist."""
+    """Per-call sampling override for the proposer. Empty -> dspy inherits the
+    LM's ``--model-kwargs`` profile verbatim (the default)."""
 
     verify_config: Mapping[str, Any]
-    """Per-call sampling override for the verifiers. Same inheritance semantics
-    as :attr:`propose_config`. Not forced to ``temperature=0`` -- the multi-check
-    verifier ensemble handles robustness instead."""
+    """Per-call sampling override for the verifiers. Same semantics as
+    :attr:`propose_config`."""
 
     dedupe_similarity_threshold: float
     """Jaccard threshold above which a new proposition is treated as a duplicate."""
@@ -205,9 +157,8 @@ class CRConfig:
                 f"dedupe_similarity_threshold must be between 0 and 1, "
                 f"got {self.dedupe_similarity_threshold}"
             )
-        # Validate a ``temperature`` key if either config carries one. Kept loose
-        # (only the well-known sampling key is bounds-checked) so the configs can
-        # freely hold other overrides (top_p, top_k, ...) without special-casing.
+        # Only the well-known ``temperature`` key is bounds-checked, so other
+        # overrides (top_p, top_k, ...) need no special-casing.
         for role, override in (("propose", self.propose_config), ("verify", self.verify_config)):
             if "temperature" in override:
                 temperature = override["temperature"]
@@ -288,14 +239,11 @@ def render_verdict_buckets(
 ) -> str:
     """Render the three verdict buckets into a section-labeled block.
 
-    Each non-empty bucket is rendered with a Vietnamese header naming the
-    verdict, followed by 1-indexed propositions. Empty buckets are omitted.
-    Returns an empty string when all three buckets are empty (e.g. the first
-    loop iteration).
-
-    The headers double as semantic cues: "được xác nhận" = entailed (necessarily
-    true), "bị bác bỏ" = contradicted (necessarily false), "không xác định" =
-    undetermined (the premises neither prove nor disprove).
+    Each non-empty bucket gets a Vietnamese header naming the verdict, followed
+    by 1-indexed propositions. Empty buckets are omitted; returns "" when all
+    three are empty (e.g. the first loop iteration). The headers double as
+    semantic cues: "được xác nhận" = entailed, "bị bác bỏ" = contradicted,
+    "không xác định" = undetermined.
     """
     sections: list[str] = []
     for label, items in (
