@@ -73,9 +73,15 @@ class EvaluationReport(BaseModel):
 
 
 class JudgeOutcome(BaseModel):
-    """Full outcome of judging a single example with an LLM-as-a-judge."""
+    """Full outcome of judging a single example with an LLM-as-a-judge.
+
+    ``method`` records how the verdict was produced: ``"deterministic"`` for the
+    closed-answer fast path (MCQ label-set / yes-no-uncertain stance comparison,
+    no judge LM call) or ``"llm"`` when the judge LM was invoked.
+    """
 
     verdict: str
     error_type: str
     feedback: str
     score: float
+    method: str = "llm"

@@ -70,6 +70,20 @@ def contains(example: ReasoningExample, prediction: dspy.Prediction) -> float:
 
 
 _PREMISE_PREFIX_PATTERN = re.compile(r"^\s*(premise\s*)?\d+[:.)]?\s*", re.IGNORECASE)
+_REASONING_PREMISE_REFERENCE_PATTERN = re.compile(
+    r"(?:premise|ti\u1ec1n\s*\u0111\u1ec1)\s*(\d+)", re.IGNORECASE
+)
+
+
+def _debug_value(value: object) -> object:
+    """Convert arbitrary prediction fields into JSON-friendly debug values."""
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, (list, tuple)):
+        return [_debug_value(item) for item in value]
+    if isinstance(value, dict):
+        return {str(key): _debug_value(item) for key, item in value.items()}
+    return str(value)
 
 
 def _parse_premise_indices(value: object) -> list[int]:
@@ -115,7 +129,12 @@ def _parse_premise_texts(value: object) -> list[str]:
         try:
             parsed = json.loads(text)
         except (ValueError, TypeError):
-            return [text]
+            # Not valid JSON — the model likely emitted one premise per line,
+            # sometimes wrapped in brackets (e.g. "[item1]\n[item2]"). Split on
+            # newlines, strip surrounding brackets from each line, and drop
+            # empty lines so the re-matcher gets individual premise texts.
+            lines = [line.strip().strip("[]").strip() for line in text.splitlines()]
+            return [line for line in lines if line]
         return [str(item) for item in parsed] if isinstance(parsed, list) else [str(parsed)]
     return [str(value)]
 
@@ -150,6 +169,62 @@ def _rematch_premise_indices(premises: list[str], texts: list[str]) -> list[int]
         if best_index != -1 and best_score >= MINIMUM_PREMISE_MATCH_SCORE:
             indices.add(best_index)
     return sorted(indices)
+
+
+def _parse_reasoning_premise_references(value: object, num_premises: int) -> list[int]:
+    """Extract 0-based premise references mentioned in free-form reasoning text."""
+    if value is None:
+        return []
+    references: set[int] = set()
+    for match in _REASONING_PREMISE_REFERENCE_PATTERN.finditer(str(value)):
+        index = int(match.group(1))
+        if 1 <= index <= num_premises:
+            references.add(index - 1)
+    return sorted(references)
+
+
+def premise_selection_debug(
+    example: ReasoningExample,
+    prediction: dspy.Prediction,
+) -> dict[str, object]:
+    """Build persisted debug metadata for premise-selection parsing."""
+    num_premises = len(example.premises)
+    raw_primary = getattr(prediction, "supporting_premise_indices", None)
+    raw_relevant_premises = getattr(prediction, "relevant_premises", None)
+    reasoning = getattr(prediction, "reasoning", None)
+
+    parsed_primary = _parse_premise_indices(raw_primary)
+    valid_primary = sorted({index - 1 for index in parsed_primary if 1 <= index <= num_premises})
+    parsed_relevant_premises = _parse_premise_texts(raw_relevant_premises)
+    rematched_relevant_premises = _rematch_premise_indices(
+        premises=example.premises,
+        texts=parsed_relevant_premises,
+    )
+
+    if len(valid_primary) > 0:
+        selected_source = "supporting_premise_indices"
+        selected_premises_used = valid_primary
+    elif len(rematched_relevant_premises) > 0:
+        selected_source = "relevant_premises"
+        selected_premises_used = rematched_relevant_premises
+    else:
+        selected_source = "none"
+        selected_premises_used = []
+
+    return {
+        "raw_supporting_premise_indices": _debug_value(raw_primary),
+        "parsed_supporting_premise_indices_1_based": parsed_primary,
+        "valid_supporting_premise_indices_0_based": valid_primary,
+        "raw_relevant_premises": _debug_value(raw_relevant_premises),
+        "parsed_relevant_premises": parsed_relevant_premises,
+        "rematched_relevant_premises_0_based": rematched_relevant_premises,
+        "selected_source": selected_source,
+        "selected_premises_used_0_based": selected_premises_used,
+        "reasoning_referenced_premises_0_based": _parse_reasoning_premise_references(
+            reasoning,
+            num_premises,
+        ),
+    }
 
 
 def predicted_premise_indices(example: ReasoningExample, prediction: dspy.Prediction) -> set[int]:
@@ -203,13 +278,16 @@ def judge_example(
         correct_answer=example.answer,
         predicted_answer=str(prediction.answer),
         predicted_solution=str(getattr(prediction, "reasoning", "") or ""),
+        category=example.category,
     )
     verdict = str(judgement.verdict).strip().upper()
+    method = str(getattr(judgement, "method", "llm") or "llm")
     return JudgeOutcome(
         verdict=verdict,
         error_type=str(judgement.error_type),
         feedback=str(getattr(judgement, "feedback", "") or ""),
         score=float(verdict.startswith("YES")),
+        method=method,
     )
 
 

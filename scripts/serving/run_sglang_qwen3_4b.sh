@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# !!! NOTE: DFLASH drafter model for Qwen/Qwen3-4B supports only NON-THINKING model!!
+# !!! NOTE: Qwen3 natively supports context lengths of up to 32,768 tokens, to use larger context length, yarn should be configured
+
 export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
 export SAFETENSORS_FAST_GPU=1
 
@@ -12,11 +15,11 @@ export SGLANG_ENABLE_DFLASH_SPEC_V2=1
 export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1
 
 PORT=${PORT:-8124}
-MODEL_ID='Qwen/Qwen3.5-9B'
+MODEL_ID='Qwen/Qwen3-4B'
 CHUNKED_PREFILL_SIZE=8192
 CONTEXT_LENGTH=32768
 MEM_FRACTION_STATIC=0.875
-SPEC_DECODING_METHOD=${SPEC_DECODING_METHOD:-MTP}
+SPEC_DECODING_METHOD=${SPEC_DECODING_METHOD:-DFLASH}
 TP="${TP:-1}"
 DP="${DP:-1}"
 
@@ -25,19 +28,10 @@ echo "Spec decoding method: $SPEC_DECODING_METHOD"
 
 echo "PORT=${PORT}, TP=${TP}, DP=${DP}, CHUNKED_PREFILL_SIZE=${CHUNKED_PREFILL_SIZE}, CONTEXT_LENGTH=${CONTEXT_LENGTH}, MEM_FRACTION_STATIC=${MEM_FRACTION_STATIC}"
 
-if [ "$SPEC_DECODING_METHOD" = "MTP" ]; then
-  export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=0
-  echo "Overriding SGLANG_ENABLE_OVERLAP_PLAN_STREAM to 0 as Spec MTP do not support this flag yet"
-  SPEC_ARGS=(
-    --speculative-algorithm EAGLE
-    --speculative-num-steps 3
-    --speculative-eagle-topk 1
-    --speculative-num-draft-tokens 4
-  )
-elif [ "$SPEC_DECODING_METHOD" = "DFLASH" ]; then
+if [ "$SPEC_DECODING_METHOD" = "DFLASH" ]; then
   SPEC_ARGS=(
     --speculative-algorithm DFLASH
-    --speculative-draft-model-path z-lab/Qwen3.5-9B-DFlash
+    --speculative-draft-model-path z-lab/Qwen3-4B-DFlash-b16
     --speculative-num-draft-tokens 8
     --attention-backend fa3
     --speculative-draft-attention-backend fa4
@@ -46,7 +40,7 @@ elif [ "$SPEC_DECODING_METHOD" = "OFF" ]; then
   # No speculative decoding
   SPEC_ARGS=()
 else
-  echo "Unknown SPEC_DECODING_METHOD: $SPEC_DECODING_METHOD. Expected one of DFLASH, MTP or OFF" >&2
+  echo "Unknown SPEC_DECODING_METHOD: $SPEC_DECODING_METHOD. Expected one of DFLASH or OFF" >&2
   exit 1
 fi
 
@@ -69,5 +63,4 @@ uv run --no-sync sglang serve \
   --tool-call-parser qwen3_coder \
   --grammar-backend xgrammar \
   --enable-flashinfer-allreduce-fusion \
-  --mamba-scheduler-strategy extra_buffer \
   "${SPEC_ARGS[@]}"

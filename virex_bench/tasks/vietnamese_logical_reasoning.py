@@ -39,15 +39,20 @@ class VietnameseLogicalReasoningSignature(dspy.Signature):
       below.
 
     Answer formatting by type:
-    - multiple_choice: return only the option label letter(s). For a single
-      answer, return one uppercase letter (e.g. "A"). For multiple answers,
-      return the letters separated by ", " in alphabetical order (e.g. "B, C").
-      Do NOT include the option text, punctuation, or any explanation.
-    - yes_no_uncertain: return exactly one of the Vietnamese labels "Có",
-      "Không", or "Không chắc chắn". Use "Có" when the premises entail the claim,
-      "Không" when the premises entail its negation, and "Không chắc chắn" when
-      the premises entail neither. Answers in any other language or variant
-      (e.g. "Yes", "No", "Uncertain") are considered wrong.
+    - multiple_choice: return ONLY the option label letter(s) — nothing else.
+      For a single answer, return one uppercase letter (e.g. "A"). For multiple
+      answers, return the letters separated by ", " in alphabetical order
+      (e.g. "B, C"). Do NOT include the option text, any explanation, or ANY
+      punctuation beyond the ", " separator. The whole answer must consist of
+      labels and ", " alone; surrounding text such as "Đáp án là C", "chọn C",
+      "C.", or "C - <option text>" is WRONG even if the chosen label is correct.
+    - yes_no_uncertain: return EXACTLY one of the three Vietnamese labels "Có",
+      "Không", or "Không chắc chắn" — nothing else. Use "Có" when the premises
+      entail the claim, "Không" when the premises entail its negation, and
+      "Không chắc chắn" when the premises entail neither. Variants such as
+      "Đúng", "Vâng", "Sai", "Không rõ", "Không xác định" are WRONG, and so are
+      any other-language equivalents ("Yes", "No", "Uncertain") — even though
+      they may be semantically equivalent. Capitalization as shown is preferred.
     - numeric: return only the number whenever possible (e.g. "3"). Include
       accompanying text only when it is genuinely required to make the answer
       meaningful (e.g. a unit such as "3 người").
@@ -112,10 +117,11 @@ class VietnameseLogicalReasoningSignature(dspy.Signature):
     answer: str = dspy.OutputField(
         desc=(
             "The final answer, formatted according to `answer_type`:\n"
-            "- multiple_choice: option label letter(s) only, e.g. 'A' or 'B, C' "
-            "(uppercase, alphabetical, comma-separated, no option text).\n"
-            "- yes_no_uncertain: exactly one of 'Có', 'Không', 'Không chắc chắn' "
-            "(Vietnamese only; other languages/variants are wrong).\n"
+            "- multiple_choice: ONLY option label letter(s), e.g. 'A' or 'B, C' "
+            "(uppercase, alphabetical, comma+space separated). No option text, no "
+            "explanation, no punctuation beyond ', ' — 'Đáp án là C' / 'C.' are WRONG.\n"
+            "- yes_no_uncertain: EXACTLY one of 'Có', 'Không', 'Không chắc chắn' — "
+            "no variants ('Đúng', 'Sai', 'Không rõ') and no other languages ('Yes').\n"
             "- numeric: the number only when possible, e.g. '3'; add text only "
             "when truly needed, e.g. '3 người'.\n"
             "- open_ended: a concise Vietnamese phrase or sentence; "
@@ -271,6 +277,18 @@ class VietnameseLogicalReasoning(ReasoningTask):
                 "Step-by-step reasoning over the premises that leads to the answer. "
                 "Cite only what the premises state and avoid outside knowledge. "
                 "IMPORTANT: write this reasoning in Vietnamese."
+            )
+        ),
+        "cr": dspy.OutputField(
+            desc=(
+                "Before answering, reason over the verified propositions in "
+                "`accumulated_context`. First check whether the "
+                "[Mệnh đề được xác nhận] (entailed) bucket directly settles the "
+                "question — if it does, commit that answer. If the question turns "
+                "on a point that only the [Mệnh đề không xác định] (undetermined) "
+                "bucket touches, the evidence is INSUFFICIENT — answer "
+                "'Không chắc chắn'. Never confuse 'undetermined' with 'is false'. "
+                "Write this reasoning in Vietnamese."
             )
         ),
     }

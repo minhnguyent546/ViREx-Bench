@@ -39,7 +39,7 @@ dependencies = [
     "tqdm>=4.66.0",
     "torch==2.11.0",
     "torchvision==0.26.0",
-    "transformers>=5.6.0,<=5.8.1",
+    "transformers>=5.6.0,<5.12.0",
     "kernels>=0.14.1,<0.15.0",
 ]
 
@@ -76,6 +76,7 @@ vllm-v0-20 = [
 vllm-v0-23 = [
     "flashinfer-python>=0.6.11",
     "vllm==0.23.0",
+    "transformers>=5.10.1",  # to support `gemma4_unified` arch
 ]
 sglang-spec-v2-dflash-support = [
     "flashinfer-python>=0.6.8.post1",
@@ -84,6 +85,7 @@ sglang-spec-v2-dflash-support = [
 sglang-v0-5-14 = [
     "flashinfer-python>=0.6.12",
     "sglang",
+    "transformers<5.9.0",
 ]
 
 [tool.uv]

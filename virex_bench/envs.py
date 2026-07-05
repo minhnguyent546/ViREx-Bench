@@ -120,6 +120,43 @@ if TYPE_CHECKING:
     # the answer). Setting this to "0" disables the stop-on-success.
     VIREX_BENCH_TOT_MCTS_STOP_THRESHOLD: float | None = None
 
+    # --- Cumulative Reasoning (CR) strategy ---
+    # CR accumulates verified propositions, then solves. All knobs are optional;
+    # when unset the defaults below are used. Tune a run with e.g.
+    # `VIREX_BENCH_CR_TARGET_PROPOSITIONS=5 uv run vb run --strategy cr ...`.
+
+    # Cap on accepted propositions accumulated before the Solver runs. Default 7
+    # covers ~96% of gold reasoning chains in the dataset (the `premises_used`
+    # histogram tops out at 10). Lower for cheaper experiments (3 -> ~71%,
+    # 5 -> ~87%); raise toward 10 for max fidelity. See the strategy plan for
+    # the full coverage/cost table.
+    VIREX_BENCH_CR_TARGET_PROPOSITIONS: int = 7
+    # Cap on rejected/duplicate proposals before the loop gives up and solves
+    # with whatever it accumulated. Guards against a proposer that keeps emitting
+    # junk on a hard example.
+    VIREX_BENCH_CR_MAX_FAILED_ATTEMPTS: int = 6
+    # Verifier gate configuration. "multi" (default) runs a meaningfulness
+    # pre-filter then a validity check -- more robust, one extra LLM call per
+    # proposal. "single" runs only the validity check.
+    VIREX_BENCH_CR_VERIFIER_MODE: Literal["single", "multi"] = "multi"
+    # Sampling temperature for the proposer. Unset/empty -> inherit the LM's
+    # `--model-kwargs` profile (the default: modern cards like Qwen3's publish a
+    # tuned temp+penalty system and forbid greedy decoding, so we do not force a
+    # role-specific temperature). Proposer diversity comes from the per-call `n`
+    # rather than a cranked temperature. Set this to override temperature only.
+    # Proposer sampling temperature. None -> inherit the LM's `--model-kwargs`
+    # profile (we do not force a role-specific temperature).
+    VIREX_BENCH_CR_PROPOSE_TEMPERATURE: float | None = None
+    # Verifier sampling temperature. None (default) inherits the LM's profile;
+    # set to a float to override (e.g. 0.5 for more deterministic verdicts).
+    VIREX_BENCH_CR_VERIFY_TEMPERATURE: float | None = None
+    # Number of candidate propositions sampled per propose call. > 1 gives the
+    # loop multiple diverse candidates to try (deduped, verified in order),
+    # combating proposer diversity exhaustion. Mirrors ToT's branching factor.
+    VIREX_BENCH_CR_N_PROPOSE_SAMPLES: int = 3
+    # Fuzzy dedupe threshold for proposed propositions. Higher is more conservative.
+    VIREX_BENCH_CR_DEDUPE_SIMILARITY_THRESHOLD: float = 0.9
+
     # --- Self-consistency decoding ---
     # Number of independent reasoning paths sampled per example.
     VIREX_BENCH_SC_NUM_SAMPLES: int = 5
@@ -282,6 +319,31 @@ environment_variables: dict[str, Callable[[], Any]] = {
     ),
     "VIREX_BENCH_TOT_MCTS_STOP_THRESHOLD": lambda: maybe_convert_float(
         os.environ.get("VIREX_BENCH_TOT_MCTS_STOP_THRESHOLD", None)
+    ),
+    # --- Cumulative Reasoning (CR) strategy ---
+    "VIREX_BENCH_CR_TARGET_PROPOSITIONS": lambda: int(
+        os.environ.get("VIREX_BENCH_CR_TARGET_PROPOSITIONS", "7")
+    ),
+    "VIREX_BENCH_CR_MAX_FAILED_ATTEMPTS": lambda: int(
+        os.environ.get("VIREX_BENCH_CR_MAX_FAILED_ATTEMPTS", "6")
+    ),
+    "VIREX_BENCH_CR_VERIFIER_MODE": lambda: env_with_choices(
+        "VIREX_BENCH_CR_VERIFIER_MODE",
+        "multi",
+        ["single", "multi"],
+        case_sensitive=False,
+    )().lower(),
+    "VIREX_BENCH_CR_PROPOSE_TEMPERATURE": lambda: maybe_convert_float(
+        os.environ.get("VIREX_BENCH_CR_PROPOSE_TEMPERATURE", None)
+    ),
+    "VIREX_BENCH_CR_VERIFY_TEMPERATURE": lambda: maybe_convert_float(
+        os.environ.get("VIREX_BENCH_CR_VERIFY_TEMPERATURE", None)
+    ),
+    "VIREX_BENCH_CR_N_PROPOSE_SAMPLES": lambda: int(
+        os.environ.get("VIREX_BENCH_CR_N_PROPOSE_SAMPLES", "3")
+    ),
+    "VIREX_BENCH_CR_DEDUPE_SIMILARITY_THRESHOLD": lambda: float(
+        os.environ.get("VIREX_BENCH_CR_DEDUPE_SIMILARITY_THRESHOLD", "0.9")
     ),
     # --- Self-consistency decoding ---
     "VIREX_BENCH_SC_NUM_SAMPLES": lambda: int(os.environ.get("VIREX_BENCH_SC_NUM_SAMPLES", "5")),

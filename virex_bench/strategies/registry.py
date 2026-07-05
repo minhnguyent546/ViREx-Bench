@@ -3,6 +3,7 @@ from pydantic.fields import FieldInfo
 
 from virex_bench.strategies.base import ReasoningStrategy
 from virex_bench.strategies.cot import CoTStrategy
+from virex_bench.strategies.cr import CRStrategy
 from virex_bench.strategies.direct import DirectStrategy
 from virex_bench.strategies.tot import ToTStrategy
 
@@ -11,6 +12,7 @@ from virex_bench.strategies.tot import ToTStrategy
 _STRATEGY_REGISTRY: dict[str, type[ReasoningStrategy]] = {
     DirectStrategy.name: DirectStrategy,
     CoTStrategy.name: CoTStrategy,
+    CRStrategy.name: CRStrategy,
     ToTStrategy.name: ToTStrategy,
 }
 

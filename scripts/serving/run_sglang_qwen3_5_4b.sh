@@ -20,8 +20,8 @@ export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1
 PORT=${PORT:-8124}
 MODEL_ID='Qwen/Qwen3.5-4B'
 CHUNKED_PREFILL_SIZE=8192
-CONTEXT_LENGTH=49152
-MEM_FRACTION_STATIC=0.9
+CONTEXT_LENGTH=32768
+MEM_FRACTION_STATIC=0.875
 SPEC_DECODING_METHOD=${SPEC_DECODING_METHOD:-MTP}
 TP="${TP:-1}"
 DP="${DP:-1}"
@@ -48,10 +48,15 @@ elif [ "$SPEC_DECODING_METHOD" = "DFLASH" ]; then
     --attention-backend fa3
     --speculative-draft-attention-backend fa4
   )
+elif [ "$SPEC_DECODING_METHOD" = "OFF" ]; then
+  # No speculative decoding
+  SPEC_ARGS=()
 else
-  echo "Unknown SPEC_DECODING_METHOD: $SPEC_DECODING_METHOD" >&2
+  echo "Unknown SPEC_DECODING_METHOD: $SPEC_DECODING_METHOD. Expected one of DFLASH, MTP or OFF" >&2
   exit 1
 fi
+
+echo "SPEC_ARGS: ${SPEC_ARGS[*]}"
 
 # python -m sglang.compile_deep_gemm
 uv run --no-sync sglang serve \
@@ -62,8 +67,8 @@ uv run --no-sync sglang serve \
   --mem-fraction-static "$MEM_FRACTION_STATIC" \
   --chunked-prefill-size "$CHUNKED_PREFILL_SIZE" \
   --context-length "$CONTEXT_LENGTH" \
-  --max-running-requests 16 \
-  --cuda-graph-max-bs 16 \
+  --max-running-requests 32 \
+  --cuda-graph-max-bs 32 \
   --enable-tokenizer-batch-encode \
   --enable-mixed-chunk \
   --reasoning-parser qwen3 \

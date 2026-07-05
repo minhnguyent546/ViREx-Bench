@@ -7,23 +7,21 @@ export SAFETENSORS_FAST_GPU=1
 # export VLLM_USE_V2_MODEL_RUNNER=1
 
 PORT=${PORT:-8124}
-MODEL_ID='Qwen/Qwen3.5-27B'
+MODEL_ID='Qwen/Qwen3-8B'
 MAX_NUM_BATCHED_TOKENS=8192
 MAX_MODEL_LEN=32768
 MAX_NUM_SEQS=32
-GPU_MEMORY_UTILIZATION=0.8
-SPEC_DECODING_METHOD=${SPEC_DECODING_METHOD:-MTP}
+GPU_MEMORY_UTILIZATION=0.875
+SPEC_DECODING_METHOD=${SPEC_DECODING_METHOD:-DFLASH}
 TP="${TP:-1}"
 DP="${DP:-1}"
 
 if [[ $SPEC_DECODING_METHOD == "DFLASH" ]]; then
-  SPECULATIVE_CONFIG='{"method": "dflash", "model": "z-lab/Qwen3.5-27B-DFlash", "num_speculative_tokens": 7}'
-elif [[ $SPEC_DECODING_METHOD == "MTP" ]]; then
-  SPECULATIVE_CONFIG='{"method": "mtp", "num_speculative_tokens": 2}'
+  SPECULATIVE_CONFIG='{"method": "dflash", "model": "z-lab/Qwen3-8B-DFlash-b16", "num_speculative_tokens": 7}'
 elif [[ $SPEC_DECODING_METHOD == "OFF" ]]; then
   SPECULATIVE_CONFIG=''
 else
-  echo "Invalid SPEC_DECODING_METHOD = $SPEC_DECODING_METHOD. Expected one of DFLASH, MTP or OFF" >&2
+  echo "Invalid SPEC_DECODING_METHOD = $SPEC_DECODING_METHOD. Expected one of DFLASH or OFF" >&2
   exit 1
 fi
 

@@ -12,7 +12,7 @@ export SGLANG_ENABLE_DFLASH_SPEC_V2=1
 export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1
 
 PORT=${PORT:-8124}
-MODEL_ID='Qwen/Qwen3.5-9B'
+MODEL_ID='google/gemma-4-E2B-it'
 CHUNKED_PREFILL_SIZE=8192
 CONTEXT_LENGTH=32768
 MEM_FRACTION_STATIC=0.875
@@ -29,24 +29,17 @@ if [ "$SPEC_DECODING_METHOD" = "MTP" ]; then
   export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=0
   echo "Overriding SGLANG_ENABLE_OVERLAP_PLAN_STREAM to 0 as Spec MTP do not support this flag yet"
   SPEC_ARGS=(
-    --speculative-algorithm EAGLE
-    --speculative-num-steps 3
-    --speculative-eagle-topk 1
-    --speculative-num-draft-tokens 4
-  )
-elif [ "$SPEC_DECODING_METHOD" = "DFLASH" ]; then
-  SPEC_ARGS=(
-    --speculative-algorithm DFLASH
-    --speculative-draft-model-path z-lab/Qwen3.5-9B-DFlash
-    --speculative-num-draft-tokens 8
-    --attention-backend fa3
-    --speculative-draft-attention-backend fa4
+    --speculative-algorithm NEXTN
+    --speculative-draft-model-path google/gemma-4-E2B-it-assistant
+    --speculative-num-steps 5 \
+    --speculative-eagle-topk 1 \
+    --speculative-num-draft-tokens 6 \
   )
 elif [ "$SPEC_DECODING_METHOD" = "OFF" ]; then
   # No speculative decoding
   SPEC_ARGS=()
 else
-  echo "Unknown SPEC_DECODING_METHOD: $SPEC_DECODING_METHOD. Expected one of DFLASH, MTP or OFF" >&2
+  echo "Unknown SPEC_DECODING_METHOD: $SPEC_DECODING_METHOD. Expected one of MTP or OFF" >&2
   exit 1
 fi
 
@@ -65,9 +58,7 @@ uv run --no-sync sglang serve \
   --cuda-graph-max-bs 32 \
   --enable-tokenizer-batch-encode \
   --enable-mixed-chunk \
-  --reasoning-parser qwen3 \
-  --tool-call-parser qwen3_coder \
+  --reasoning-parser gemma4 \
+  --tool-call-parser gemma4 \
   --grammar-backend xgrammar \
-  --enable-flashinfer-allreduce-fusion \
-  --mamba-scheduler-strategy extra_buffer \
   "${SPEC_ARGS[@]}"

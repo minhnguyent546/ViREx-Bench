@@ -64,20 +64,21 @@ def _process_example(
             if search_stats is not None:
                 extra["search_stats"] = search_stats
             if judge_module is not None:
-                outcome = judge_example(
+                judgement = judge_example(
                     example=example, prediction=prediction, judge_module=judge_module
                 )
                 extra["judge_result"] = {
-                    "verdict": outcome.verdict,
-                    "error_type": outcome.error_type,
-                    "feedback": outcome.feedback,
+                    "verdict": judgement.verdict,
+                    "error_type": judgement.error_type,
+                    "feedback": judgement.feedback,
+                    "method": judgement.method,
                 }
-                answer_score = outcome.score
+                answer_score = judgement.score
             else:
                 assert metric_func is not None
                 answer_score = float(metric_func(example, prediction))
             score_components = task.compute_score(example, prediction, answer_score)
-        except Exception as error:  # noqa: BLE001
+        except Exception as error:
             logger.warning(f"Example {example.example_id} failed: {error!r}")
             return TaskResult(
                 example_id=example.example_id,
@@ -277,14 +278,19 @@ def evaluate(
 
     results: list[TaskResult] = []
     running_score = 0.0
+    num_failed = 0
     progress_bar = tqdm(total=len(examples), desc=progress_desc, unit="example")
     start_time = time.perf_counter()
     try:
         for result in result_iter:
             results.append(result)
             running_score += result.score
+            if "error" in result.extra:
+                num_failed += 1
             seen = len(results)
-            progress_bar.set_postfix_str(f"{metric_name}={running_score / seen:.4f}")
+            progress_bar.set_postfix_str(
+                f"{metric_name}={running_score / seen:.4f}, failed={num_failed}"
+            )
             progress_bar.update(1)
     finally:
         progress_bar.close()
