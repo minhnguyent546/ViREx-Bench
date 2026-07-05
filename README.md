@@ -6,7 +6,8 @@
 
 <p align="center">
   <a href="#installation">Installation</a> ·
-  <a href="#example-of-usage">Example of Usage</a>
+  <a href="#example-of-usage">Example of Usage</a> ·
+  <a href="#development">Development</a>
 </p>
 
 <p align="center">
@@ -101,6 +102,37 @@ report = vb.evaluate(
 vb.save_report(report, "./results")
 
 print(f"{report.metric}={report.score:.4f} over {report.num_evaluated_examples} examples")
+```
+
+## Development
+
+Clone the repository and sync the environment with [`uv`](https://docs.astral.sh/uv/):
+
+```bash
+git clone https://github.com/minhnguyent546/ViREx-Bench.git
+cd ViREx-Bench
+uv sync  # creates the venv and installs the package with dev dependencies
+```
+
+Quality checks — prefix commands with `uv run` so they use the project environment:
+
+```bash
+uv run --no-sync ruff check             # lint
+uv run --no-sync ruff format            # format
+uv run --no-sync pytest                 # test suite
+uv run --no-sync ruff check path/to/file.py   # scope lint/format to a single file
+uv run --no-sync ruff format path/to/file.py
+```
+
+### Serving models locally
+
+ViREx-Bench talks to models through any OpenAI-compatible endpoint. To serve a model
+locally with **vLLM** or **SGLang**, install the corresponding dependency group and use
+the provided launchers — see [`scripts/serving/README.md`](scripts/serving/README.md) for
+hardware requirements and full instructions.
+
+```bash
+uv sync --group vllm-v0-23        # or: uv sync --group sglang-v0-5-14
 ```
 
 ## License
