@@ -142,12 +142,13 @@ class VietnameseLogicalReasoningSignature(dspy.Signature):
             "[1, 2, 4, 5]."
         )
     )
-    relevant_premises: list[str] = dspy.OutputField(
+    relevant_premises: str = dspy.OutputField(
         desc=(
             "FALLBACK for premises_used: the EXACT original text of the SAME premises listed "
             "in `supporting_premise_indices`, copied verbatim from the premise list (do not "
-            "rephrase, shorten, or add numbering). The downstream re-matcher needs a verbatim "
-            "copy to recover the correct index. Same set, same order as the indices."
+            "rephrase, shorten, or add numbering). Put one premise per line. The downstream "
+            "re-matcher needs a verbatim copy to recover the correct index. Same set, same "
+            "order as the indices. Leave empty if no premise is used."
         )
     )
 
@@ -202,9 +203,10 @@ class VietnameseLogicalReasoningAggregationSignature(dspy.Signature):
         desc=(
             "JSON array of candidate results. Each entry is an object containing: "
             '"answer" (str), "reasoning" (str), "answer_type" (str), '
-            '"supporting_premise_indices" (list[int]), "relevant_premises" (list[str]). '
+            '"supporting_premise_indices" (list[int]), "relevant_premises" (str, one '
+            "premise per line). "
             'Example: [{"answer": "Có", "reasoning": "...", "answer_type": "yes_no_uncertain", '
-            '"supporting_premise_indices": [1, 3], "relevant_premises": ["..."]}, ...].'
+            '"supporting_premise_indices": [1, 3], "relevant_premises": "..."}, ...].'
         ),
     )
     answer: str = dspy.OutputField(
@@ -224,10 +226,11 @@ class VietnameseLogicalReasoningAggregationSignature(dspy.Signature):
             "answer. Union of the majority candidates' indices, sorted ascending, deduplicated."
         ),
     )
-    relevant_premises: list[str] = dspy.OutputField(
+    relevant_premises: str = dspy.OutputField(
         desc=(
             "The EXACT original text of the same premises listed in "
-            "supporting_premise_indices, copied verbatim from the premise list."
+            "supporting_premise_indices, copied verbatim from the premise list. "
+            "Put one premise per line."
         ),
     )
     explanation: str = dspy.OutputField(
