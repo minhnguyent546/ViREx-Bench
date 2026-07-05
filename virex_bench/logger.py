@@ -74,7 +74,7 @@ class ColoredFormatter(logging.Formatter):
         level_color = self._LEVEL_COLORS.get(record.levelname, "")
         padded_levelname = f"{record.levelname:<{_LEVELNAME_WIDTH}}"
         record.levelname = f"{level_color}{padded_levelname}{self._RESET}"
-        record.location = f"{self._GREY}{original_location}{self._RESET}"
+        record.location = f"{self._GREY}[{original_location}]{self._RESET}"
         try:
             message = super().format(record)
         finally:
