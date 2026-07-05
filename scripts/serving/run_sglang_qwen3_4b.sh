@@ -63,5 +63,4 @@ uv run --no-sync sglang serve \
   --tool-call-parser qwen3_coder \
   --grammar-backend xgrammar \
   --enable-flashinfer-allreduce-fusion \
-  --mamba-scheduler-strategy extra_buffer \
   "${SPEC_ARGS[@]}"
