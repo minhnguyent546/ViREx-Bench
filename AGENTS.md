@@ -150,6 +150,7 @@ results/            # benchmark run outputs
 - **Variable names:** Use verbose, self-documenting names. Avoid short abbreviations (e.g., `ri`, `ip`, `ua`, `ui`, `el`, `t`) — prefer `request_metadata`, `client_ip`, `client_user_agent`, `elapsed`, etc. Single-letter names are only acceptable as loop indices or in very narrow local scopes (e.g., list comprehensions).
 - **None check:** Use `if x is None` and `if x is not None` for checking if a variable is `None`. Avoid truthy/falsy checks like `if x` or `if not x` when the variable can have valid falsy values (e.g., empty string, zero, empty list).
 - **`type[T]` hints:** Use `type[T]` when a function/field expects a *class* (to instantiate or inspect later), not an instance — e.g. `signature: type[dspy.Signature]` and registries like `dict[str, type[ReasoningStrategy]]`. Pass the class itself (`DirectStrategy`), not an instance (`DirectStrategy()`).
+- **Comments:** Do not add decorative separator/banner comments — no `# --- text ---`, `# =====`, or full-line `# ---------` dividers between sections. If a section genuinely needs a title, use a plain `# Title` comment (no surrounding dashes/equal signs); otherwise rely on PEP 8's two blank lines between top-level definitions. Only add comments to explain non-obvious logic — never to delimit regions.
 - Do not create small helper methods that are referenced only once.
 
 ## Code review
