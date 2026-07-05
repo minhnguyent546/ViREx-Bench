@@ -17,6 +17,7 @@ _CR_ENVS = [
     "VIREX_BENCH_CR_VERIFIER_MODE",
     "VIREX_BENCH_CR_PROPOSE_TEMPERATURE",
     "VIREX_BENCH_CR_VERIFY_TEMPERATURE",
+    "VIREX_BENCH_CR_N_PROPOSE_SAMPLES",
     "VIREX_BENCH_CR_DEDUPE_SIMILARITY_THRESHOLD",
 ]
 
@@ -48,9 +49,10 @@ def test_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     assert config.target_propositions == 7
     assert config.max_failed_attempts == 6
     assert config.verifier_mode == "multi"
-    # Temperatures default to None -> empty config dicts -> dspy inherits the
-    # LM's --model-kwargs profile (see the strategy plan's "Sampling params").
+    assert config.n_propose_samples == 3
+    # Propose temperature defaults to None -> empty config (inherit LM profile).
     assert config.propose_config == {}
+    # Verify temperature defaults to None -> empty config (inherit LM profile).
     assert config.verify_config == {}
     assert config.dedupe_similarity_threshold == 0.9
 
@@ -100,6 +102,20 @@ def test_temperatures_and_dedupe_overrides(monkeypatch: pytest.MonkeyPatch) -> N
     assert config.propose_config == {"temperature": 0.4}
     assert config.verify_config == {"temperature": 0.2}
     assert config.dedupe_similarity_threshold == 0.8
+
+
+def test_n_propose_samples_override(monkeypatch: pytest.MonkeyPatch) -> None:
+    _clear_cr_envs(monkeypatch)
+    monkeypatch.setenv("VIREX_BENCH_CR_N_PROPOSE_SAMPLES", "6")
+    config = _get_cr_config(monkeypatch)
+    assert config.n_propose_samples == 6
+
+
+def test_n_propose_samples_invalid_raises(monkeypatch: pytest.MonkeyPatch) -> None:
+    _clear_cr_envs(monkeypatch)
+    monkeypatch.setenv("VIREX_BENCH_CR_N_PROPOSE_SAMPLES", "0")
+    with pytest.raises(ValueError, match="n_propose_samples"):
+        get_strategy("cr", _TestSignature)
 
 
 def test_temperature_out_of_bounds_raises(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -101,6 +101,7 @@ def _valid_config_kwargs() -> dict[str, object]:
         # Empty dict = inherit the LM's --model-kwargs profile (the default).
         "propose_config": {},
         "verify_config": {},
+        "n_propose_samples": 4,
         "dedupe_similarity_threshold": 0.9,
     }
 
@@ -129,6 +130,7 @@ def test_crconfig_accepts_explicit_override_configs() -> None:
     [
         ("target_propositions", 0),
         ("max_failed_attempts", 0),
+        ("n_propose_samples", 0),
         ("dedupe_similarity_threshold", -0.1),
         ("dedupe_similarity_threshold", 1.1),
     ],

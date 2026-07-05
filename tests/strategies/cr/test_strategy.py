@@ -50,11 +50,11 @@ class _FakeProposer:
         proposition = self._propositions[self._index]
         self._index += 1
         self.call_count += 1
-        return _FakePrediction(proposition=proposition)
+        return _FakePrediction(next_proposition=proposition)
 
 
 class _FakeMeaningful:
-    """Returns a canned is_meaningful verdict per call."""
+    """Returns a canned is_useful verdict per call."""
 
     def __init__(self, verdicts: list[bool]) -> None:
         self._verdicts = list(verdicts)
@@ -67,7 +67,7 @@ class _FakeMeaningful:
         verdict = self._verdicts[self._index]
         self._index += 1
         self.call_count += 1
-        return _FakePrediction(is_meaningful=verdict)
+        return _FakePrediction(is_useful=verdict)
 
 
 class _FakeValidity:
@@ -112,7 +112,36 @@ class _OverflowProposer:
         self.call_count += 1
         if self.call_count == self._overflow_on_call:
             raise dspy.ContextWindowExceededError(message="simulated overflow")
-        return _FakePrediction(proposition=f"proposition {self.call_count}")
+        return _FakePrediction(next_proposition=f"proposition {self.call_count}")
+
+
+class _FakeMultiProposer:
+    """Returns a *batch* of canned propositions per call (multi-sample mode).
+
+    Simulates dspy's ``.completions`` structure so ``completion_values`` picks
+    up the full batch. Each call pops the next batch from the list.
+    """
+
+    def __init__(self, batches: list[list[str]]) -> None:
+        self._batches = [list(batch) for batch in batches]
+        self._index = 0
+        self.call_count = 0
+
+    def __call__(self, **kwargs: Any) -> _FakePrediction:
+        if self._index >= len(self._batches):
+            raise AssertionError(
+                f"FakeMultiProposer exhausted: only {len(self._batches)} batches provided"
+            )
+        batch = self._batches[self._index]
+        self._index += 1
+        self.call_count += 1
+        prediction = _FakePrediction(next_proposition=batch[0])
+        # Simulate dspy's n>1 completions structure (``completions`` is a
+        # read-only property returning ``self._completions``).
+        completions_prediction = _FakePrediction()
+        completions_prediction.next_proposition = batch
+        prediction._completions = completions_prediction  # type: ignore[attr-defined]
+        return prediction
 
 
 class _UnparseableProposer:
@@ -155,14 +184,14 @@ class _UnparseableProposer:
                     "Actual output fields parsed: []"
                 ),
             )
-        return _FakePrediction(proposition=self._recovery)
+        return _FakePrediction(next_proposition=self._recovery)
 
 
 class _UnparseableMeaningful:
     """Raises ``AdapterParseError`` on its Nth call (1-indexed), recovering on
     subsequent calls -- mirrors the one-off malformed-response shape seen in the
-    wild (e.g. the LM emitting the field label ``is_meaning`` instead of
-    ``is_meaningful``). When ``always`` is True, every call from the Nth onward
+    wild (e.g. the LM emitting the field label ``is_use`` instead of
+    ``is_useful``). When ``always`` is True, every call from the Nth onward
     raises (a model stuck on the malformed label)."""
 
     def __init__(
@@ -192,11 +221,11 @@ class _UnparseableMeaningful:
                 message=(
                     "Adapter ChatAdapter failed to parse the LM response.\n\n"
                     "LM Response: [[ ## is_mean ## ]]\nTrue\n\n"
-                    "Expected to find output fields: [reasoning, is_meaningful]\n"
-                    "Actual output fields parsed: [reasoning]"
+                    "Expected to find output fields: [is_useful]\n"
+                    "Actual output fields parsed: []"
                 ),
             )
-        return _FakePrediction(is_meaningful=self._recovery)
+        return _FakePrediction(is_useful=self._recovery)
 
 
 class _UnparseableValidity:
@@ -255,22 +284,13 @@ def _make_strategy(
     target_propositions: int,
     max_failed_attempts: int,
     verifier_mode: str,
+    n_propose_samples: int = 1,
 ) -> CRStrategy:
-    for name in [
-        "VIREX_BENCH_CR_TARGET_PROPOSITIONS",
-        "VIREX_BENCH_CR_MAX_FAILED_ATTEMPTS",
-        "VIREX_BENCH_CR_VERIFIER_MODE",
-    ]:
-        monkeypatch.setenv(
-            name,
-            str(
-                target_propositions
-                if name.endswith("PROPOSITIONS")
-                else max_failed_attempts
-                if name.endswith("ATTEMPTS")
-                else verifier_mode
-            ),
-        )
+    monkeypatch.setenv("VIREX_BENCH_CR_TARGET_PROPOSITIONS", str(target_propositions))
+    monkeypatch.setenv("VIREX_BENCH_CR_MAX_FAILED_ATTEMPTS", str(max_failed_attempts))
+    monkeypatch.setenv("VIREX_BENCH_CR_VERIFIER_MODE", verifier_mode)
+    # Default to 1 so existing tests get the legacy single-proposition path.
+    monkeypatch.setenv("VIREX_BENCH_CR_N_PROPOSE_SAMPLES", str(n_propose_samples))
     strategy = get_strategy("cr", _TestSignature)
     assert isinstance(strategy, CRStrategy)
     return strategy
@@ -624,7 +644,7 @@ class _ConfigCapturingProposer:
 
     def __call__(self, **kwargs: Any) -> _FakePrediction:
         self.captured_configs.append(kwargs.get("config"))
-        return _FakePrediction(proposition=self._proposition)
+        return _FakePrediction(next_proposition=self._proposition)
 
 
 def test_inherited_temperature_passes_empty_config(
@@ -648,6 +668,7 @@ def test_inherited_temperature_passes_empty_config(
         verifier_mode=strategy.config.verifier_mode,
         propose_config={},
         verify_config={},
+        n_propose_samples=strategy.config.n_propose_samples,
         dedupe_similarity_threshold=strategy.config.dedupe_similarity_threshold,
     )
     proposer = _ConfigCapturingProposer()
@@ -681,6 +702,7 @@ def test_explicit_temperature_passes_override(monkeypatch: pytest.MonkeyPatch) -
         verifier_mode=strategy.config.verifier_mode,
         propose_config={"temperature": 0.9},
         verify_config={},
+        n_propose_samples=strategy.config.n_propose_samples,
         dedupe_similarity_threshold=strategy.config.dedupe_similarity_threshold,
     )
     proposer = _ConfigCapturingProposer()
@@ -767,7 +789,7 @@ def test_unparseable_meaningfulness_counts_as_failed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """When the meaningfulness verifier emits an unparseable response (e.g. the
-    field label ``is_meaning`` instead of ``is_meaningful``, raising
+    field label ``is_use`` instead of ``is_useful``, raising
     ``AdapterParseError``), the proposition is conservatively rejected and the
     loop retries -- it does NOT propagate and kill the whole example. The
     recovered proposition is then accepted and accumulated."""
@@ -860,3 +882,132 @@ def test_unparseable_verifier_call_is_counted_in_stats(
     assert stats["propose_calls"] == 2
     # 2 propose + 2 meaningfulness + 1 validity + 1 aggregate
     assert stats["total_llm_calls"] == 6
+
+
+# --- multi-sample proposer (n_propose_samples > 1) ---
+
+
+def test_multi_sample_tries_candidates_until_one_passes(monkeypatch: pytest.MonkeyPatch) -> None:
+    """With n > 1, one propose call yields a batch. Candidates are tried in
+    order; a meaningfulness failure doesn't waste the batch -- the next is tried."""
+    strategy = _make_strategy(
+        monkeypatch,
+        target_propositions=1,
+        max_failed_attempts=6,
+        verifier_mode="multi",
+        n_propose_samples=3,
+    )
+    proposer = _FakeMultiProposer([["prop A", "prop B", "prop C"]])
+    meaningful = _FakeMeaningful([False, True])  # first fails, second passes
+    validity = _FakeValidity([(True, False)])  # only the accepted one
+    aggregate = _FakeAggregate()
+    _wire(
+        strategy,
+        proposer=proposer,
+        meaningful=meaningful,
+        validity=validity,
+        aggregate=aggregate,
+    )
+
+    strategy.forward(**_INPUTS)
+
+    assert proposer.call_count == 1  # one batch yielded all candidates
+    assert meaningful.call_count == 2  # first rejected, second passed
+    assert validity.call_count == 1
+    assert aggregate.last_context == "[Mệnh đề được xác nhận 1] prop B"
+
+
+def test_multi_sample_all_filler_counts_as_one_failed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """When every candidate in a batch is filler, the batch counts as ONE failed
+    attempt -- not N. The loop retries with a fresh batch."""
+    strategy = _make_strategy(
+        monkeypatch,
+        target_propositions=1,
+        max_failed_attempts=2,
+        verifier_mode="single",
+        n_propose_samples=3,
+    )
+    proposer = _FakeMultiProposer(
+        [
+            ["Không có mệnh đề mới", "Không có mệnh đề mới.", "nothing new"],
+            ["real prop"],
+        ]
+    )
+    validity = _FakeValidity([(True, False)])
+    aggregate = _FakeAggregate()
+    _wire(
+        strategy,
+        proposer=proposer,
+        meaningful=_FakeMeaningful([]),
+        validity=validity,
+        aggregate=aggregate,
+    )
+
+    strategy.forward(**_INPUTS)
+
+    assert proposer.call_count == 2  # batch 1 all filler, batch 2 accepted
+    assert validity.call_count == 1
+    assert aggregate.last_context == "[Mệnh đề được xác nhận 1] real prop"
+
+
+def test_multi_sample_dedupes_within_batch(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Near-duplicate candidates within the same batch are collapsed before any
+    verifier call."""
+    strategy = _make_strategy(
+        monkeypatch,
+        target_propositions=1,
+        max_failed_attempts=6,
+        verifier_mode="single",
+        n_propose_samples=3,
+    )
+    # "the cat sat" and "The cat sat" are exact dups (Jaccard = 1.0).
+    proposer = _FakeMultiProposer([["the cat sat", "The cat sat", "the dog ran"]])
+    validity = _FakeValidity([(True, False)])
+    aggregate = _FakeAggregate()
+    _wire(
+        strategy,
+        proposer=proposer,
+        meaningful=_FakeMeaningful([]),
+        validity=validity,
+        aggregate=aggregate,
+    )
+
+    strategy.forward(**_INPUTS)
+
+    assert validity.call_count == 1  # deduped to 2, first accepted
+    assert "the cat sat" in (aggregate.last_context or "")
+
+
+def test_multi_sample_stats_completions(monkeypatch: pytest.MonkeyPatch) -> None:
+    """total_completions accounts for n samples per propose call."""
+    strategy = _make_strategy(
+        monkeypatch,
+        target_propositions=2,
+        max_failed_attempts=6,
+        verifier_mode="single",
+        n_propose_samples=4,
+    )
+    proposer = _FakeMultiProposer(
+        [
+            ["prop A", "prop B", "prop C", "prop D"],
+            ["prop E", "prop F", "prop G", "prop H"],
+        ]
+    )
+    validity = _FakeValidity([(True, False), (True, False)])
+    aggregate = _FakeAggregate()
+    _wire(
+        strategy,
+        proposer=proposer,
+        meaningful=_FakeMeaningful([]),
+        validity=validity,
+        aggregate=aggregate,
+    )
+
+    prediction = strategy.forward(**_INPUTS)
+    stats = prediction["search_stats"]
+
+    assert stats["propose_calls"] == 2
+    # 2 batches × 4 completions = 8 from proposing; 2 validity + 1 aggregate = 11
+    assert stats["total_completions"] == 11
+    # LM requests: 2 propose + 2 validity + 1 aggregate = 5
+    assert stats["total_llm_calls"] == 5
