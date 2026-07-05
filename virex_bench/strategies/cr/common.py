@@ -23,13 +23,11 @@ from virex_bench.logger import init_logger
 
 logger = init_logger(__name__)
 
-# Verifier modes: ``single`` = one validity check; ``multi`` = a meaningfulness
-# check followed by a validity check (default -- the more robust gate).
+# ``single`` = one validity check; ``multi`` = meaningfulness then validity (default).
 VerifierMode = Literal["single", "multi"]
 
-# Three-valued verdict derived from the two-boolean verifier
-# (:class:`PropositionValiditySignature`). ``undetermined`` = neither entailed
-# nor contradicted (or both, when premises are inconsistent).
+# Three-valued verdict derived from the verifier's two booleans;
+# ``undetermined`` = neither entailed nor contradicted.
 PropositionVerdict = Literal["entailed", "contradicted", "undetermined"]
 
 
@@ -57,7 +55,7 @@ class PropositionProposerSignature(dspy.Signature):
     next_proposition: str = dspy.OutputField(
         desc=(
             "A single new proposition in Vietnamese, citing the premise indices it uses "
-            "(e.g. 'Theo tiền đề 3, ...'). If nothing new can be derived, output 'KHÔNG CÓ MỆNH ĐỀ MỚI'."
+            "(e.g. 'Theo tiền đề 3, ...'). If nothing new can be derived, output '[[ ## next_proposition ## ]]\n\nKHÔNG CÓ MỆNH ĐỀ MỚI' instead."
         )
     )
 
@@ -140,6 +138,12 @@ class CRConfig:
     """Per-call sampling override for the verifiers. Same semantics as
     :attr:`propose_config`."""
 
+    n_propose_samples: int
+    """Number of candidate propositions sampled per propose call (``n`` parameter).
+    > 1 gives the loop multiple diverse candidates to try in order (deduped,
+    verified one by one until one is accepted), combating proposer diversity
+    exhaustion. Mirrors ToT's branching factor."""
+
     dedupe_similarity_threshold: float
     """Jaccard threshold above which a new proposition is treated as a duplicate."""
 
@@ -148,6 +152,8 @@ class CRConfig:
             raise ValueError(f"target_propositions must be >= 1, got {self.target_propositions}")
         if self.max_failed_attempts < 1:
             raise ValueError(f"max_failed_attempts must be >= 1, got {self.max_failed_attempts}")
+        if self.n_propose_samples < 1:
+            raise ValueError(f"n_propose_samples must be >= 1, got {self.n_propose_samples}")
         if self.verifier_mode not in ("single", "multi"):
             raise ValueError(
                 f"verifier_mode must be 'single' or 'multi', got {self.verifier_mode!r}"

@@ -60,7 +60,7 @@ from virex_bench.strategies.cr.common import (
     render_verdict_buckets,
 )
 from virex_bench.strategies.modules import ChainOfThought
-from virex_bench.strategies.tot.common import dedupe_thoughts
+from virex_bench.strategies.tot.common import completion_values, dedupe_thoughts
 
 logger = init_logger(__name__)
 
@@ -69,7 +69,7 @@ def _build_cr_config() -> CRConfig:
     """Populate a :class:`CRConfig` from the ``VIREX_BENCH_CR_*`` env vars.
 
     Bounds are validated in ``CRConfig.__post_init__`` so a bad value fails fast
-    at strategy construction rather than mid-loop.
+    at strategy construction.
     """
     propose_temperature = envs.VIREX_BENCH_CR_PROPOSE_TEMPERATURE
     verify_temperature = envs.VIREX_BENCH_CR_VERIFY_TEMPERATURE
@@ -77,10 +77,10 @@ def _build_cr_config() -> CRConfig:
         target_propositions=envs.VIREX_BENCH_CR_TARGET_PROPOSITIONS,
         max_failed_attempts=envs.VIREX_BENCH_CR_MAX_FAILED_ATTEMPTS,
         verifier_mode=envs.VIREX_BENCH_CR_VERIFIER_MODE,
-        # None -> empty config -> dspy inherits the LM's --model-kwargs profile
-        # verbatim (see the strategy plan's "Sampling params" section).
+        # None -> empty config -> dspy inherits the LM's --model-kwargs profile.
         propose_config={} if propose_temperature is None else {"temperature": propose_temperature},
         verify_config={} if verify_temperature is None else {"temperature": verify_temperature},
+        n_propose_samples=envs.VIREX_BENCH_CR_N_PROPOSE_SAMPLES,
         dedupe_similarity_threshold=envs.VIREX_BENCH_CR_DEDUPE_SIMILARITY_THRESHOLD,
     )
 
@@ -88,17 +88,17 @@ def _build_cr_config() -> CRConfig:
 class CRStrategy(ReasoningStrategy):
     """Cumulative Reasoning: accumulate verified propositions, then solve.
 
-    The accumulation loop is single-threaded (no search tree): one proposition
+    The accumulation loop is single-threaded (no search tree): each proposition
     is proposed, verified, and routed into one of three verdict buckets
     (entailed / contradicted / undetermined). After the loop, a final Solver
     call consumes the bucketed context and commits the answer via the task
-    signature.
+    signature. All knobs default from the ``VIREX_BENCH_CR_*`` env vars.
 
-    All knobs default from the ``VIREX_BENCH_CR_*`` env vars. Cost varies with
-    ``target_propositions`` and ``verifier_mode`` -- in default ``multi`` mode
-    with ``target_propositions=7``, best case is ~22 LLM calls per example (7
-    propose + 7 meaningfulness + 7 validity + 1 solve), far higher than CoT's
-    single call, which is the tradeoff CR exists to study.
+    Cost varies with ``target_propositions``, ``n_propose_samples``, and
+    ``verifier_mode`` -- in default ``multi`` mode with ``target_propositions=7``
+    and ``n_propose_samples=4``, best case is ~22 LLM calls and ~46 completions
+    per example (7 propose + 7 meaningfulness + 7 validity + 1 solve), far
+    higher than CoT's single call, which is the tradeoff CR exists to study.
     """
 
     name = "cr"
@@ -155,13 +155,12 @@ class CRStrategy(ReasoningStrategy):
 
     @property
     def report_config(self) -> dict[str, object]:
-        # Report the resolved per-call override dicts. An empty dict means
-        # "inherit the LM's --model-kwargs profile" -- the inherit-by-default
-        # behavior, surfaced explicitly so a run report shows what was applied.
+        # Resolved per-call override dicts, surfaced so the run report shows what was applied.
         return {
             "verifier_mode": self.config.verifier_mode,
             "target_propositions": self.config.target_propositions,
             "max_failed_attempts": self.config.max_failed_attempts,
+            "n_propose_samples": self.config.n_propose_samples,
             "propose_config": dict(self.config.propose_config),
             "verify_config": dict(self.config.verify_config),
             "dedupe_similarity_threshold": self.config.dedupe_similarity_threshold,
@@ -181,9 +180,17 @@ class CRStrategy(ReasoningStrategy):
         undetermined: list[str] = []
         failed = 0
         propose_calls = 0
+        propose_completions = 0
         validity_calls = 0
         meaningfulness_calls = 0
         overflowed = False
+
+        # Merge ``n`` into the propose config once; only set when > 1 so the
+        # n=1 path stays identical to the legacy single-proposition call.
+        n_samples = config.n_propose_samples
+        base_propose_config = dict(config.propose_config)
+        if n_samples > 1:
+            base_propose_config["n"] = n_samples
 
         try:
             while (
@@ -197,11 +204,12 @@ class CRStrategy(ReasoningStrategy):
                         accumulated_context=render_verdict_buckets(
                             entailed, contradicted, undetermined
                         ),
-                        config=config.propose_config,
+                        config=base_propose_config,
                     )
                 except AdapterParseError as error:
                     # Recoverable: count as a failed attempt and retry.
                     propose_calls += 1
+                    propose_completions += n_samples
                     failed += 1
                     logger.debug(
                         f"CR: proposer emitted unparseable response "
@@ -209,55 +217,66 @@ class CRStrategy(ReasoningStrategy):
                     )
                     continue
                 propose_calls += 1
-                proposition = str(proposed.next_proposition).strip()
+                propose_completions += n_samples
 
-                # Cheap Python-side rejection: filler / "nothing new" proposals
-                # short-circuit before any LLM verifier call.
-                if is_empty_or_none_proposition(proposition):
-                    failed += 1
-                    continue
+                # Collect candidates: when n > 1, dspy populates ``.completions``
+                # with a list; when n == 1, fall back to the single field.
+                candidates = completion_values(proposed, "next_proposition")
+                if not candidates:
+                    candidates = [str(proposed.next_proposition).strip()]
+                # Dedupe candidates against each other within this batch.
+                candidates = dedupe_thoughts(
+                    candidates, similarity_threshold=config.dedupe_similarity_threshold
+                )
 
-                # Near-duplicate of an already-accumulated proposition -> reject.
-                # ``dedupe_thoughts`` keeps first occurrences, so appending the
-                # candidate and re-deduping drops it iff it is a near-duplicate
-                # of something already accepted across all three buckets.
-                all_accumulated = [*entailed, *contradicted, *undetermined]
-                if all_accumulated:
-                    rededuped = dedupe_thoughts(
-                        [*all_accumulated, proposition],
-                        similarity_threshold=config.dedupe_similarity_threshold,
-                    )
-                    if len(rededuped) == len(all_accumulated):
-                        failed += 1
+                # Try candidates in order until one is accepted. Filler and
+                # near-duplicate rejections are free (no LLM call); only the
+                # meaningfulness + validity checks cost.
+                accepted = False
+                for candidate in candidates:
+                    candidate = candidate.strip()
+                    if is_empty_or_none_proposition(candidate):
                         continue
 
-                # Verifier gate -> three-valued verdict (None on rejection).
-                (
-                    delta_validity,
-                    delta_meaningfulness,
-                    verdict,
-                ) = self._verify(
-                    premises=premises,
-                    question=question,
-                    proposition=proposition,
-                    accumulated_context=render_verdict_buckets(
-                        entailed, contradicted, undetermined
-                    ),
-                )
-                validity_calls += delta_validity
-                meaningfulness_calls += delta_meaningfulness
-                if verdict is None:
+                    all_accumulated = [*entailed, *contradicted, *undetermined]
+                    if all_accumulated:
+                        rededuped = dedupe_thoughts(
+                            [*all_accumulated, candidate],
+                            similarity_threshold=config.dedupe_similarity_threshold,
+                        )
+                        if len(rededuped) == len(all_accumulated):
+                            continue
+
+                    (
+                        delta_validity,
+                        delta_meaningfulness,
+                        verdict,
+                    ) = self._verify(
+                        premises=premises,
+                        question=question,
+                        proposition=candidate,
+                        accumulated_context=render_verdict_buckets(
+                            entailed, contradicted, undetermined
+                        ),
+                    )
+                    validity_calls += delta_validity
+                    meaningfulness_calls += delta_meaningfulness
+                    if verdict is None:
+                        continue
+                    if verdict == "entailed":
+                        entailed.append(candidate)
+                    elif verdict == "contradicted":
+                        contradicted.append(candidate)
+                    else:
+                        undetermined.append(candidate)
+                    accepted = True
+                    break
+
+                if not accepted:
                     failed += 1
-                elif verdict == "entailed":
-                    entailed.append(proposition)
-                elif verdict == "contradicted":
-                    contradicted.append(proposition)
-                else:
-                    undetermined.append(proposition)
         except dspy.ContextWindowExceededError:
-            # The accumulated context grows monotonically; on long examples it
-            # may overflow the model window mid-loop. Bail with what we have --
-            # same graceful-degradation policy ToT's beam search uses.
+            # Context grows monotonically; on long examples it may overflow
+            # mid-loop. Bail with what we have -- same policy ToT uses.
             overflowed = True
             logger.debug(
                 f"CR: context window exceeded after "

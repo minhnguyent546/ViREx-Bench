@@ -144,14 +144,17 @@ if TYPE_CHECKING:
     # tuned temp+penalty system and forbid greedy decoding, so we do not force a
     # role-specific temperature). Proposer diversity comes from the per-call `n`
     # rather than a cranked temperature. Set this to override temperature only.
+    # Proposer sampling temperature. None -> inherit the LM's `--model-kwargs`
+    # profile (we do not force a role-specific temperature).
     VIREX_BENCH_CR_PROPOSE_TEMPERATURE: float | None = None
-    # Sampling temperature for the verifiers. Unset/empty -> inherit (default).
-    # NOT forced to 0.0: Qwen3-class cards warn greedy decoding causes
-    # performance loss + endless repetition; the multi-check verifier ensemble
-    # handles robustness instead. Set this to override temperature only.
+    # Verifier sampling temperature. None (default) inherits the LM's profile;
+    # set to a float to override (e.g. 0.5 for more deterministic verdicts).
     VIREX_BENCH_CR_VERIFY_TEMPERATURE: float | None = None
-    # Fuzzy dedupe threshold for proposed propositions (reuses the ToT value).
-    # Higher is more conservative.
+    # Number of candidate propositions sampled per propose call. > 1 gives the
+    # loop multiple diverse candidates to try (deduped, verified in order),
+    # combating proposer diversity exhaustion. Mirrors ToT's branching factor.
+    VIREX_BENCH_CR_N_PROPOSE_SAMPLES: int = 3
+    # Fuzzy dedupe threshold for proposed propositions. Higher is more conservative.
     VIREX_BENCH_CR_DEDUPE_SIMILARITY_THRESHOLD: float = 0.9
 
     # --- Self-consistency decoding ---
@@ -335,6 +338,9 @@ environment_variables: dict[str, Callable[[], Any]] = {
     ),
     "VIREX_BENCH_CR_VERIFY_TEMPERATURE": lambda: maybe_convert_float(
         os.environ.get("VIREX_BENCH_CR_VERIFY_TEMPERATURE", None)
+    ),
+    "VIREX_BENCH_CR_N_PROPOSE_SAMPLES": lambda: int(
+        os.environ.get("VIREX_BENCH_CR_N_PROPOSE_SAMPLES", "3")
     ),
     "VIREX_BENCH_CR_DEDUPE_SIMILARITY_THRESHOLD": lambda: float(
         os.environ.get("VIREX_BENCH_CR_DEDUPE_SIMILARITY_THRESHOLD", "0.9")
