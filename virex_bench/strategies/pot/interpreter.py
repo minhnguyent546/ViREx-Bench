@@ -38,6 +38,7 @@ import math
 import multiprocessing
 import re
 import string
+import threading
 import traceback
 from typing import Any, Literal
 
@@ -48,6 +49,20 @@ from virex_bench.logger import init_logger
 logger = init_logger(__name__)
 
 __all__ = ["LocalZ3PythonInterpreter", "check_entailment", "find_solution"]
+
+
+# Per-check Z3 soft timeout (ms). When set, ``check_entailment`` /
+# ``find_solution`` cap each solver so a stuck quantified query returns
+# ``unknown`` (mapped to ``"uncertain"`` / ``None``) instead of pegging a core
+# until the wall-clock fires. ``None`` (default) leaves Z3 unbounded so direct
+# unit-test calls keep the original behavior.
+_Z3_SOFT_TIMEOUT_MS: int | None = None
+
+
+def _apply_solver_timeout(solver: z3.Solver) -> None:
+    """Apply the current soft timeout to *solver*, if one is configured."""
+    if _Z3_SOFT_TIMEOUT_MS is not None:
+        solver.set("timeout", _Z3_SOFT_TIMEOUT_MS)
 
 
 # Safe builtins
@@ -195,12 +210,14 @@ def check_entailment(
     - otherwise                              ⟹ ``"uncertain"``
     """
     solver = z3.Solver()
+    _apply_solver_timeout(solver)
     solver.add(z3.And(*premises))
     solver.add(z3.Not(conclusion))
     if solver.check() == z3.unsat:
         return "entailed"
 
     solver_neg = z3.Solver()
+    _apply_solver_timeout(solver_neg)
     solver_neg.add(z3.And(*premises))
     solver_neg.add(conclusion)
     if solver_neg.check() == z3.unsat:
@@ -216,6 +233,7 @@ def find_solution(constraints: list[Any]) -> dict[str, int | float | str] | None
     if the constraints are unsatisfiable.
     """
     solver = z3.Solver()
+    _apply_solver_timeout(solver)
     solver.add(*constraints)
     if solver.check() != z3.sat:
         return None
@@ -312,12 +330,17 @@ def _build_z3_globals() -> dict[str, Any]:
     return globals_dict
 
 
-def _run_z3_python_code(code: str) -> tuple[str, str]:
+def _run_z3_python_code(code: str, z3_timeout_ms: int | None = None) -> tuple[str, str]:
     """Exec *code* in the restricted Z3 environment and capture stdout.
 
     Intended to run in a spawned subprocess for timeout isolation. Returns
-    ``("success", output)`` or ``("error", formatted_traceback)``.
+    ``("success", output)`` or ``("error", formatted_traceback)``. When
+    *z3_timeout_ms* is given, it is published into ``_Z3_SOFT_TIMEOUT_MS`` so
+    every ``z3.Solver`` built by the wrapper API gets a soft timeout.
     """
+    global _Z3_SOFT_TIMEOUT_MS
+    _Z3_SOFT_TIMEOUT_MS = z3_timeout_ms  # pyright: ignore[reportConstantRedefinition]
+
     globals_dict = _build_z3_globals()
     buffer = io.StringIO()
     try:
@@ -353,7 +376,7 @@ class LocalZ3PythonInterpreter:
         RuntimeError: if the worker crashes or the code raises at runtime.
     """
 
-    def __init__(self, timeout: float = 45.0) -> None:
+    def __init__(self, timeout: float = 15.0) -> None:
         self.timeout = timeout
         logger.debug(f"Initialized {self.__class__.__name__} with timeout={self.timeout}s")
 
@@ -369,10 +392,18 @@ class LocalZ3PythonInterpreter:
             logger.debug(f"SyntaxError before execution: {error}")
             raise SyntaxError(f"Invalid Python syntax: {error}") from error
 
-        logger.debug("Code syntax valid; spawning execution subprocess...")
-        context = multiprocessing.get_context("spawn")
+        # 80% of the wall-clock budget, capped at 5 s: a stuck quantified query
+        # returns ``unknown`` before the wall-clock fires, so the worker exits
+        # cleanly instead of being SIGTERM'd mid-spin.
+        z3_timeout_ms: int | None = None
+        if self.timeout > 0:
+            z3_timeout_ms = min(int(self.timeout * 1000 * 0.8), 5_000)
+
+        logger.debug("Code syntax valid; dispatching to execution subprocess...")
+        context = _get_forkserver_context()
+
         with context.Pool(1) as pool:
-            async_result = pool.apply_async(_run_z3_python_code, (code,))
+            async_result = pool.apply_async(_run_z3_python_code, (code, z3_timeout_ms))
             try:
                 status, output = async_result.get(timeout=self.timeout)
             except multiprocessing.TimeoutError as error:
