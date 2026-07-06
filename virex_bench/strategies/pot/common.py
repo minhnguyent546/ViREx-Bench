@@ -12,6 +12,7 @@ result formatting, config builder). The interpreter sandbox lives in
 in :mod:`virex_bench.strategies.pot.strategy`.
 """
 
+import ast
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -57,6 +58,15 @@ class ProgramGenerationSignature(dspy.Signature):
     ## KEY CODING RULES:
     - CRITICAL: Do NOT write `import z3`, `import logic_api`, or any `import` statement.
       Everything is pre-loaded; `__import__` is disabled. Use functions bare.
+    - CRITICAL: EVERY name used in the code -- including quantifier variables like `x`,
+      `y`, `z` in ForAll([x], ...) / Exists([x], ...) -- MUST be declared with an assignment
+      BEFORE its first use, or Python raises NameError. Declare a domain first, then the
+      variable: `domain = create_domain("Person")` then `x = create_constant("x", domain)`.
+      For numeric quantifier vars: `x = create_int("x")` / `create_real("x")`.
+      There is NO implicit declaration and NO bare-sort token like `ObjectSort`/`PersonSort` --
+      the only sort-producing calls are `create_domain(name)`, `IntSort()`, `RealSort()`,
+      `BoolSort()`. Assign the sort to a variable (`person = create_domain("Person")`) and
+      reuse that variable; never reference an undeclared sort name.
     - Forbidden operators: NEVER use `->`, `=>`, `&`, `|`, `~` -- not Python/Z3 syntax.
       Use ONLY Implies(...), And(...), Or(...), Not(...).
     - NEVER use Python `and`/`or`/`not` with Z3 expressions -- they short-circuit. Use And/Or/Not.
@@ -124,9 +134,12 @@ class ProgramGenerationSignature(dspy.Signature):
     - open-ended ("Which ...", "List ...", "What follows"): build candidate_facts, call
       check_entailment on each, keep only 'entailed' ones with non-empty supporting_premises.
 
-    ## RECOMMENDED CODE STRUCTURE (adapt names to the ACTUAL problem -- never copy example names):
-    # 1. domain = create_domain("<Entity>")
-    # 2. x = create_constant("x", domain)   # generic var for ForAll/Exists
+    ## RECOMMENDED CODE STRUCTURE (adapt names to the ACTUAL problem -- never copy example names;
+    every line below is MANDATORY unless marked optional -- skipping a declaration line yields
+    a NameError at runtime):
+    # 1. domain = create_domain("<Entity>")            # declare the sort FIRST
+    # 2. x = create_constant("x", domain)              # generic quantifier var (REQUIRED before
+    #                                                   any ForAll([x], ...) / Exists([x], ...))
     # 3. named constants for individuals: lan = create_constant("lan", domain)
     # 4. predicates with correct arity: IsStudent = create_predicate("IsStudent", domain)
     # 5. (optional) numeric functions: Credits = create_function("Credits", domain, IntSort())
@@ -297,12 +310,51 @@ def strip_ansi(text: str) -> str:
     return _ANSI_RE.sub("", text)
 
 
+def strip_imports(code: str) -> str:
+    """Remove ``import`` and ``from ... import`` statements from generated code.
+
+    LLMs frequently emit ``import json``, ``import re``, etc. by habit, despite
+    the instruction not to. All modules the model would want are already
+    pre-loaded in the sandbox's global namespace, so import statements are
+    unnecessary — and they fail with ``ImportError: __import__ not found``
+    because the sandbox blocks ``__import__``.
+
+    Uses :func:`ast.parse` to find import statements (including multi-line
+    parenthesized imports) and remove those lines. Returns the code unchanged on
+    syntax error so the interpreter can report it.
+    """
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return code
+
+    lines_to_remove: set[int] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import | ast.ImportFrom):
+            for lineno in range(node.lineno, (node.end_lineno or node.lineno) + 1):
+                lines_to_remove.add(lineno)
+
+    if not lines_to_remove:
+        return code
+
+    logger.debug(f"Stripping {len(lines_to_remove)} import line(s) from generated code")
+    filtered_lines = [
+        line
+        for lineno, line in enumerate(code.split("\n"), start=1)
+        if lineno not in lines_to_remove
+    ]
+    return "\n".join(filtered_lines)
+
+
 def parse_code(raw: str) -> tuple[str | None, str | None]:
     """Extract executable Python from an LLM ``generated_code`` string.
 
-    Handles two LLM habits that break direct execution:
+    Handles three LLM habits that break direct execution:
     - Wrapping code in ```` ```python ... ``` ```` fences despite the instruction not to.
     - Appending explanatory text after a ``---`` separator.
+    - Emitting ``import`` statements despite the instruction not to. These are
+      stripped via :func:`strip_imports` because the sandbox pre-loads all needed
+      modules and blocks ``__import__``.
 
     On success returns ``(code_block, None)``. On failure (empty or garbled code)
     returns ``(None, error_message)`` -- the caller (the strategy's regenerate loop)
@@ -327,6 +379,8 @@ def parse_code(raw: str) -> tuple[str | None, str | None]:
         code_block = re.sub(r"^```(?:python)?\s*\n?", "", code_block, count=1)
         code_block = re.sub(r"\n?\s*```\s*$", "", code_block, count=1)
         code_block = code_block.strip()
+
+    code_block = strip_imports(code_block)
 
     if not code_block:
         return None, "Error: Empty code after parsing."
@@ -394,4 +448,5 @@ __all__ = [
     "format_solver_result",
     "parse_code",
     "strip_ansi",
+    "strip_imports",
 ]
