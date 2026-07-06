@@ -59,6 +59,7 @@ Repository = "https://github.com/minhnguyent546/ViREx-Bench"
 [dependency-groups]
 dev = [
     "colorama>=0.4.6",
+    "coverage>=7.15.0",
     "hf-transfer>=0.1.9",
     "huggingface-hub>=0.36.0",
     "ipykernel>=7.1.0",
@@ -67,6 +68,9 @@ dev = [
     "ninja>=1.13.0",
     "notebook>=7.5.5",
     "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "pytest-cov>=7.1.0",
+    "pytest-mock>=3.15.1",
     "ruff>=0.14.11",
     "tabulate>=0.9.0",
 ]
@@ -143,9 +147,26 @@ indent-style = "space"
 line-ending = "lf"
 
 [tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+testpaths = ["tests"]
 filterwarnings = [
   "ignore::DeprecationWarning:dspy.teleprompt.avatar_optimizer",
   "ignore::DeprecationWarning:dspy.predict.avatar.signatures",
+]
+
+[tool.coverage.run]
+source = ["virex_bench"]
+omit = ["tests/*"]
+
+[tool.coverage.report]
+show_missing = true
+sort = "-Cover"
+exclude_also = [
+  "if TYPE_CHECKING:",
+  "@abc.abstractmethod",
+  "raise NotImplementedError",
+  "logger.debug",
 ]
 
 [tool.uv.sources]
