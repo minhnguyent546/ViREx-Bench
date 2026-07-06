@@ -140,6 +140,8 @@ class SelfConsistency(DecodingStrategy):
         winning_answer, winner_indices = self._majority_vote(results)
         representative = results[winner_indices[0]]
         confidence = len(winner_indices) / len(results)
+        # True only on a genuine aggregator merge (never the vote-winner fallback).
+        aggregator_applied = False
 
         # Validate the aggregator's output before merging it onto the representative.
         # The vote winner is always the fallback if the aggregator fails, returns
@@ -163,6 +165,7 @@ class SelfConsistency(DecodingStrategy):
                     best_ratio = self._best_answer_similarity(results, agg_answer)
                     if best_ratio >= _FUZZY_MATCH_THRESHOLD:
                         merged = {**representative, **overrides}
+                        aggregator_applied = True
                     else:
                         logger.warning(
                             f"Aggregator answer '{agg_answer}' (best similarity "
@@ -178,6 +181,7 @@ class SelfConsistency(DecodingStrategy):
                     matching = self._find_matching_result(results, agg_answer)
                     if matching is not None:
                         merged = {**representative, **overrides}
+                        aggregator_applied = True
                     else:
                         logger.warning(
                             f"Aggregator answer '{agg_answer}' for closed type "
@@ -192,9 +196,14 @@ class SelfConsistency(DecodingStrategy):
             # Aggregator disabled — use the vote winner as-is.
             merged = {**representative}
 
-        merged["self_consistency_confidence"] = confidence
-        merged["self_consistency_vote_count"] = len(winner_indices)
-        merged["self_consistency_total"] = len(results)
+        merged["decoding_stats"] = {
+            "confidence": confidence,
+            "vote_count": len(winner_indices),
+            "total_samples": len(results),
+            "requested_samples": self.num_samples,
+            # bool -> averaged into an application rate by the evaluator.
+            "aggregator_applied": aggregator_applied,
+        }
 
         elapsed = time.perf_counter() - start_time
         logger.debug(
