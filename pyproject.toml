@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "virex-bench"
 version = "0.1.0"
 dynamic = ["urls"]
-description = "ViREx-Bench is a lightweight framework for comparing inference-time reasoning strategies on Vietnamese reasoning tasks."
+description = "ViREx-Bench: A framework for inference-time scaling on Vietnamese reasoning tasks."
 readme = "README.md"
 authors = [
   {name = "Minh-Thien Nguyen", email = "minhnguyent546@gmail.com"},
