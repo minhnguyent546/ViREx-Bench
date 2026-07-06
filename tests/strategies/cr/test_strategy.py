@@ -314,9 +314,6 @@ def _wire(
 _INPUTS: dict[str, str] = {"premises": "some premises", "question": "some question"}
 
 
-# --- accumulation path ---
-
-
 def test_multi_mode_accumulates_then_solves(monkeypatch: pytest.MonkeyPatch) -> None:
     """Multi mode: 2 propositions all pass both checks -> accumulated and solved."""
     strategy = _make_strategy(
@@ -452,9 +449,6 @@ def test_verdicts_bucketed_not_failed(monkeypatch: pytest.MonkeyPatch) -> None:
     assert stats["nodes_visited"] == 3
 
 
-# --- failure-cap bail ---
-
-
 def test_loop_bails_at_max_failed_attempts(monkeypatch: pytest.MonkeyPatch) -> None:
     """When ``max_failed_attempts`` filler proposals hit, the loop stops and
     solves with whatever it accumulated (here: nothing)."""
@@ -542,9 +536,6 @@ def test_duplicate_proposition_is_rejected(monkeypatch: pytest.MonkeyPatch) -> N
     assert prediction["reasoning"] == "[Mệnh đề được xác nhận 1] the cat is on the mat"
 
 
-# --- context overflow ---
-
-
 def test_context_overflow_breaks_gracefully(monkeypatch: pytest.MonkeyPatch) -> None:
     """When the LM raises ``ContextWindowExceededError`` mid-loop, the strategy
     solves with whatever it accumulated so far and stamps ``context_overflow``."""
@@ -574,9 +565,6 @@ def test_context_overflow_breaks_gracefully(monkeypatch: pytest.MonkeyPatch) -> 
     assert prediction["search_stats"]["context_overflow"] is True
     assert "[Mệnh đề được xác nhận 1]" in prediction["reasoning"]
     assert "[Mệnh đề được xác nhận 2]" in prediction["reasoning"]
-
-
-# --- search_stats accounting ---
 
 
 def test_search_stats_counts_are_correct(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -630,9 +618,6 @@ def test_missing_inputs_raises_value_error(monkeypatch: pytest.MonkeyPatch) -> N
     )
     with pytest.raises(ValueError, match="premises"):
         strategy.forward(premises="only premises")
-
-
-# --- inherit-by-default sampling params ---
 
 
 class _ConfigCapturingProposer:
@@ -721,9 +706,6 @@ def test_explicit_temperature_passes_override(monkeypatch: pytest.MonkeyPatch) -
     assert proposer.captured_configs == [{"temperature": 0.9}]
 
 
-# --- unparseable proposer response ---
-
-
 def test_unparseable_propose_counts_as_failed(monkeypatch: pytest.MonkeyPatch) -> None:
     """When the proposer emits an unparseable response (e.g. a bare sentinel
     line with no ``proposition:`` field label, raising ``AdapterParseError``),
@@ -780,9 +762,6 @@ def test_unparseable_propose_respects_failure_cap(monkeypatch: pytest.MonkeyPatc
     assert proposer.call_count == 2  # exactly max_failed_attempts, then bail
     assert aggregate.last_context == ""
     assert prediction["reasoning"] == ""
-
-
-# --- unparseable verifier response ---
 
 
 def test_unparseable_meaningfulness_counts_as_failed(
@@ -882,9 +861,6 @@ def test_unparseable_verifier_call_is_counted_in_stats(
     assert stats["propose_calls"] == 2
     # 2 propose + 2 meaningfulness + 1 validity + 1 aggregate
     assert stats["total_llm_calls"] == 6
-
-
-# --- multi-sample proposer (n_propose_samples > 1) ---
 
 
 def test_multi_sample_tries_candidates_until_one_passes(monkeypatch: pytest.MonkeyPatch) -> None:

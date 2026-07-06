@@ -135,6 +135,22 @@ if TYPE_CHECKING:
     # Fuzzy dedupe threshold for proposed propositions. Higher is more conservative.
     VIREX_BENCH_CR_DEDUPE_SIMILARITY_THRESHOLD: float = 0.9
 
+    # --- Program-of-Thought + Z3 (pot_z3) strategy ---
+
+    # Number of code-regeneration attempts on execution failure (feed
+    # previous_code + error back to the LM). >= 1.
+    VIREX_BENCH_POT_MAX_ITERS: int = 3
+    # Wall-clock timeout for the Z3 subprocess (seconds). These tasks decide in
+    # well under a second; the ceiling guards pathological quantified formulas or
+    VIREX_BENCH_POT_EXECUTION_TIMEOUT: float = 15.0
+    # Code-generation sampling temperature. None -> inherit the LM's profile.
+    VIREX_BENCH_POT_GENERATE_TEMPERATURE: float | None = None
+    # Regeneration sampling temperature. None -> inherit the LM's profile.
+    VIREX_BENCH_POT_REGENERATE_TEMPERATURE: float | None = None
+    # On unrecoverable execution failure: True lets the commit LM fall back to
+    # plain reasoning over the premises; False raises.
+    VIREX_BENCH_POT_FALLBACK_ON_ERROR: bool = True
+
     # --- Self-consistency decoding ---
     # Number of independent reasoning paths sampled per example.
     VIREX_BENCH_SC_NUM_SAMPLES: int = 5
@@ -326,6 +342,20 @@ environment_variables: dict[str, Callable[[], Any]] = {
     ),
     "VIREX_BENCH_CR_DEDUPE_SIMILARITY_THRESHOLD": lambda: float(
         os.environ.get("VIREX_BENCH_CR_DEDUPE_SIMILARITY_THRESHOLD", "0.9")
+    ),
+    # --- Program-of-Thought + Z3 (pot_z3) strategy ---
+    "VIREX_BENCH_POT_MAX_ITERS": lambda: int(os.environ.get("VIREX_BENCH_POT_MAX_ITERS", "3")),
+    "VIREX_BENCH_POT_EXECUTION_TIMEOUT": lambda: float(
+        os.environ.get("VIREX_BENCH_POT_EXECUTION_TIMEOUT", "15.0")
+    ),
+    "VIREX_BENCH_POT_GENERATE_TEMPERATURE": lambda: maybe_convert_float(
+        os.environ.get("VIREX_BENCH_POT_GENERATE_TEMPERATURE", None)
+    ),
+    "VIREX_BENCH_POT_REGENERATE_TEMPERATURE": lambda: maybe_convert_float(
+        os.environ.get("VIREX_BENCH_POT_REGENERATE_TEMPERATURE", None)
+    ),
+    "VIREX_BENCH_POT_FALLBACK_ON_ERROR": lambda: get_bool(
+        "VIREX_BENCH_POT_FALLBACK_ON_ERROR", "1"
     ),
     # --- Self-consistency decoding ---
     "VIREX_BENCH_SC_NUM_SAMPLES": lambda: int(os.environ.get("VIREX_BENCH_SC_NUM_SAMPLES", "5")),

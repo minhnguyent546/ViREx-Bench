@@ -64,7 +64,17 @@ class EvaluationReport(BaseModel):
     num_failed: int = 0
     total_time: float = 0.0
     category_scores: dict[str, CategoryScore] = {}
+    # Decomposes the headline ``score`` into its components (e.g.
+    # ``llm_judge_score``, ``premises_f1``); logical-reasoning blends them as
+    # ``0.5 * answer + 0.5 * premises_f1``. Mean over non-null values.
+    score_components: dict[str, float] | None = None
     search_stats: dict[str, float] | None = None
+    # PoT-Z3 pipeline telemetry (generate/execute counts, execution success
+    # rate), mean over examples that carried ``pot_info``.
+    pot_stats: dict[str, float] | None = None
+    # Self-consistency decoding telemetry (agreement confidence, vote counts),
+    # mean over examples that carried ``decoding_stats``. Absent for single-pass.
+    decoding_stats: dict[str, float] | None = None
     # LM token cost of the STRATEGY only (judge/extraction excluded): mean per
     # example (`token_usage`) and summed over the run (`total_token_usage`).
     token_usage: dict[str, float] | None = None

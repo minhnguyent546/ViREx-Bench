@@ -33,9 +33,6 @@ def test_build_judge_lm_requires_generic_judge_api_key(
         judge_module.build_judge_lm()
 
 
-# --- compare_closed_answer (deterministic strict fast path) -----------------
-
-
 def _closed(category: str | None, correct: str, predicted: str) -> str | None:
     result = compare_closed_answer(category, correct, predicted)
     if result is None:

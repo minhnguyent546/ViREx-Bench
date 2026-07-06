@@ -171,9 +171,6 @@ class CRConfig:
                     )
 
 
-# --- pure-Python helpers ---
-
-
 _TRUTHY = {"true", "yes", "1", "t", "y"}
 _FALSY = {"false", "no", "0", "f", "n", ""}
 

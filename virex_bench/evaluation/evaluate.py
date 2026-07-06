@@ -63,6 +63,12 @@ def _process_example(
             search_stats = getattr(prediction, "search_stats", None)
             if search_stats is not None:
                 extra["search_stats"] = search_stats
+            pot_info = getattr(prediction, "pot_info", None)
+            if pot_info is not None:
+                extra["pot_info"] = pot_info
+            decoding_stats = getattr(prediction, "decoding_stats", None)
+            if decoding_stats is not None:
+                extra["decoding_stats"] = decoding_stats
             if judge_module is not None:
                 judgement = judge_example(
                     example=example, prediction=prediction, judge_module=judge_module
@@ -127,24 +133,38 @@ def _aggregate_scores(
     return total_score, num_failed, category_scores
 
 
+def _aggregate_score_components(results: list[TaskResult]) -> dict[str, float] | None:
+    """Mean of per-example score components (``llm_judge_score``, ``premises_f1``).
+
+    The headline ``score`` blends these (logical-reasoning uses
+    ``0.5 * answer + 0.5 * premises_f1``); this decomposes it. Each component is
+    averaged over the examples that carried a non-null value. Returns ``None``
+    when no example carried any component, in which case the field is omitted.
+    """
+    sums: dict[str, float] = {}
+    counts: dict[str, int] = {}
+    for result in results:
+        for component in ("llm_judge_score", "premises_f1"):
+            value = getattr(result, component, None)
+            if value is None:
+                continue
+            sums[component] = sums.get(component, 0.0) + float(value)
+            counts[component] = counts.get(component, 0) + 1
+    if not sums:
+        return None
+    return {component: sums[component] / counts[component] for component in sums}
+
+
 def _aggregate_search_stats(results: list[TaskResult]) -> dict[str, float] | None:
     """Mean of the per-example ``search_stats`` (nodes/calls/depth/score).
 
-    Returns ``None`` when no example carried search stats -- i.e. for non
-    search-based strategies such as direct and cot, in which case the field is
-    omitted from the report. Search strategies (tot-beam, tot-dfs, ...) attach
+    Numeric keys are discovered dynamically; booleans count as 0/1. Returns
+    ``None`` when no example carried search stats -- i.e. for non search-based
+    strategies such as direct and cot, in which case the field is omitted from
+    the report. Search strategies (tot-beam, tot-dfs, ...) attach
     ``search_stats`` on every successful prediction.
     """
-    numeric_keys = (
-        "nodes_visited",
-        "propose_calls",
-        "evaluate_calls",
-        "depth_reached",
-        "best_score",
-        "total_llm_calls",
-        "total_completions",
-    )
-    sums: dict[str, float] = dict.fromkeys(numeric_keys, 0.0)
+    sums: dict[str, float] = {}
     num_search_examples = 0
     for result in results:
         stats_raw = result.extra.get("search_stats")
@@ -152,13 +172,64 @@ def _aggregate_search_stats(results: list[TaskResult]) -> dict[str, float] | Non
             continue
         stats = cast("dict[str, object]", stats_raw)
         num_search_examples += 1
-        for key in numeric_keys:
-            value = stats.get(key)
-            if isinstance(value, (int, float)):
-                sums[key] += value
+        for key, value in stats.items():
+            # bool is a subclass of int, so flags average into a 0/1 rate.
+            if isinstance(value, bool):
+                sums[key] = sums.get(key, 0.0) + float(value)
+            elif isinstance(value, (int, float)):
+                sums[key] = sums.get(key, 0.0) + value
     if num_search_examples == 0:
         return None
     return {key: total / num_search_examples for key, total in sums.items()}
+
+
+def _aggregate_pot_stats(results: list[TaskResult]) -> dict[str, float] | None:
+    """Mean of the per-example ``pot_info`` (PoT-Z3 pipeline counters).
+
+    Returns ``None`` when no example carried ``pot_info`` -- i.e. for non-PoT
+    strategies (direct, cot, tot, cr), in which case the field is omitted from
+    the report.
+    """
+    sums: dict[str, float] = {}
+    num_pot_examples = 0
+    for result in results:
+        info_raw = result.extra.get("pot_info")
+        if not isinstance(info_raw, dict):
+            continue
+        info = cast("dict[str, object]", info_raw)
+        num_pot_examples += 1
+        for key, value in info.items():
+            if isinstance(value, bool):
+                sums[key] = sums.get(key, 0.0) + float(value)
+            elif isinstance(value, (int, float)):
+                sums[key] = sums.get(key, 0.0) + value
+    if num_pot_examples == 0:
+        return None
+    return {key: total / num_pot_examples for key, total in sums.items()}
+
+
+def _aggregate_decoding_stats(results: list[TaskResult]) -> dict[str, float] | None:
+    """Mean of the per-example ``decoding_stats`` (self-consistency telemetry).
+
+    Returns ``None`` when no example carried ``decoding_stats`` -- i.e. for
+    single-pass decoding, in which case the field is omitted from the report.
+    """
+    sums: dict[str, float] = {}
+    num_decoding_examples = 0
+    for result in results:
+        stats_raw = result.extra.get("decoding_stats")
+        if not isinstance(stats_raw, dict):
+            continue
+        stats = cast("dict[str, object]", stats_raw)
+        num_decoding_examples += 1
+        for key, value in stats.items():
+            if isinstance(value, bool):
+                sums[key] = sums.get(key, 0.0) + float(value)
+            elif isinstance(value, (int, float)):
+                sums[key] = sums.get(key, 0.0) + value
+    if num_decoding_examples == 0:
+        return None
+    return {key: total / num_decoding_examples for key, total in sums.items()}
 
 
 def _summarize_usage(usage_tracker: UsageTracker) -> dict[str, int] | None:
@@ -299,7 +370,10 @@ def evaluate(
     total_time = time.perf_counter() - start_time
 
     total_score, num_failed, category_scores = _aggregate_scores(results)
+    score_components = _aggregate_score_components(results)
     search_stats = _aggregate_search_stats(results)
+    pot_stats = _aggregate_pot_stats(results)
+    decoding_stats = _aggregate_decoding_stats(results)
     mean_token_usage, total_token_usage = _aggregate_token_usage(results)
     score = total_score / len(results) if results else 0.0
     logger.info(
@@ -313,9 +387,22 @@ def evaluate(
             for category, entry in sorted(category_scores.items())
         )
         logger.info(f"Per-category {metric_name}: {breakdown}")
+    if score_components is not None:
+        components_breakdown = ", ".join(
+            f"{name}={value:.4f}" for name, value in score_components.items()
+        )
+        logger.info(f"Score components (mean): {components_breakdown}")
     if search_stats is not None:
         stats_breakdown = ", ".join(f"{key}={value:.2f}" for key, value in search_stats.items())
         logger.info(f"Search stats (mean): {stats_breakdown}")
+    if pot_stats is not None:
+        pot_breakdown = ", ".join(f"{key}={value:.2f}" for key, value in pot_stats.items())
+        logger.info(f"PoT stats (mean): {pot_breakdown}")
+    if decoding_stats is not None:
+        decoding_breakdown = ", ".join(
+            f"{key}={value:.2f}" for key, value in decoding_stats.items()
+        )
+        logger.info(f"Decoding stats (mean): {decoding_breakdown}")
     if mean_token_usage is not None and total_token_usage is not None:
         logger.info(
             f"Token usage (mean per example): "
@@ -379,7 +466,10 @@ def evaluate(
         num_failed=num_failed,
         total_time=total_time,
         category_scores=category_scores,
+        score_components=score_components,
         search_stats=search_stats,
+        pot_stats=pot_stats,
+        decoding_stats=decoding_stats,
         token_usage=mean_token_usage,
         total_token_usage=total_token_usage,
         results=results,
@@ -396,8 +486,14 @@ def save_report(report: EvaluationReport, output_dir: str) -> str:
     timestamp = datetime.now().strftime("%Y_%m_%d-%H_%M_%S")
     output_path = os.path.join(nested_dir, f"results-{timestamp}.json")
     exclude: set[str] = {"judge", "judge_model", "judge_kwargs"} if report.judge is None else set()
+    if report.score_components is None:
+        exclude.add("score_components")
     if report.search_stats is None:
         exclude.add("search_stats")
+    if report.pot_stats is None:
+        exclude.add("pot_stats")
+    if report.decoding_stats is None:
+        exclude.add("decoding_stats")
     if report.token_usage is None:
         exclude.update(("token_usage", "total_token_usage"))
     with open(output_path, "w", encoding="utf-8") as output_file:

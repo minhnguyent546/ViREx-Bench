@@ -38,7 +38,7 @@ elif [ "$SPEC_DECODING_METHOD" = "DFLASH" ]; then
   SPEC_ARGS=(
     --speculative-algorithm DFLASH
     --speculative-draft-model-path z-lab/Qwen3.5-27B-DFlash
-    --speculative-num-draft-tokens 8
+    --speculative-num-draft-tokens 16
     --attention-backend fa3
     --speculative-draft-attention-backend fa4
   )
