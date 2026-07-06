@@ -389,15 +389,43 @@ def _run_z3_python_code(code: str, z3_timeout_ms: int | None = None) -> tuple[st
 # Public interpreter class
 
 
+# Shared ``forkserver`` context. ``spawn`` re-imports this module in every
+# worker, pulling in dspy + litellm (~4 s) the worker never uses -- under a
+# 32-thread eval that import storm pegs every core. ``forkserver`` pays it once.
+_forkserver_context: multiprocessing.context.BaseContext | None = None
+_forkserver_lock = threading.Lock()
+
+
+def _get_forkserver_context() -> multiprocessing.context.BaseContext:
+    """Return the shared, lazily-built ``forkserver`` context (``spawn`` fallback)."""
+    global _forkserver_context
+    if _forkserver_context is not None:
+        return _forkserver_context
+    with _forkserver_lock:
+        if _forkserver_context is None:
+            if "forkserver" in multiprocessing.get_all_start_methods():
+                context = multiprocessing.get_context("forkserver")
+                context.set_forkserver_preload(["virex_bench.strategies.pot.interpreter"])
+            else:
+                context = multiprocessing.get_context("spawn")
+            _forkserver_context = context
+    return _forkserver_context
+
+
 class LocalZ3PythonInterpreter:
     """Sandboxed Z3 Python interpreter with subprocess-level timeout isolation.
 
-    Runs LLM-generated Python code in a spawned child process against the
-    pre-loaded Z3 wrapper API. The wall-clock timeout prevents infinite loops;
-    ``ast.parse`` catches syntax errors before spawning. Dangerous builtins (code
-    execution, file I/O, import machinery, namespace introspection) are removed,
-    but the subprocess boundary — not the builtins blocklist — is the real
-    isolation: bare attribute access can still reach arbitrary objects.
+    Runs LLM-generated Python code in a child process against the pre-loaded Z3
+    wrapper API. The wall-clock timeout prevents infinite loops; ``ast.parse``
+    catches syntax errors before spawning. Dangerous builtins (code execution,
+    file I/O, import machinery, namespace introspection) are removed, but the
+    subprocess boundary -- not the builtins blocklist -- is the real isolation:
+    bare attribute access can still reach arbitrary objects.
+
+    A fresh worker is forked per :meth:`execute` call via a shared ``forkserver``
+    context (see :func:`_get_forkserver_context`) and terminated when the call
+    returns, so peak memory scales with current concurrency (the eval thread
+    count) rather than being pinned for the whole run.
 
     Raises:
         SyntaxError: if the code fails to parse.
@@ -436,12 +464,18 @@ class LocalZ3PythonInterpreter:
             try:
                 status, output = async_result.get(timeout=self.timeout)
             except multiprocessing.TimeoutError as error:
+                # Terminate then join: the worker is stuck (infinite loop or a
+                # Z3 query that ignored the soft timeout). ``Pool.__exit__``
+                # only calls terminate, not join -- the explicit join reaps the
+                # zombie so the OS stops accounting its CPU.
                 pool.terminate()
+                pool.join()
                 message = f"Execution timed out after {self.timeout} seconds."
                 logger.debug(message)
                 raise TimeoutError(message) from error
             except OSError as error:
                 pool.terminate()
+                pool.join()
                 message = (
                     f"Worker process communication error: {error}. "
                     "The worker process may have crashed or been killed."
