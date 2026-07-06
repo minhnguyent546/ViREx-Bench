@@ -272,7 +272,7 @@ class VietnameseLogicalReasoning(ReasoningTask):
         "direct": VietnameseLogicalReasoningSignature,
         "cot": VietnameseLogicalReasoningSignature,
         "tot": VietnameseLogicalReasoningSignature,
-        # 'pot_z3': TODO,
+        "pot_z3": VietnameseLogicalReasoningSignature,
     }
     rationale_fields = {
         "default": dspy.OutputField(
@@ -307,6 +307,23 @@ class VietnameseLogicalReasoning(ReasoningTask):
                 "bucket touches, the evidence is INSUFFICIENT — answer "
                 "'Không chắc chắn'. Never confuse 'undetermined' with 'is false'. "
                 "Write this reasoning in Vietnamese."
+            )
+        ),
+        "pot_z3": dspy.OutputField(
+            desc=(
+                "Before committing the final answer, interpret the `solver_result` "
+                "produced by the Z3 symbolic-solver program. The solver output "
+                "reports a `z3_status` (entailed / contradicted / uncertain / mixed), "
+                "a best-guess `answer`, supporting premise indices, and a one-line "
+                "`solution`. Map the verdict to the Vietnamese answer label: "
+                "entailed -> 'Có', contradicted -> 'Không', uncertain or mixed -> "
+                "'Không chắc chắn'. For multiple-choice questions, use the entailed "
+                "option label(s) from the solver output. Verify that the solver's "
+                "conclusion is actually supported by the premises — if the program "
+                "failed to run or the result looks inconsistent with the premises, "
+                "fall back to reasoning over the premises directly. Cite only the "
+                "minimal premise chain that justifies the final answer. Write this "
+                "reasoning in Vietnamese."
             )
         ),
     }

@@ -142,8 +142,7 @@ if TYPE_CHECKING:
     VIREX_BENCH_POT_MAX_ITERS: int = 3
     # Wall-clock timeout for the Z3 subprocess (seconds). These tasks decide in
     # well under a second; the ceiling guards pathological quantified formulas or
-    # an accidental infinite loop in the generated Python.
-    VIREX_BENCH_POT_EXECUTION_TIMEOUT: float = 45.0
+    VIREX_BENCH_POT_EXECUTION_TIMEOUT: float = 15.0
     # Code-generation sampling temperature. None -> inherit the LM's profile.
     VIREX_BENCH_POT_GENERATE_TEMPERATURE: float | None = None
     # Regeneration sampling temperature. None -> inherit the LM's profile.
@@ -347,7 +346,7 @@ environment_variables: dict[str, Callable[[], Any]] = {
     # --- Program-of-Thought + Z3 (pot_z3) strategy ---
     "VIREX_BENCH_POT_MAX_ITERS": lambda: int(os.environ.get("VIREX_BENCH_POT_MAX_ITERS", "3")),
     "VIREX_BENCH_POT_EXECUTION_TIMEOUT": lambda: float(
-        os.environ.get("VIREX_BENCH_POT_EXECUTION_TIMEOUT", "45.0")
+        os.environ.get("VIREX_BENCH_POT_EXECUTION_TIMEOUT", "15.0")
     ),
     "VIREX_BENCH_POT_GENERATE_TEMPERATURE": lambda: maybe_convert_float(
         os.environ.get("VIREX_BENCH_POT_GENERATE_TEMPERATURE", None)

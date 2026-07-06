@@ -198,18 +198,14 @@ class PoTZ3Strategy(ReasoningStrategy):
         prediction["reasoning"] = solver_result
 
         total_llm_calls = 1 + regenerate_calls + 1
-        prediction["search_stats"] = {
-            "algorithm": "pot_z3",
-            "nodes_visited": execute_calls,
-            "propose_calls": 1 + regenerate_calls,
-            "evaluate_calls": 0,
-            "depth_reached": 1,
-            "best_score": float(execution_success),
-            "total_llm_calls": total_llm_calls,
-            "total_completions": total_llm_calls,
+        prediction["pot_info"] = {
+            "generated_code": code,
+            "execution_output": output,
+            "execution_error": error,
+            "execution_success": execution_success,
             "generate_calls": 1,
             "regenerate_calls": regenerate_calls,
             "execute_calls": execute_calls,
-            "execution_success": execution_success,
+            "total_llm_calls": total_llm_calls,
         }
         return prediction

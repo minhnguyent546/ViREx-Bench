@@ -5,15 +5,17 @@ from virex_bench.strategies.base import ReasoningStrategy
 from virex_bench.strategies.cot import CoTStrategy
 from virex_bench.strategies.cr import CRStrategy
 from virex_bench.strategies.direct import DirectStrategy
+from virex_bench.strategies.pot import PoTZ3Strategy
 from virex_bench.strategies.tot import ToTStrategy
 
 # Implemented strategies. The remaining axes from the project plan
-# (self_consistency, mctot, pot_z3) will be added here as they land.
+# (self_consistency, mctot) will be added here as they land.
 _STRATEGY_REGISTRY: dict[str, type[ReasoningStrategy]] = {
     DirectStrategy.name: DirectStrategy,
     CoTStrategy.name: CoTStrategy,
     CRStrategy.name: CRStrategy,
     ToTStrategy.name: ToTStrategy,
+    PoTZ3Strategy.name: PoTZ3Strategy,
 }
 
 # Strategies that expose a CLI variant axis: `<base>-<variant>` (hyphen separator).

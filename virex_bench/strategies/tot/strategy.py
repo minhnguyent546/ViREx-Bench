@@ -187,6 +187,7 @@ class ToTStrategy(ReasoningStrategy):
             # None), so reporting self.config would hide it. Beam has no cap.
             "max_iterations": self.search.effective_max_iterations,
             "success_threshold": self.config.success_threshold,
+            "dedupe_similarity_threshold": envs.VIREX_BENCH_TOT_DEDUPE_SIMILARITY_THRESHOLD,
         }
 
     def forward(self, **inputs: object) -> dspy.Prediction:
