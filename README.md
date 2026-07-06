@@ -53,7 +53,7 @@ uv run vb --version
 
 ViREx-Bench evaluates a model on a Vietnamese reasoning task using a prompting strategy and a decoding method. Models are served behind any OpenAI-compatible endpoint (e.g. vLLM, SGLang).
 
-> The example below evaluates a model on `vietnamese-logical-reasoning`, which is scored with an LLM-as-a-judge. The default judge model is `deepseek-v4-flash` (you can override this via setting `VIREX_BENCH_JUDGE_MODEL`, e.g. `export VIREX_BENCH_JUDGE_MODEL=deepseek-v4-pro`). To use the judge, export `VIREX_BENCH_JUDGE_API_KEY` with a valid API key.
+> The example below evaluates a model on `vietnamese-logical-reasoning`, which is scored with an LLM-as-a-judge. The default judge model is `deepseek/deepseek-v4-flash` (you can override this via setting `VIREX_BENCH_JUDGE_MODEL`, e.g. `export VIREX_BENCH_JUDGE_MODEL=deepseek/deepseek-v4-pro`). To use the judge, export `VIREX_BENCH_JUDGE_API_KEY` with a valid API key.
 
 ### Via the CLI
 
