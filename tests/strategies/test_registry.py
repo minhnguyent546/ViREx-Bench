@@ -65,7 +65,9 @@ def test_parse_strategy_name_passthrough_bare() -> None:
 def test_list_strategies_includes_variants() -> None:
     names = list_strategies()
     assert "cot" in names
+    assert "cr" in names
     assert "direct" in names
+    assert "pot_z3" in names
     assert "tot" in names
     assert "tot-beam" in names
     assert "tot-dfs" in names
@@ -103,6 +105,17 @@ def test_get_strategy_tot_mcts_yields_correct_name_and_algorithm() -> None:
     strategy = get_strategy("tot-mcts", _TestSignature)
     assert strategy.name == "tot-mcts"
     assert strategy.search_algorithm == "mcts"  # type: ignore[attr-defined]
+
+
+def test_get_strategy_pot_z3_constructs_without_variant() -> None:
+    strategy = get_strategy("pot_z3", _TestSignature)
+    assert strategy.name == "pot_z3"
+    assert strategy.accepts_variant is False
+
+
+def test_get_strategy_pot_z3_with_variant_raises_no_variant_axis() -> None:
+    with pytest.raises(ValueError, match="no variant axis"):
+        get_strategy("pot_z3-foo", _TestSignature)
 
 
 def test_get_strategy_bare_tot_uses_env_default_algorithm(

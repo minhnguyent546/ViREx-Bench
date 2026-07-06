@@ -30,6 +30,7 @@ def test_parse_bool_unparseable_defaults_false() -> None:
     """An unparseable verifier verdict defaults to the conservative False."""
     assert parse_bool("maybe") is False
     assert parse_bool(object()) is False
+    assert parse_bool(None) is False
 
 
 def test_parse_bool_labelled_output() -> None:

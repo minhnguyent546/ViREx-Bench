@@ -1,8 +1,8 @@
 """Tests for shared PoT-Z3 helpers in ``common.py``.
 
 Covers the pure-Python helpers (``parse_code``, ``strip_ansi``,
-``format_solver_result``) and the :class:`POTConfig` bounds validation.
-Config env-var resolution is tested separately in ``test_config.py``.
+``strip_imports``, ``format_solver_result``) and the :class:`POTConfig` bounds
+validation. Config env-var resolution is tested separately in ``test_config.py``.
 """
 
 import pytest
@@ -12,6 +12,7 @@ from virex_bench.strategies.pot.common import (
     format_solver_result,
     parse_code,
     strip_ansi,
+    strip_imports,
 )
 
 
@@ -29,6 +30,64 @@ def test_strip_ansi_passthrough_plain_text() -> None:
 
 def test_strip_ansi_empty_string() -> None:
     assert strip_ansi("") == ""
+
+
+# strip_imports
+
+
+def test_strip_imports_removes_simple_import() -> None:
+    code = "import json\nx = 1\nprint(x)"
+    assert strip_imports(code) == "x = 1\nprint(x)"
+
+
+def test_strip_imports_removes_from_import() -> None:
+    code = "from re import match\nx = 1\nprint(x)"
+    assert strip_imports(code) == "x = 1\nprint(x)"
+
+
+def test_strip_imports_removes_multiple_imports() -> None:
+    code = "import json\nimport re\nimport math\nx = 1\nprint(x)"
+    assert strip_imports(code) == "x = 1\nprint(x)"
+
+
+def test_strip_imports_removes_multiline_parenthesized_import() -> None:
+    code = "from z3 import (\n    And,\n    Or,\n    Not,\n)\nx = 1\nprint(x)"
+    assert strip_imports(code) == "x = 1\nprint(x)"
+
+
+def test_strip_imports_removes_aliased_import() -> None:
+    code = "import json as j\nx = 1\nprint(x)"
+    assert strip_imports(code) == "x = 1\nprint(x)"
+
+
+def test_strip_imports_preserves_non_import_code() -> None:
+    code = "x = 1\ny = 2\nprint(x + y)"
+    assert strip_imports(code) == "x = 1\ny = 2\nprint(x + y)"
+
+
+def test_strip_imports_preserves_indented_code() -> None:
+    """Imports inside functions/if-blocks are also stripped (the module is
+    pre-loaded globally), but surrounding code is preserved."""
+    code = "def solve():\n    import json\n    return json.loads('{}')\nprint(solve())"
+    result = strip_imports(code)
+    assert "import json" not in result
+    assert "def solve():" in result
+    assert "return json.loads" in result
+    assert "print(solve())" in result
+
+
+def test_strip_imports_returns_unchanged_on_syntax_error() -> None:
+    """If the code doesn't parse, return it as-is — the interpreter will catch
+    the syntax error."""
+    code = "import json\nthis is not valid python !!!"
+    assert strip_imports(code) == code
+
+
+def test_strip_imports_empty_string() -> None:
+    assert strip_imports("") == ""
+
+
+# parse_code
 
 
 def test_parse_code_raw_code_no_fences() -> None:
@@ -122,6 +181,28 @@ def test_parse_code_does_not_append_for_single_line() -> None:
     assert parsed == 'result = {"answer": "Yes"}'
 
 
+def test_parse_code_strips_imports() -> None:
+    """Import statements are stripped by parse_code so the code runs without
+    triggering ImportError in the sandbox."""
+    raw = "import json\nimport re\nx = 1\nprint(x)"
+    parsed, error = parse_code(raw)
+    assert error is None
+    assert parsed is not None
+    assert "import" not in parsed
+    assert "x = 1" in parsed
+    assert "print(x)" in parsed
+
+
+def test_parse_code_strips_imports_inside_fences() -> None:
+    """Imports are stripped even when the code is inside markdown fences."""
+    raw = "```python\nimport json\nx = 1\nprint(x)\n```"
+    parsed, error = parse_code(raw)
+    assert error is None
+    assert parsed is not None
+    assert "import" not in parsed
+    assert parsed == "x = 1\nprint(x)"
+
+
 def test_format_solver_result_success() -> None:
     rendered = format_solver_result("x = 1", '{"answer": "Yes"}', None)
     assert "Z3 Program:" in rendered
@@ -145,6 +226,12 @@ def test_format_solver_result_success_output_empty_string() -> None:
     rendered = format_solver_result("x = 1", "", None)
     assert "Program Output:" in rendered
     assert "failed" not in rendered
+
+
+def test_format_solver_result_raises_when_no_output_nor_error() -> None:
+    """Calling with both ``output`` and ``error`` as None is a contract violation."""
+    with pytest.raises(ValueError, match="output or error"):
+        format_solver_result("x = 1", None, None)
 
 
 def _valid_config_kwargs() -> dict[str, object]:
@@ -206,6 +293,21 @@ def test_potconfig_accepts_explicit_override_configs() -> None:
     config = POTConfig(**kwargs)  # type: ignore[arg-type]
     assert config.generate_config == {"temperature": 0.8}
     assert config.regenerate_config == {"temperature": 0.2}
+
+
+@pytest.mark.parametrize("boundary", [0.0, 2.0])
+@pytest.mark.parametrize("field", ["generate_config", "regenerate_config"])
+def test_potconfig_accepts_temperature_boundary_values(field: str, boundary: float) -> None:
+    """The inclusive bounds [0.0, 2.0] accept both endpoints."""
+    kwargs = _valid_config_kwargs()
+    kwargs[field] = {"temperature": boundary}
+    config = POTConfig(**kwargs)  # type: ignore[arg-type]
+    assert config.generate_config == (
+        {"temperature": boundary} if field == "generate_config" else {}
+    )
+    assert config.regenerate_config == (
+        {"temperature": boundary} if field == "regenerate_config" else {}
+    )
 
 
 def test_potconfig_accepts_non_temperature_overrides_unchecked() -> None:

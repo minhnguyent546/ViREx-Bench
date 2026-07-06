@@ -200,6 +200,7 @@ def _add_run_opts(parser: argparse.ArgumentParser) -> None:
 
 def _add_tasks_opts(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
+        "-l",
         "--list",
         action="store_true",
         help="List available tasks",
@@ -208,6 +209,7 @@ def _add_tasks_opts(parser: argparse.ArgumentParser) -> None:
 
 def _add_strategies_opts(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
+        "-l",
         "--list",
         action="store_true",
         help="List available strategies",
