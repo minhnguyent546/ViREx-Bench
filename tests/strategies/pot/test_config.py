@@ -36,7 +36,7 @@ def test_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     _clear_pot_envs(monkeypatch)
     config = _get_pot_config(monkeypatch)
     assert config.max_iters == 3
-    assert config.execution_timeout == 45.0
+    assert config.execution_timeout == 15.0
     assert config.fallback_on_error is True
     # Temperatures default to None -> empty config (inherit LM profile).
     assert config.generate_config == {}
@@ -78,6 +78,15 @@ def test_fallback_on_error_true(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("VIREX_BENCH_POT_FALLBACK_ON_ERROR", "true")
     config = _get_pot_config(monkeypatch)
     assert config.fallback_on_error is True
+
+
+def test_fallback_on_error_unparseable_defaults_false(monkeypatch: pytest.MonkeyPatch) -> None:
+    """An unparseable value falls back to the conservative False (get_bool only
+    treats 1/true/yes/on as truthy)."""
+    _clear_pot_envs(monkeypatch)
+    monkeypatch.setenv("VIREX_BENCH_POT_FALLBACK_ON_ERROR", "maybe")
+    config = _get_pot_config(monkeypatch)
+    assert config.fallback_on_error is False
 
 
 def test_max_iters_invalid_raises(monkeypatch: pytest.MonkeyPatch) -> None:

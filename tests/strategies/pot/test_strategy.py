@@ -5,8 +5,9 @@ Drives the PoT generate -> execute -> regenerate loop with canned programs and
 canned interpreter outputs to verify: happy-path success, regeneration on
 execution failure, regeneration on parse failure, graceful fallback when all
 attempts fail, hard failure when ``fallback_on_error`` is False, the no-retry
-invariant (LLM parse errors propagate, not retried), and ``search_stats``
-correctness -- without any real LM calls or subprocess spawns.
+invariant (LLM parse errors propagate, not retried), and ``pot_info``
+correctness (the per-example telemetry dict that feeds the report-level
+``pot_stats`` aggregate) -- without any real LM calls or subprocess spawns.
 
 Pattern mirrors ``tests/strategies/cr/test_strategy.py``: each fake module
 returns canned outputs in sequence and tracks its call count.
@@ -205,8 +206,13 @@ def test_happy_path_generate_execute_commit(monkeypatch: pytest.MonkeyPatch) -> 
     assert "failed" not in solver_result
 
 
-def test_happy_path_search_stats(monkeypatch: pytest.MonkeyPatch) -> None:
-    """search_stats on the happy path: 1 generate, 0 regen, 1 execute, success."""
+def test_happy_path_pot_info(monkeypatch: pytest.MonkeyPatch) -> None:
+    """pot_info on the happy path: 1 generate, 0 regen, 1 execute, success.
+
+    PoT is a single-pass generate-execute-regenerate pipeline, not a tree
+    search, so it emits ``pot_info`` (per-example pipeline telemetry) and does
+    NOT emit ``search_stats`` (a ToT-style tree-search construct).
+    """
     strategy = _make_strategy(monkeypatch)
     _wire(
         strategy,
@@ -217,20 +223,19 @@ def test_happy_path_search_stats(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
     prediction = strategy.forward(**_INPUTS)
-    stats = prediction["search_stats"]
 
-    assert stats["algorithm"] == "pot_z3"
-    assert stats["generate_calls"] == 1
-    assert stats["regenerate_calls"] == 0
-    assert stats["execute_calls"] == 1
-    assert stats["execution_success"] is True
-    assert stats["nodes_visited"] == 1
-    assert stats["propose_calls"] == 1
-    assert stats["evaluate_calls"] == 0
-    assert stats["depth_reached"] == 1
-    assert stats["best_score"] == 1.0
-    assert stats["total_llm_calls"] == 2  # generate + commit
-    assert stats["total_completions"] == 2
+    # PoT does not emit search_stats -- it is a pipeline, not a tree search.
+    assert "search_stats" not in prediction
+    pot_info = prediction["pot_info"]
+
+    assert pot_info["generated_code"] == _VALID_CODE
+    assert pot_info["execution_output"] == _VALID_OUTPUT
+    assert pot_info["execution_error"] is None
+    assert pot_info["execution_success"] is True
+    assert pot_info["generate_calls"] == 1
+    assert pot_info["regenerate_calls"] == 0
+    assert pot_info["execute_calls"] == 1
+    assert pot_info["total_llm_calls"] == 2  # generate + commit
 
 
 def test_regenerate_succeeds_after_runtime_error(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -265,12 +270,16 @@ def test_regenerate_succeeds_after_runtime_error(monkeypatch: pytest.MonkeyPatch
     solver_result = aggregate.last_solver_result
     assert solver_result is not None
     assert "Program Output:" in solver_result
-    # search_stats
-    stats = prediction["search_stats"]
-    assert stats["regenerate_calls"] == 1
-    assert stats["execute_calls"] == 2
-    assert stats["execution_success"] is True
-    assert stats["total_llm_calls"] == 3  # generate + regen + commit
+
+    # pot_info reflects the final (successful) regenerated program.
+    pot_info = prediction["pot_info"]
+    assert pot_info["generated_code"] == _VALID_CODE_2
+    assert pot_info["execution_output"] == _VALID_OUTPUT
+    assert pot_info["execution_error"] is None
+    assert pot_info["execution_success"] is True
+    assert pot_info["regenerate_calls"] == 1
+    assert pot_info["execute_calls"] == 2
+    assert pot_info["total_llm_calls"] == 3  # generate + regen + commit
 
 
 def test_regenerate_succeeds_after_parse_error(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -294,14 +303,87 @@ def test_regenerate_succeeds_after_parse_error(monkeypatch: pytest.MonkeyPatch) 
     assert generate.call_count == 1
     assert regenerate.call_count == 1
     assert interpreter.call_count == 1  # only the regenerated code was executed
-    stats = prediction["search_stats"]
-    assert stats["regenerate_calls"] == 1
-    assert stats["execute_calls"] == 1
-    assert stats["execution_success"] is True
+    pot_info = prediction["pot_info"]
+    assert pot_info["regenerate_calls"] == 1
+    assert pot_info["execute_calls"] == 1
+    assert pot_info["execution_success"] is True
     # Regenerate received the garbled code as previous_code + a parse error.
     assert regenerate.last_previous_code == _GARBLED_CODE
     assert regenerate.last_error is not None
-    assert "Error" in regenerate.last_error or "format" in regenerate.last_error.lower()
+    assert "Code format is not correct" in regenerate.last_error
+
+
+def test_regenerate_returns_garbled_code_loops_again(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A regenerate output that itself fails parse_code keeps the loop going:
+    the parse error becomes the next regenerate prompt, execute is skipped for
+    the garbled attempt, and a second regenerate succeeds."""
+    strategy = _make_strategy(monkeypatch, max_iters=3)
+    generate = _FakeGenerate([_VALID_CODE])
+    regenerate = _FakeRegenerate([_GARBLED_CODE, _VALID_CODE_2])
+    aggregate = _FakeAggregate()
+    # First execute crashes on the generated code; the garbled regen is never
+    # executed (parse fails first); the second regen executes successfully.
+    interpreter = _FakeInterpreter([RuntimeError("Error during execution:\nboom"), _VALID_OUTPUT])
+    _wire(
+        strategy,
+        generate=generate,
+        regenerate=regenerate,
+        aggregate=aggregate,
+        interpreter=interpreter,
+    )
+
+    prediction = strategy.forward(**_INPUTS)
+
+    assert generate.call_count == 1
+    assert regenerate.call_count == 2
+    assert interpreter.call_count == 2  # generated code + second regen only
+    # The second regenerate was prompted by the garbled first regen + its parse error.
+    assert regenerate.last_previous_code == _GARBLED_CODE
+    assert regenerate.last_error is not None
+    assert "Code format is not correct" in regenerate.last_error
+    pot_info = prediction["pot_info"]
+    assert pot_info["regenerate_calls"] == 2
+    assert pot_info["execute_calls"] == 2
+    assert pot_info["execution_success"] is True
+    assert pot_info["generated_code"] == _VALID_CODE_2
+
+
+@pytest.mark.parametrize(
+    "exc",
+    [
+        TimeoutError("Execution timed out after 2.0 seconds."),
+        SyntaxError("simulated invalid syntax"),
+    ],
+)
+def test_regenerate_succeeds_after_non_runtime_execution_error(
+    monkeypatch: pytest.MonkeyPatch, exc: Exception
+) -> None:
+    """The regenerate loop catches SyntaxError and TimeoutError (not just
+    RuntimeError) from execute and feeds the typed error back to the LM."""
+    strategy = _make_strategy(monkeypatch, max_iters=3)
+    generate = _FakeGenerate([_VALID_CODE])
+    regenerate = _FakeRegenerate([_VALID_CODE_2])
+    aggregate = _FakeAggregate()
+    interpreter = _FakeInterpreter([exc, _VALID_OUTPUT])
+    _wire(
+        strategy,
+        generate=generate,
+        regenerate=regenerate,
+        aggregate=aggregate,
+        interpreter=interpreter,
+    )
+
+    prediction = strategy.forward(**_INPUTS)
+
+    assert generate.call_count == 1
+    assert regenerate.call_count == 1
+    assert interpreter.call_count == 2
+    assert regenerate.last_previous_code == _VALID_CODE
+    assert regenerate.last_error is not None
+    assert type(exc).__name__ in regenerate.last_error
+    pot_info = prediction["pot_info"]
+    assert pot_info["execution_success"] is True
+    assert pot_info["regenerate_calls"] == 1
 
 
 def test_fallback_on_error_true_commits_with_failed_result(
@@ -337,10 +419,17 @@ def test_fallback_on_error_true_commits_with_failed_result(
     assert "Z3 Program (failed):" in solver_result
     assert "Error:" in solver_result
     assert "Reason over the premises directly." in solver_result
-    stats = prediction["search_stats"]
-    assert stats["execution_success"] is False
-    assert stats["regenerate_calls"] == 2
-    assert stats["best_score"] == 0.0
+
+    # pot_info captures the failed program, the error, and no output.
+    pot_info = prediction["pot_info"]
+    assert pot_info["execution_success"] is False
+    assert pot_info["execution_output"] is None
+    assert pot_info["execution_error"] is not None
+    assert "RuntimeError" in pot_info["execution_error"]
+    assert pot_info["regenerate_calls"] == 2
+    assert pot_info["execute_calls"] == 3
+    assert pot_info["total_llm_calls"] == 4  # generate + 2 regen + commit
+    assert pot_info["generated_code"] == _VALID_CODE  # last attempted code
 
 
 def test_fallback_on_error_false_raises(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -523,7 +612,7 @@ def test_report_config_surfaces_resolved_knobs(monkeypatch: pytest.MonkeyPatch) 
     report = strategy.report_config
     assert report["max_iters"] == 5
     assert report["fallback_on_error"] is False
-    assert report["execution_timeout"] == 45.0
+    assert report["execution_timeout"] == 15.0
     assert report["generate_config"] == {}
     assert report["regenerate_config"] == {}
 
