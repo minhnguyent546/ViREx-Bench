@@ -11,6 +11,22 @@ __pycache__
 .env
 .env.*
 
+# unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+.tmp/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
 # local stuff
 _*
 !__*__.py
