@@ -133,16 +133,45 @@ def create_constant(name: str, domain: Any) -> Any:
     return z3.Const(name, _unwrap(domain))
 
 
-def create_constants(names: str, domain: Any) -> Any:
-    """Create one or more space-separated constants of the given domain.
+def create_constants(*args: Any) -> Any:
+    """Create one or more constants of the given domain.
 
-    A single name returns a single constant; multiple names return a list.
+    Accepts flexible calling conventions to absorb common LLM mistakes:
+
+    - ``create_constants('x', domain)`` — single name, returns one constant.
+    - ``create_constants('x y z', domain)`` — space-separated names, returns a list.
+    - ``create_constants('x', 'y', 'z', domain)`` — separate name args + domain.
+    - ``create_constants(['x', 'y', 'z'], domain)`` — list of names + domain.
+    - ``create_constants('x', domain, 'y')`` — names and domain interleaved.
+
+    Arguments are classified by type: strings (and lists of strings) are
+    collected as names; Z3 sorts become the domain. A single name returns a
+    single constant; multiple names return a list. Raises ``TypeError`` when no
+    names or no domain are identified.
     """
-    unwrapped_domain = _unwrap(domain)
-    parts = names.split()
-    if len(parts) == 1:
-        return z3.Const(parts[0], unwrapped_domain)
-    return z3.Consts(names, unwrapped_domain)
+    if not args:
+        raise TypeError("create_constants() requires at least one name and a domain")
+
+    names: list[str] = []
+    domains: list[Any] = []
+    for arg in args:
+        unwrapped = _unwrap(arg)
+        if isinstance(unwrapped, str):
+            names.extend(unwrapped.split())
+        elif isinstance(unwrapped, (list, tuple)):
+            names.extend(item for item in unwrapped if isinstance(item, str))
+        else:
+            domains.append(unwrapped)
+
+    if not names:
+        raise TypeError("create_constants() requires at least one name string")
+    if not domains:
+        raise TypeError("create_constants() requires a Z3 sort/domain")
+
+    domain = domains[0]
+    if len(names) == 1:
+        return z3.Const(names[0], domain)
+    return z3.Consts(" ".join(names), domain)
 
 
 def create_predicate(name: str, *domains: Any) -> Any:
