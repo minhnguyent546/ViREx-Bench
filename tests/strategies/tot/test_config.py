@@ -405,3 +405,14 @@ def test_report_config_reflects_pinned_temperature(monkeypatch: pytest.MonkeyPat
     strategy = get_strategy("tot-beam", _TestSignature)
     assert isinstance(strategy, ToTStrategy)
     assert strategy.report_config["propose_temperature"] == 0.9
+
+
+def test_report_config_surfaces_dedupe_threshold(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The dedupe threshold (used by every search algorithm) is recorded for
+    reproducibility, mirroring CR's ``dedupe_similarity_threshold``."""
+    _clear_variant_envs(monkeypatch)
+    _clear_temperature_envs(monkeypatch)
+    monkeypatch.setenv("VIREX_BENCH_TOT_DEDUPE_SIMILARITY_THRESHOLD", "0.8")
+    strategy = get_strategy("tot-beam", _TestSignature)
+    assert isinstance(strategy, ToTStrategy)
+    assert strategy.report_config["dedupe_similarity_threshold"] == 0.8
