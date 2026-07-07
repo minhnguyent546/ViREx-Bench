@@ -21,7 +21,7 @@ def load_backend(
     return BaseLM(
         model=f"{backend}/{model}",
         api_base=resolved_api_base,
-        api_key=resolved_api_key,
+        api_key=resolved_api_key or "<empty>",
         cache=cache,
         **kwargs,
     )

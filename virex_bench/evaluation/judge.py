@@ -296,7 +296,7 @@ def build_judge_lm() -> BaseLM:
         return BaseLM(
             model=f"{judge_model_name}",
             base_url="https://api.deepseek.com",
-            api_key=api_key,
+            api_key=api_key or "<empty>",
             extra_body={
                 "reasoning_effort": "high",
                 "thinking": {"type": "enabled"},
@@ -308,7 +308,7 @@ def build_judge_lm() -> BaseLM:
         return BaseLM(
             model=f"openai/{judge_model_name.removeprefix('opencode-go/')}",
             base_url="https://opencode.ai/zen/go/v1",
-            api_key=api_key,
+            api_key=api_key or "<empty>",
             extra_body={
                 "reasoning_effort": "high",
                 "thinking": {"type": "enabled"},
@@ -327,7 +327,7 @@ def build_judge_lm() -> BaseLM:
         return BaseLM(
             model=judge_model_name,
             api_base=judge_base_url,
-            api_key=api_key,
+            api_key=api_key or "<empty>",
             extra_body={
                 "reasoning_effort": "high",
                 "thinking": {"type": "enabled"},

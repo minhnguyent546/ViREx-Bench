@@ -56,7 +56,8 @@ def _run(args: argparse.Namespace) -> None:
         args.model,
         backend=args.backend,
         api_base=args.api_base,
-        api_key=args.api_key,
+        api_key=args.api_key
+        or "<empty>",  # sometimes providing empty string api key can causing issues [?]
         **args.model_kwargs,
     )
     logger.debug(

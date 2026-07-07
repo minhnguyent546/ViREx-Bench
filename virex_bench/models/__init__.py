@@ -14,7 +14,7 @@ def get_model(
         backend,
         model,
         api_base=api_base,
-        api_key=api_key,
+        api_key=api_key or "<empty>",
         cache=cache,
         **kwargs,
     )
