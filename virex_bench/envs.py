@@ -44,12 +44,16 @@ if TYPE_CHECKING:
     # API key for the judge model provider, used by the LLM-as-a-judge metric.
     VIREX_BENCH_JUDGE_API_KEY: str | None = None
 
-    # DeepSeek model used by the LLM-as-a-judge metric.
+    # Base URL of the OpenAI-compatible endpoint serving a self-hosted judge model
+    # (required when VIREX_BENCH_JUDGE_MODEL starts with "hosted_vllm/").
+    VIREX_BENCH_JUDGE_BASE_URL: str | None = None
     VIREX_BENCH_JUDGE_MODEL: Literal[
         "deepseek/deepseek-v4-pro",
         "deepseek/deepseek-v4-flash",
         "opencode-go/deepseek-v4-pro",
         "opencode-go/deepseek-v4-flash",
+        "hosted_vllm/deepseek-v4-pro",
+        "hosted_vllm/deepseek-v4-flash",
     ] = "deepseek/deepseek-v4-flash"
 
     # Max attempts (incl. the first call) for transient LM errors (timeouts, resets, 429/500/503).
@@ -251,6 +255,7 @@ environment_variables: dict[str, Callable[[], Any]] = {
     "HF_TOKEN": lambda: os.environ.get("HF_TOKEN", None),
     # --- LLM-as-a-judge ---
     "VIREX_BENCH_JUDGE_API_KEY": lambda: os.environ.get("VIREX_BENCH_JUDGE_API_KEY", None),
+    "VIREX_BENCH_JUDGE_BASE_URL": lambda: os.environ.get("VIREX_BENCH_JUDGE_BASE_URL", None),
     "VIREX_BENCH_JUDGE_MODEL": env_with_choices(
         "VIREX_BENCH_JUDGE_MODEL",
         "deepseek/deepseek-v4-flash",
@@ -259,6 +264,8 @@ environment_variables: dict[str, Callable[[], Any]] = {
             "deepseek/deepseek-v4-flash",
             "opencode-go/deepseek-v4-pro",
             "opencode-go/deepseek-v4-flash",
+            "hosted_vllm/deepseek-v4-pro",
+            "hosted_vllm/deepseek-v4-flash",
         ],
         case_sensitive=False,
     ),

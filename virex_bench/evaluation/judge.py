@@ -315,6 +315,25 @@ def build_judge_lm() -> BaseLM:
             },
             cache=False,
         )
+    elif judge_model_name.lower().startswith("hosted_vllm/"):
+        judge_base_url = envs.VIREX_BENCH_JUDGE_BASE_URL
+        if judge_base_url is None:
+            raise RuntimeError(
+                "VIREX_BENCH_JUDGE_BASE_URL is not set. A self-hosted judge model "
+                f"(`{judge_model_name}`) requires the serving endpoint URL. Set it via "
+                "the VIREX_BENCH_JUDGE_BASE_URL environment variable, e.g. "
+                "`export VIREX_BENCH_JUDGE_BASE_URL=http://localhost:8000/v1`."
+            )
+        return BaseLM(
+            model=judge_model_name,
+            api_base=judge_base_url,
+            api_key=api_key,
+            extra_body={
+                "reasoning_effort": "high",
+                "thinking": {"type": "enabled"},
+            },
+            cache=False,
+        )
     else:
         raise NotImplementedError(f"Judge model {judge_model_name} is not supported.")
 
