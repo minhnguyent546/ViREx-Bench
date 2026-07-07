@@ -18,7 +18,10 @@ if [[ -n "$NUM_EXAMPLES" ]]; then
   EXTRA_PARAMS+=(--max-examples "$NUM_EXAMPLES")
 fi
 
+BASE_EXTRA_PARAMS=("${EXTRA_PARAMS[@]}")
+
 for STRATEGY in direct cot cot-sc3 cot-sc5 tot-beam tot-dfs tot-mcts cr pot_z3; do
+  EXTRA_PARAMS=("${BASE_EXTRA_PARAMS[@]}")
   DECODING_STRATEGY=single-pass
   if [[ "$STRATEGY" == "cot-sc3" ]]; then
     STRATEGY='cot'
