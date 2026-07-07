@@ -11,6 +11,9 @@
 </p>
 
 <p align="center">
+    <a href="https://doi.org/10.5281/zenodo.21247474">
+        <img alt="Zenodo DOI" src="https://zenodo.org/badge/1272222849.svg">
+    </a>
     <a href="https://github.com/minhnguyent546/ViREx-Bench/releases">
         <img alt="ViREX-Bench latest release" src="https://img.shields.io/github/v/release/minhnguyent546/ViREx-Bench.svg">
     </a>
