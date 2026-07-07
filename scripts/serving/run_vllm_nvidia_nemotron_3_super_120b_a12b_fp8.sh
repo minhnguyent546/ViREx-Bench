@@ -14,10 +14,21 @@ MAX_NUM_SEQS=32
 GPU_MEMORY_UTILIZATION=0.875
 TP="${TP:-1}"
 DP="${DP:-1}"
+ALL2ALL_BACKEND="${ALL2ALL_BACKEND:-}"
+ENABLE_EPLB="${ENABLE_EPLB:-0}"
 
 echo "Using model: $MODEL_ID"
 
-echo "PORT=${PORT}, TP=${TP}, DP=${DP}, MAX_NUM_BATCHED_TOKENS=${MAX_NUM_BATCHED_TOKENS}, MAX_MODEL_LEN=${MAX_MODEL_LEN}, GPU_MEMORY_UTILIZATION=${GPU_MEMORY_UTILIZATION}, MAX_NUM_SEQS=${MAX_NUM_SEQS}"
+echo "PORT=${PORT}, TP=${TP}, DP=${DP}, EP=$((TP * DP)), ALL2ALL_BACKEND=${ALL2ALL_BACKEND:-auto}, ENABLE_EPLB=${ENABLE_EPLB}, MAX_NUM_BATCHED_TOKENS=${MAX_NUM_BATCHED_TOKENS}, MAX_MODEL_LEN=${MAX_MODEL_LEN}, GPU_MEMORY_UTILIZATION=${GPU_MEMORY_UTILIZATION}, MAX_NUM_SEQS=${MAX_NUM_SEQS}"
+
+EP_ARGS=()
+if [ -n "$ALL2ALL_BACKEND" ]; then
+  EP_ARGS+=(--all2all-backend "$ALL2ALL_BACKEND")
+fi
+if [ "$ENABLE_EPLB" = "1" ]; then
+  EP_ARGS+=(--enable-eplb)
+fi
+echo "EP_ARGS: ${EP_ARGS[*]:-none}"
 
 uv run --no-sync vllm serve "$MODEL_ID" \
   --port "$PORT" \
@@ -39,4 +50,5 @@ uv run --no-sync vllm serve "$MODEL_ID" \
   --enable-prefix-caching \
   --gpu-memory-utilization "$GPU_MEMORY_UTILIZATION" \
   --reasoning-parser nemotron_v3 \
-  --tool-call-parser qwen3_coder
+  --tool-call-parser qwen3_coder \
+  "${EP_ARGS[@]}"
