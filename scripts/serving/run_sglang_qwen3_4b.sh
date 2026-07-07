@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# !!! NOTE: DFLASH drafter model for Qwen/Qwen3-4B supports only NON-THINKING model!!
+# !!! NOTE: DFLASH drafter model for Qwen/Qwen3-4B-Instruct-2507 supports only NON-THINKING model!!
 # !!! NOTE: Qwen3 natively supports context lengths of up to 32,768 tokens, to use larger context length, yarn should be configured
 
 export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
@@ -15,7 +15,7 @@ export SGLANG_ENABLE_DFLASH_SPEC_V2=1
 export SGLANG_ENABLE_OVERLAP_PLAN_STREAM=1
 
 PORT=${PORT:-8124}
-MODEL_ID='Qwen/Qwen3-4B'
+MODEL_ID='Qwen/Qwen3-4B-Instruct-2507'
 CHUNKED_PREFILL_SIZE=8192
 CONTEXT_LENGTH=32768
 MEM_FRACTION_STATIC=0.875
