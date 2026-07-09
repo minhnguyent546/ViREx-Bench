@@ -45,7 +45,7 @@ for STRATEGY in direct cot cot-sc3 cot-sc5 tot-beam tot-dfs tot-mcts cr pot_z3; 
     --api-base "$API_BASE" \
     --api-key '<empty>' \
     --num-threads "$NUM_THREADS" \
-    --model-kwargs '{"temperature": 0.8, "top_p": 0.95, "top_k": 20, "presence_penalty": 1.5, "chat_template_kwargs": {"enable_thinking": false}}' \
+    --model-kwargs '{"temperature": 0.8, "top_p": 0.95, "chat_template_kwargs": {"enable_thinking": false}}' \
     --output-dir "$RESULTS_DIR" \
     --log-level "$LOG_LEVEL" \
     "${EXTRA_PARAMS[@]}"
