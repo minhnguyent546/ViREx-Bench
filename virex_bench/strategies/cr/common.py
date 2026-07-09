@@ -90,21 +90,21 @@ class PropositionValiditySignature(dspy.Signature):
 
 
 class PropositionMeaningfulnessSignature(dspy.Signature):
-    """Cheap pre-filter: is this a meaningful, substantive proposition?
-
-    Set is_useful = false when the proposition is:
-      - a non-answer or filler ("unknown", "unclear", "no proposition");
-      - empty or whitespace;
-      - a bare tautology that adds no information;
-      - a restatement of the question rather than a deduced fact.
-
-    Otherwise set is_useful = true.
-    """
+    """Verify if this is a meaningful and substantive proposition."""
 
     proposition: str = dspy.InputField(desc="The candidate proposition to screen.")
 
     is_useful: bool = dspy.OutputField(
-        desc="True if the proposition is a substantive, non-filler claim worth verifying; false otherwise."
+        # desc="True when the proposition is: True if the proposition is a substantive, non-filler claim worth verifying; false otherwise."
+        desc=(
+            "False when the proposition is:\n"
+            '- a non-answer or filler ("unknown", "unclear", "no proposition");\n'
+            "- empty or whitespace;\n"
+            "- a bare tautology that adds no information;\n"
+            "- a restatement of the question rather than a deduced fact.\n"
+            "\n"
+            "Otherwise set this field to True."
+        )
     )
 
 
