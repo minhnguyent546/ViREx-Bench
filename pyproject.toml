@@ -79,22 +79,22 @@ dev = [
     "tabulate>=0.9.0",
 ]
 vllm-v0-20 = [
-    "flashinfer-python>=0.6.8.post1",
-    "vllm",
+    "flashinfer-python>=0.6.8.post1; sys_platform == 'linux' and platform_machine == 'x86_64' and python_version == '3.12'",
+    "vllm; sys_platform == 'linux' and platform_machine == 'x86_64' and python_version == '3.12'",
 ]
 vllm-v0-23 = [
-    "flashinfer-python>=0.6.11",
-    "vllm==0.23.0",
-    "transformers>=5.10.1",  # to support `gemma4_unified` arch
+    "flashinfer-python>=0.6.11; sys_platform == 'linux' and platform_machine == 'x86_64' and python_version == '3.12'",
+    "vllm==0.23.0; sys_platform == 'linux' and platform_machine == 'x86_64' and python_version == '3.12'",
+    "transformers>=5.10.1; sys_platform == 'linux' and platform_machine == 'x86_64' and python_version == '3.12'",  # to support `gemma4_unified` arch
 ]
 sglang-spec-v2-dflash-support = [
-    "flashinfer-python>=0.6.8.post1",
-    "sglang",
+    "flashinfer-python>=0.6.8.post1; sys_platform == 'linux' and platform_machine == 'x86_64' and python_version == '3.12'",
+    "sglang; sys_platform == 'linux' and platform_machine == 'x86_64' and python_version == '3.12'",
 ]
 sglang-v0-5-14 = [
-    "flashinfer-python>=0.6.12",
-    "sglang",
-    "transformers<5.9.0",
+    "flashinfer-python>=0.6.12; sys_platform == 'linux' and platform_machine == 'x86_64' and python_version == '3.12'",
+    "sglang; sys_platform == 'linux' and platform_machine == 'x86_64' and python_version == '3.12'",
+    "transformers<5.9.0; sys_platform == 'linux' and platform_machine == 'x86_64' and python_version == '3.12'",
 ]
 
 [tool.uv]

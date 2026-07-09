@@ -138,6 +138,14 @@ hardware requirements and full instructions.
 uv sync --group vllm-v0-23        # or: uv sync --group sglang-v0-5-14
 ```
 
+> [!IMPORTANT]
+> These groups pull custom-built wheels (compiled against **glibc 2.31** so they run on
+> older Linux distros) that only target **Python 3.12, Linux, x86_64**. On anything else,
+> the sync still succeeds but quietly installs nothing from the group. So if a serving
+> import fails right after syncing, check `python --version` first — you likely need a
+> 3.12 environment (`uv venv --python 3.12`). The benchmark itself works fine on Python
+> 3.12–3.14.
+
 ## License
 
 This repository's source code and associated datasets are licensed under the GNU General Public License v3.0. See [LICENSE](LICENSE) for details.
