@@ -38,10 +38,6 @@ dependencies = [
     "loguru>=0.7.3",
     "pydantic>=2.10.0",
     "tqdm>=4.66.0",
-    "torch==2.11.0",
-    "torchvision==0.26.0",
-    "transformers>=5.6.0,<5.12.0",
-    "kernels>=0.14.1,<0.15.0",
     "z3-solver>=4.13.0,<4.15.5",
 ]
 
@@ -78,20 +74,30 @@ dev = [
     "ruff>=0.14.11",
     "tabulate>=0.9.0",
 ]
+serving-common = [
+    "torch==2.11.0; sys_platform == 'linux' and platform_machine == 'x86_64' and python_version == '3.12'",
+    "torchvision==0.26.0; sys_platform == 'linux' and platform_machine == 'x86_64' and python_version == '3.12'",
+    "transformers>=5.6.0,<5.12.0; sys_platform == 'linux' and platform_machine == 'x86_64' and python_version == '3.12'",
+    "kernels>=0.14.1,<0.15.0; sys_platform == 'linux' and platform_machine == 'x86_64' and python_version == '3.12'",
+]
 vllm-v0-20 = [
+    { include-group = "serving-common" },
     "flashinfer-python>=0.6.8.post1; sys_platform == 'linux' and platform_machine == 'x86_64' and python_version == '3.12'",
     "vllm; sys_platform == 'linux' and platform_machine == 'x86_64' and python_version == '3.12'",
 ]
 vllm-v0-23 = [
+    { include-group = "serving-common" },
     "flashinfer-python>=0.6.11; sys_platform == 'linux' and platform_machine == 'x86_64' and python_version == '3.12'",
     "vllm==0.23.0; sys_platform == 'linux' and platform_machine == 'x86_64' and python_version == '3.12'",
     "transformers>=5.10.1; sys_platform == 'linux' and platform_machine == 'x86_64' and python_version == '3.12'",  # to support `gemma4_unified` arch
 ]
 sglang-spec-v2-dflash-support = [
+    { include-group = "serving-common" },
     "flashinfer-python>=0.6.8.post1; sys_platform == 'linux' and platform_machine == 'x86_64' and python_version == '3.12'",
     "sglang; sys_platform == 'linux' and platform_machine == 'x86_64' and python_version == '3.12'",
 ]
 sglang-v0-5-14 = [
+    { include-group = "serving-common" },
     "flashinfer-python>=0.6.12; sys_platform == 'linux' and platform_machine == 'x86_64' and python_version == '3.12'",
     "sglang; sys_platform == 'linux' and platform_machine == 'x86_64' and python_version == '3.12'",
     "transformers<5.9.0; sys_platform == 'linux' and platform_machine == 'x86_64' and python_version == '3.12'",
