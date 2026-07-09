@@ -4,8 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "virex-bench"
-version = "0.1.1"
-dynamic = ["urls"]
+dynamic = ["version", "urls"]
 description = "ViREx-Bench: A framework for inference-time scaling on Vietnamese reasoning tasks."
 readme = "README.md"
 authors = [
@@ -49,6 +48,9 @@ dependencies = [
 [project.scripts]
 virex-bench = "virex_bench.cli:main"
 vb = "virex_bench.cli:main"
+
+[tool.hatch.version]
+source = "vcs"
 
 [tool.hatch.build.targets.wheel]
 packages = ["virex_bench"]

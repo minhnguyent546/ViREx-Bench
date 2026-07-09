@@ -41,6 +41,7 @@ _*
 /tmp/
 /report/
 /.bashrc
+/final_results/
 
 # datasets
 /data
