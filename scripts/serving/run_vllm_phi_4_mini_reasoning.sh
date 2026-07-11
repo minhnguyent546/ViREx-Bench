@@ -32,4 +32,5 @@ uv run --no-sync vllm serve "$MODEL_ID" \
   --max-model-len "$MAX_MODEL_LEN" \
   --max-num-seqs "$MAX_NUM_SEQS" \
   --enable-prefix-caching \
-  --gpu-memory-utilization "$GPU_MEMORY_UTILIZATION"
+  --gpu-memory-utilization "$GPU_MEMORY_UTILIZATION" \
+  --reasoning-parser deepseek_r1
