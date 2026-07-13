@@ -69,3 +69,8 @@ def list_strategies() -> list[str]:
         for variant in _STRATEGY_VARIANTS.get(base, []):
             names.append(f"{base}{_VARIANT_SEPARATOR}{variant}")
     return sorted(names)
+
+
+def strategy_descriptions() -> dict[str, str]:
+    """Map each base strategy name to its short description."""
+    return {name: cls.description for name, cls in _STRATEGY_REGISTRY.items()}

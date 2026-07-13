@@ -65,6 +65,7 @@ class PoTZ3Strategy(ReasoningStrategy):
     """
 
     name = "pot_z3"
+    description = "Program-of-Thought with Z3 symbolic execution."
     accepts_variant = False
 
     def __init__(

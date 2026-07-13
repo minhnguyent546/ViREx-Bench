@@ -8,6 +8,7 @@ class DirectStrategy(ReasoningStrategy):
     """Baseline: ask for the answer directly, no intermediate reasoning."""
 
     name = "direct"
+    description = "Baseline: answer directly with no intermediate reasoning."
 
     def __init__(
         self,

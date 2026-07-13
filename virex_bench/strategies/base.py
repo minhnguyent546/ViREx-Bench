@@ -19,6 +19,7 @@ class ReasoningStrategy(dspy.Module):
     """
 
     name: str = "base"
+    description: str = ""
     # Strategies that expose a CLI variant axis (e.g. ``tot-beam``) override this.
     accepts_variant: bool = False
 

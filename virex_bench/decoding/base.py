@@ -23,6 +23,7 @@ class DecodingStrategy(dspy.Module):
     """
 
     name: str = "base"
+    description: str = ""
 
     def __init__(self, strategy: ReasoningStrategy) -> None:
         super().__init__()
@@ -54,6 +55,7 @@ class SinglePass(DecodingStrategy):
     """Baseline decoding: a single candidate from the wrapped strategy."""
 
     name = "single-pass"
+    description = "Baseline: a single candidate from the wrapped strategy."
 
     def forward(self, **inputs: object) -> dspy.Prediction:
         return self.strategy(**inputs)

@@ -51,6 +51,7 @@ class SelfConsistency(DecodingStrategy):
     """
 
     name = "self-consistency"
+    description = "Sample N paths, majority-vote + LLM-aggregate the answer."
 
     def __init__(
         self,

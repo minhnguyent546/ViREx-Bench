@@ -93,6 +93,7 @@ class CRStrategy(ReasoningStrategy):
     """
 
     name = "cr"
+    description = "Cumulative Reasoning: accumulate verified propositions."
 
     def __init__(
         self,

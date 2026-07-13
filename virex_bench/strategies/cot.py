@@ -9,6 +9,7 @@ class CoTStrategy(ReasoningStrategy):
     """Chain-of-Thought: prompt the model to reason step by step before answering."""
 
     name = "cot"
+    description = "Chain-of-Thought: reason step by step before answering."
 
     def __init__(
         self,

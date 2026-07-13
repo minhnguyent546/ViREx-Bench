@@ -2,12 +2,14 @@ import argparse
 import json
 from typing import Any
 
+from tabulate import tabulate
+
 from virex_bench import __git_revision__, __version__, envs
-from virex_bench.decoding import get_decoding, list_decoding
+from virex_bench.decoding import decoding_descriptions, get_decoding, list_decoding
 from virex_bench.evaluation import evaluate, save_report
 from virex_bench.logger import init_logger, set_level
 from virex_bench.models import get_model
-from virex_bench.strategies import list_strategies
+from virex_bench.strategies import list_strategies, parse_strategy_name, strategy_descriptions
 from virex_bench.tasks import get_task, list_tasks
 
 logger = init_logger(__name__)
@@ -93,16 +95,69 @@ def _run(args: argparse.Namespace) -> None:
     save_report(report, args.output_dir)
 
 
+_DESCRIPTION_COLUMN_WIDTH = 56
+
+
+def _print_registry_table(title: str, headers: list[str], rows: list[list[str]]) -> None:
+    """Print a registry listing as an aligned table via ``tabulate``.
+
+    The last column (the description) is word-wrapped so long summaries stay
+    readable without blowing out the terminal width.
+    """
+    print(title)
+    print()
+    print(
+        tabulate(
+            rows,
+            headers=headers,
+            tablefmt="simple",
+            maxcolwidths=[None] * (len(headers) - 1) + [_DESCRIPTION_COLUMN_WIDTH],
+        )
+    )
+
+
 def _tasks(args: argparse.Namespace) -> None:
-    if args.list:
-        for name in list_tasks():
-            print(name)
+    if not args.list:
+        return
+    rows = [[name, get_task(name).metadata.description] for name in list_tasks()]
+    _print_registry_table(f"Available tasks ({len(rows)})", ["NAME", "DESCRIPTION"], rows)
 
 
 def _strategies(args: argparse.Namespace) -> None:
-    if args.list:
-        for name in list_strategies():
-            print(name)
+    if not args.list:
+        return
+    descriptions = strategy_descriptions()
+    grouped_variants: dict[str, list[str | None]] = {}
+    for name in list_strategies():
+        base_name, variant = parse_strategy_name(name)
+        grouped_variants.setdefault(base_name, []).append(variant)
+    rows: list[list[str]] = []
+    for base_name in sorted(grouped_variants):
+        variants = [entry for entry in grouped_variants[base_name] if entry is not None]
+        rows.append(
+            [
+                base_name,
+                descriptions.get(base_name, ""),
+                ", ".join(variants),
+            ]
+        )
+    _print_registry_table(
+        f"Available strategies ({len(rows)})",
+        ["NAME", "DESCRIPTION", "VARIANTS"],
+        rows,
+    )
+
+
+def _decodings(args: argparse.Namespace) -> None:
+    if not args.list:
+        return
+    descriptions = decoding_descriptions()
+    rows = [[name, descriptions.get(name, "")] for name in list_decoding()]
+    _print_registry_table(
+        f"Available decoding strategies ({len(rows)})",
+        ["NAME", "DESCRIPTION"],
+        rows,
+    )
 
 
 def _add_run_opts(parser: argparse.ArgumentParser) -> None:
@@ -177,17 +232,37 @@ def _add_run_opts(parser: argparse.ArgumentParser) -> None:
         type=str,
         default="single-pass",
         choices=list_decoding(),
-        help="Decoding strategy name (single-pass, self-consistency)",
+        help="Decoding strategy name",
     )
     parser.add_argument(
         "--self-consistency-num-samples",
         dest="decoding_num_samples",
-        metavar="SELF_CONSISTENCY_NUM_SAMPLES",
+        metavar="NUM_SAMPLES",
         type=_parse_positive_int,
         default=None,
         help=(
-            "Number of candidate generations for self-consistency decoding "
-            "(overrides VIREX_BENCH_SC_NUM_SAMPLES)"
+            "Number of candidate generations for self-consistency / "
+            "self-certainty decoding (overrides VIREX_BENCH_SC_NUM_SAMPLES / "
+            "VIREX_BENCH_SELFC_NUM_SAMPLES)"
+        ),
+    )
+    parser.add_argument(
+        "--self-certainty-num-samples",
+        dest="decoding_num_samples",
+        metavar="NUM_SAMPLES",
+        type=_parse_positive_int,
+        default=None,
+        help="Alias for --self-consistency-num-samples (self-certainty decoding).",
+    )
+    parser.add_argument(
+        "--self-certainty-borda-power",
+        metavar="BORDA_POWER",
+        type=float,
+        default=None,
+        help=(
+            "Borda voting exponent for self-certainty decoding "
+            "(0 = majority vote, larger = pure certainty selection; overrides "
+            "VIREX_BENCH_SELFC_BORDA_POWER)"
         ),
     )
     parser.add_argument(
@@ -214,6 +289,15 @@ def _add_strategies_opts(parser: argparse.ArgumentParser) -> None:
         "--list",
         action="store_true",
         help="List available strategies",
+    )
+
+
+def _add_decodings_opts(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "-l",
+        "--list",
+        action="store_true",
+        help="List available decoding strategies",
     )
 
 
@@ -257,6 +341,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_strategies_opts(strategies_parser)
     strategies_parser.set_defaults(func=_strategies)
+
+    # decodings subcommand
+    decodings_parser = subparsers.add_parser(
+        "decodings",
+        help="Inspect available decoding strategies",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    _add_decodings_opts(decodings_parser)
+    decodings_parser.set_defaults(func=_decodings)
 
     return parser
 

@@ -24,3 +24,8 @@ def get_decoding(
 
 def list_decoding() -> list[str]:
     return sorted(_DECODING_REGISTRY)
+
+
+def decoding_descriptions() -> dict[str, str]:
+    """Map each decoding name to its short description."""
+    return {name: cls.description for name, cls in _DECODING_REGISTRY.items()}

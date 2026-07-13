@@ -122,6 +122,7 @@ class ToTStrategy(ReasoningStrategy):
     """
 
     name = "tot"
+    description = "Tree of Thoughts: search over reasoning steps."
     accepts_variant = True
 
     def __init__(
