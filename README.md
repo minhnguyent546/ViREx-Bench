@@ -7,6 +7,7 @@
 <p align="center">
   <a href="#installation">Installation</a> ·
   <a href="#example-of-usage">Example of Usage</a> ·
+  <a href="#strategies--decoding-reference">Strategies &amp; Decoding Reference</a> ·
   <a href="#development">Development</a>
 </p>
 
@@ -108,6 +109,68 @@ report = vb.evaluate(
 vb.save_report(report, "./results")
 
 print(f"{report.metric}={report.score:.4f} over {report.num_evaluated_examples} examples")
+```
+
+## Strategies & Decoding Reference
+
+Every ViREx-Bench run is a **task × model × strategy × decoding** combination. You pick a prompting strategy with `--strategy` and (optionally) a decoding strategy with `--decoding` — everything else is a tuning knob with a sensible default. If you omit `--decoding`, the single-pass baseline is used.
+
+> **See what's available at any time:**
+> ```bash
+> uv run vb strategies --list   # prompting strategies (--strategy)
+> uv run vb decodings --list    # decoding strategies (--decoding)
+> uv run vb tasks --list        # tasks / datasets (--task)
+> ```
+
+### Prompting strategies (`--strategy`)
+
+Inference-time scaling methods. Each wraps a `dspy.Module`; cost rises roughly with the number of internal LM calls per example, so `direct` is cheapest and the `tot-*` searches are the most expensive. All knobs are optional environment variables — the defaults give reasonable behavior out of the box.
+
+| Name | `--strategy` value | What it does | Key knobs (env vars) |
+|---|---|---|---|
+| **Direct** | `direct` | Baseline — ask for the answer directly, no intermediate reasoning. Cheapest option and the reference every other strategy is measured against. | — |
+| **Chain-of-Thought** | `cot` | Reason step by step, then answer (single call). | — |
+| **Cumulative Reasoning** | `cr` | Propose → verify propositions into entailed / contradicted / undetermined buckets, then feed the accumulated context to a solver. | `VIREX_BENCH_CR_TARGET_PROPOSITIONS`, `VIREX_BENCH_CR_VERIFIER_MODE` (`single` / `multi`), `VIREX_BENCH_CR_N_PROPOSE_SAMPLES` |
+| **Tree of Thoughts** | `tot` | Search over a tree of reasoning steps, then commit an answer. Bare `tot` picks its search algorithm from `VIREX_BENCH_TOT_SEARCH_ALGORITHM` (default `beam`); the three composite names below pin it explicitly. | `VIREX_BENCH_TOT_MAX_DEPTH`, `VIREX_BENCH_TOT_BRANCHING_FACTOR`, `VIREX_BENCH_TOT_EVAL_SAMPLES` |
+| &nbsp;&nbsp;↳ with beam search | `tot-beam` | ToT's BFS — keep the top `VIREX_BENCH_TOT_BEAM_WIDTH` paths per layer; early-stop at `VIREX_BENCH_TOT_BEAM_EARLY_STOP_THRESHOLD`. | `VIREX_BENCH_TOT_BEAM_WIDTH`, `VIREX_BENCH_TOT_BEAM_EARLY_STOP_THRESHOLD` |
+| &nbsp;&nbsp;↳ with DFS | `tot-dfs` | Depth-first with value pruning (`VIREX_BENCH_TOT_DFS_PRUNE_THRESHOLD`) and stop-on-success (`VIREX_BENCH_TOT_DFS_STOP_THRESHOLD`). | `VIREX_BENCH_TOT_DFS_PRUNE_THRESHOLD`, `VIREX_BENCH_TOT_DFS_STOP_THRESHOLD`, `VIREX_BENCH_TOT_DFS_MAX_ITERATIONS` |
+| &nbsp;&nbsp;↳ with MCTS | `tot-mcts` | Monte-Carlo Tree Search with UCT exploration (`VIREX_BENCH_TOT_MCTS_EXPLORATION_CONSTANT`). | `VIREX_BENCH_TOT_MCTS_EXPLORATION_CONSTANT`, `VIREX_BENCH_TOT_MCTS_MAX_ITERATIONS`, `VIREX_BENCH_TOT_MCTS_STOP_THRESHOLD` |
+| **Program-of-Thought + Z3** | `pot_z3` | Generate a Z3 program from the premises, execute it in a sandboxed interpreter, regenerate on failure, then commit a Vietnamese answer from the solver output. | `VIREX_BENCH_POT_MAX_ITERS`, `VIREX_BENCH_POT_EXECUTION_TIMEOUT`, `VIREX_BENCH_POT_FALLBACK_ON_ERROR` |
+
+> The `tot-beam`, `tot-dfs`, and `tot-mcts` names are just `tot` with the search algorithm pinned — use them when you want a specific search without setting an env var.
+
+> Sampling temperatures for ToT / CR / PoT roles default to inheriting the model's `--model-kwargs` profile; set the corresponding `*_TEMPERATURE` env var to override. The full list of knobs lives in [`docs/ENVIRONMENT_VARIABLES.md`](docs/ENVIRONMENT_VARIABLES.md).
+
+### Decoding strategies
+
+Answer aggregation methods (`--decoding`), which wrap a prompting strategy and control how many candidates are sampled and merged.
+
+| Name | `--decoding` | What it does | Compatible strategies | Key knobs |
+|---|---|---|---|---|
+| **Single-pass** | `single-pass` | Baseline — a single candidate from the wrapped strategy. | all | — |
+| **Self-consistency** | `self-consistency` | Sample N paths in parallel, deterministic majority-vote, then an LLM aggregator synthesizes a clean answer (vote winner is the fallback; disable with `VIREX_BENCH_SC_USE_AGGREGATOR=0`). | `direct`, `cot` | `--self-consistency-num-samples N`, `VIREX_BENCH_SC_NUM_SAMPLES`, `VIREX_BENCH_SC_USE_AGGREGATOR` |
+| **Self-certainty** | `self-certainty` | Sample N candidates, score each by mean token log-prob, then Borda-vote (power 0 = plain majority vote). | `direct`, `cot` | `--self-certainty-num-samples N`, `--self-certainty-borda-power P`, `VIREX_BENCH_SELFC_*` |
+
+> Self-consistency and self-certainty require `temperature > 0` on the model under test for sample diversity. Self-certainty additionally needs an endpoint that returns token `logprobs` (otherwise it falls back to plain majority vote).
+
+### Combining strategy × decoding
+
+A few representative recipes (common endpoint flags `--backend`, `--api-base`, `--api-key`, `--task`, `--output-dir` are omitted for brevity — see the [Example of Usage](#example-of-usage)):
+
+```bash
+# Chain-of-Thought + self-consistency (5 samples)
+uv run vb run --model Qwen/Qwen3.5-4B --strategy cot \
+  --decoding self-consistency --self-consistency-num-samples 5
+
+# Tree-of-Thoughts with MCTS search, single-pass decoding
+uv run vb run --model Qwen/Qwen3.5-4B --strategy tot-mcts --decoding single-pass
+
+# Direct baseline + self-certainty (8 samples, Borda power 0.5)
+uv run vb run --model Qwen/Qwen3.5-4B --strategy direct \
+  --decoding self-certainty --self-certainty-num-samples 8 --self-certainty-borda-power 0.5
+
+# Program-of-Thought (Z3) + single-pass
+uv run vb run --model Qwen/Qwen3.5-4B --strategy pot_z3 --decoding single-pass
 ```
 
 ## Development
