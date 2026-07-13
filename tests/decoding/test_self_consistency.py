@@ -41,10 +41,22 @@ class _FakeTaskNoAgg:
     aggregation_signature: type[dspy.Signature] | None = None
 
 
+class _NamedStub(ReasoningStrategy):
+    """Minimal strategy carrying an arbitrary ``name`` for compatibility tests."""
+
+    def __init__(self, strategy_name: str) -> None:
+        super().__init__(_TestSignature)
+        self.name = strategy_name
+
+    def forward(self, **_inputs: object) -> dspy.Prediction:
+        return dspy.Prediction(answer="x")
+
+
 class _FakeStrategy(ReasoningStrategy):
     """Returns canned ``dspy.Prediction``s in sequence, one per ``forward`` call."""
 
-    name = "fake"
+    # "direct" so the compatibility guard accepts it.
+    name = "direct"
 
     def __init__(self, predictions: list[dspy.Prediction]) -> None:
         super().__init__(_TestSignature)
@@ -62,7 +74,7 @@ class _FakeStrategy(ReasoningStrategy):
 
 
 class _RaisingStrategy(ReasoningStrategy):
-    name = "raising"
+    name = "direct"
 
     def __init__(self) -> None:
         super().__init__(_TestSignature)
@@ -335,3 +347,26 @@ def test_forward_aggregator_call_fails_falls_back_to_vote_winner() -> None:
     assert result.decoding_stats["total_samples"] == 2
     assert result.decoding_stats["aggregator_applied"] is False
     assert raising_agg.call_count == 1
+
+
+def test_supports_strategy_accepts_single_call_strategies() -> None:
+    assert SelfConsistency.supports_strategy(_NamedStub("direct"))
+    assert SelfConsistency.supports_strategy(_NamedStub("cot"))
+
+
+def test_supports_strategy_rejects_multi_step_strategies() -> None:
+    assert not SelfConsistency.supports_strategy(_NamedStub("cr"))
+    assert not SelfConsistency.supports_strategy(_NamedStub("tot"))
+    # Composite names are reduced to their base name before the membership check.
+    assert not SelfConsistency.supports_strategy(_NamedStub("tot-mcts"))
+    assert not SelfConsistency.supports_strategy(_NamedStub("pot"))
+
+
+def test_self_consistency_rejects_incompatible_strategy_at_construction() -> None:
+    with pytest.raises(ValueError, match="not compatible with strategy 'tot-mcts'"):
+        SelfConsistency(_NamedStub("tot-mcts"), num_samples=1, max_workers=1)
+
+
+def test_self_consistency_error_message_lists_compatible_strategies() -> None:
+    with pytest.raises(ValueError, match="compatible strategies: cot, direct"):
+        SelfConsistency(_NamedStub("cr"), num_samples=1, max_workers=1)

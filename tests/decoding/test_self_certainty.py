@@ -21,7 +21,6 @@ from virex_bench.decoding.self_certainty import (
     _last_completion_logprobs,
     _mean_logprob,
 )
-from virex_bench.decoding.self_consistency import SelfConsistency
 from virex_bench.models.base import BaseLM
 from virex_bench.strategies.base import ReasoningStrategy
 
@@ -398,3 +397,39 @@ def test_registry_lists_and_resolves_self_certainty() -> None:
 def test_registry_rejects_unknown_decoding() -> None:
     with pytest.raises(KeyError, match="Unknown decoding"):
         get_decoding("nope", _FakeStrategy([]))  # pyright: ignore[reportArgumentType]
+
+
+def test_supports_strategy_accepts_single_call_strategies() -> None:
+    assert SelfCertainty.supports_strategy(_NamedStub("direct"))
+    assert SelfCertainty.supports_strategy(_NamedStub("cot"))
+
+
+def test_supports_strategy_rejects_multi_step_strategies() -> None:
+    assert not SelfCertainty.supports_strategy(_NamedStub("cr"))
+    assert not SelfCertainty.supports_strategy(_NamedStub("tot"))
+    # Composite names are reduced to their base name before the membership check.
+    assert not SelfCertainty.supports_strategy(_NamedStub("tot-mcts"))
+    assert not SelfCertainty.supports_strategy(_NamedStub("pot"))
+
+
+def test_self_certainty_rejects_incompatible_strategy_at_construction() -> None:
+    with pytest.raises(ValueError, match="not compatible with strategy 'tot-mcts'"):
+        SelfCertainty(_NamedStub("tot-mcts"), num_samples=1, max_workers=1)
+
+
+def test_self_certainty_error_message_lists_compatible_strategies() -> None:
+    with pytest.raises(ValueError, match="compatible strategies: cot, direct"):
+        SelfCertainty(_NamedStub("cr"), num_samples=1, max_workers=1)
+
+
+def test_accept_all_decodings_support_any_strategy() -> None:
+    # SinglePass leaves compatible_strategies = None (default), so it accepts every
+    # strategy including multi-step composite names.
+    assert SinglePass.compatible_strategies is None
+    for stub in (_NamedStub("direct"), _NamedStub("cr"), _NamedStub("tot-mcts")):
+        assert SinglePass.supports_strategy(stub)
+
+
+def test_get_decoding_guard_surfaces_for_incompatible_combination() -> None:
+    with pytest.raises(ValueError, match="not compatible"):
+        get_decoding("self-certainty", _NamedStub("tot"), num_samples=1, max_workers=1)
