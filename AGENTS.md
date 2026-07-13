@@ -18,11 +18,13 @@ registry for what is currently implemented):
 - **Prompting / inference-time scaling** (`strategies/`): Chain-of-Thought (CoT),
   Tree-of-Thought (ToT) with pluggable search (beam, DFS, MCTS), Cumulative Reasoning
   (CR), Self-Consistency, and Program-of-Thought with symbolic reasoning (Z3 solver).
-  *Implemented: direct baseline, CoT, CR, ToT (beam + DFS + MCTS search).*
+  *Implemented: direct baseline, CoT, CR, ToT (beam + DFS + MCTS search), PoT with Z3
+  symbolic reasoning (`pot_z3`).*
 - **Decoding** (`decoding/`): the baseline (single candidate, or multiple candidates
   aggregated by majority vote), Best-of-N with a verifier, and speculative decoding to
   speed up inference. *Implemented: single-pass baseline, self-consistency (N-sample
-  majority vote + LLM aggregation).*
+  majority vote + LLM aggregation), self-certainty (N-sample mean-logprob Borda vote;
+  `direct`/`cot` only).*
 
 **DSPy** is the main framework for implementing reasoning strategies. The CLI design is
 modeled on [`mteb`](https://github.com/embeddings-benchmark/mteb) — a CLI is sufficient
@@ -52,9 +54,10 @@ uv run virex-bench run \
 # `vb` is a shorter alias for `virex-bench`
 uv run vb run --model Qwen/Qwen3.5 --strategy cot
 
-# Inspect available tasks / strategies
+# Inspect available tasks / strategies / decodings
 uv run virex-bench tasks --list
 uv run virex-bench strategies --list
+uv run virex-bench decodings --list
 ```
 
 ### File-scoped fast feedback
@@ -73,7 +76,8 @@ CLI), with two extra axes for reasoning and decoding.
 
 ```
 virex_bench/
-├── cli/            # argparse CLI: `virex-bench run | tasks | strategies`
+├── cli/            # argparse CLI: `virex-bench run | tasks | strategies | decodings`
+│   ├── __init__.py #  re-exports build_parser / main
 │   └── build_cli.py #  build_parser / main + subcommand handlers
 ├── envs.py         # centralized, lazily-read environment variables (vLLM-style)
 ├── logger.py       # init_logger(__name__) — shared logging setup
@@ -81,39 +85,47 @@ virex_bench/
 ├── types/          # pydantic data models + type aliases (mirrors mteb/types)
 │   ├── __init__.py #   re-exports all public types
 │   ├── _task.py    #   ReasoningExample, DatasetConfig, TaskMetadata
-│   ├── _result.py  #   TaskResult, EvaluationReport, JudgeOutcome
+│   ├── _result.py  #   TaskResult, EvaluationReport, JudgeOutcome, ScoreComponents, CategoryScore
 │   └── _metric.py  #   ReasoningMetric callable alias
 ├── tasks/          # reasoning datasets + registry
+│   ├── __init__.py #   re-exports ReasoningTask, get_task, list_tasks
 │   ├── base.py     #   ReasoningTask base class
 │   ├── registry.py #   get_task / list_tasks
 │   └── vietnamese_logical_reasoning.py
 ├── models/         # LM layer — OpenAI-compatible endpoints via dspy.LM
 │   ├── __init__.py #   get_model
-│   ├── base.py     #   BaseLM(dspy.LM) wrapper
+│   ├── base.py     #   BaseLM(dspy.LM) wrapper + CapturingLMWrapper delegating base
 │   └── backends.py #   load_backend: build a BaseLM for an OpenAI-compatible endpoint
 ├── strategies/     # PROMPTING / inference-time scaling (dspy.Module subclasses)
 │   ├── base.py     #   ReasoningStrategy base class (+ accepts_variant flag)
-│   ├── registry.py #   get_strategy / list_strategies + composite-name parsing (direct, cot, cr, tot[-beam|-dfs|-mcts])
+│   ├── registry.py #   get_strategy / list_strategies + composite-name parsing (direct, cot, cr, pot_z3, tot[-beam|-dfs|-mcts])
 │   ├── direct.py   #   baseline: direct answer
 │   ├── cot.py      #   Chain-of-Thought
 │   ├── modules.py  #   reusable dspy modules: ChainOfThought, DualTask2ChainOfThought, ThinkingCaptureLM
 │   ├── cr/         #   Cumulative Reasoning strategy package (Zhang et al., 2023)
 │   │   ├── strategy.py # CRStrategy — propose/verify accumulation loop + solver
 │   │   └── common.py   # shared signatures + helpers (proposer/verifiers, CRConfig, verdict buckets)
-│   └── tot/        #   Tree-of-Thoughts strategy package (Yao et al., 2023)
-│       ├── strategy.py # ToTStrategy — propose/evaluate/aggregate over a thought tree
-│       ├── common.py  # shared signatures + helpers (proposer/evaluator, scoring, dedupe)
-│       └── search/     # pluggable search algorithms (beam, DFS, MCTS)
-│           ├── __init__.py # search registry: build_search / list_search
-│           ├── base.py     # SearchConfig, SearchResult, ThoughtSearch ABC
-│           ├── beam.py     # BeamSearch (ToT's BFS)
-│           ├── dfs.py      # DFSSearch (backtracking + value pruning)
-│           └── mcts.py     # MCTSSearch (Monte-Carlo Tree Search)
+│   ├── tot/        #   Tree-of-Thoughts strategy package (Yao et al., 2023)
+│   │   ├── strategy.py # ToTStrategy — propose/evaluate/aggregate over a thought tree
+│   │   ├── common.py  # shared signatures + helpers (proposer/evaluator, scoring, dedupe)
+│   │   └── search/     # pluggable search algorithms (beam, DFS, MCTS)
+│   │       ├── __init__.py # search registry: build_search / list_search
+│   │       ├── base.py     # SearchConfig, SearchResult, ThoughtSearch ABC
+│   │       ├── beam.py     # BeamSearch (ToT's BFS)
+│   │       ├── dfs.py      # DFSSearch (backtracking + value pruning)
+│   │       └── mcts.py     # MCTSSearch (Monte-Carlo Tree Search)
+│   └── pot/        #   Program-of-Thought + Z3 symbolic reasoning strategy package
+│       ├── strategy.py    # PoTZ3Strategy — generate Z3 program / execute / commit to task fields
+│       ├── interpreter.py # LocalZ3PythonInterpreter — sandboxed subprocess executor
+│       └── common.py      # signatures + helpers (ProgramGenerationSignature, POTConfig, code extraction)
 ├── decoding/       # DECODING / answer aggregation
 │   ├── base.py     #   DecodingStrategy base + SinglePass (single-candidate baseline)
-│   ├── registry.py #   get_decoding / list_decoding
-│   └── self_consistency.py # SelfConsistency: N-sample majority vote + LLM aggregation
+│   ├── common.py   #   shared helpers (normalize_case_and_whitespaces, copy_lm_with_request_timeout, run_parallel_paths)
+│   ├── registry.py #   get_decoding / list_decoding / decoding_descriptions
+│   ├── self_consistency.py # SelfConsistency: N-sample majority vote + LLM aggregation
+│   └── self_certainty.py   # SelfCertainty: N-sample mean-logprob Borda vote (direct/cot only)
 ├── evaluation/     # orchestration + scoring + LLM-as-a-judge
+│   ├── __init__.py #   re-exports evaluate / save_report + judge & metric registries
 │   ├── evaluate.py #   task × model × strategy loop + report serialization (save_report)
 │   ├── metrics.py  #   accuracy metrics + METRIC_REGISTRY / get_metric / judge_example
 │   └── judge.py    #   LLMJudge base, LogicalReasoningJudge, JUDGE_REGISTRY / build_judge
@@ -122,7 +134,7 @@ virex_bench/
 data/               # datasets (managed externally — do not edit by hand)
 notebooks/          # dataset-prep notebooks (e.g. eval-round → HF dataset conversion)
 scripts/            # dataset translation helpers + model-serving launchers (serving/)
-tests/              # pytest suite — mirrors the package layout (cli / evaluation / strategies [+ cr, tot])
+tests/              # pytest suite — mirrors the package layout (cli / decoding / evaluation / models / tasks / strategies [+ cr, tot, pot])
 results/            # benchmark run outputs
 ```
 
@@ -145,7 +157,7 @@ results/            # benchmark run outputs
 - **Pydantic**: Use `pydantic.BaseModel` for data models (examples, configs, results, reports) — not `dataclasses`. Serialize with `model_dump()` / `model_dump_json()`.
 - **Logging**: Use the shared logger — `from virex_bench.logger import init_logger` then `logger = init_logger(__name__)` at module top. Prefer f-strings in logging calls over `%`-style logger formatting. Do not call `print()` for diagnostics or configure `logging` directly (CLI user-facing output via `print` is fine).
 - **Env vars**: All environment variables go through `virex_bench/envs.py` — never read `os.environ` directly elsewhere. Add a typed declaration in the `TYPE_CHECKING` block and a lazy `lambda` entry in `environment_variables`, then access via `from virex_bench import envs` / `envs.VAR_NAME`. Access is lazy (read at use time, not import time), so set vars before first access.
-- **CLI**: `argparse`-based subcommands (`run`, `tasks`, `strategies`), modeled on `mteb`. Both `virex-bench` and the short alias `vb` map to `cli:main`. Keep command handlers thin — delegate to `evaluation/`, `tasks/`, `models/`.
+- **CLI**: `argparse`-based subcommands (`run`, `tasks`, `strategies`, `decodings`), modeled on `mteb`. Both `virex-bench` and the short alias `vb` map to `cli:main`. Keep command handlers thin — delegate to `evaluation/`, `tasks/`, `models/`.
 - **File path:** Use raw `str` for file paths and `os.path` for path manipulations. Avoid `pathlib.Path` to keep things simple and consistent across the codebase.
 - **Variable names:** Use verbose, self-documenting names. Avoid short abbreviations (e.g., `ri`, `ip`, `ua`, `ui`, `el`, `t`) — prefer `request_metadata`, `client_ip`, `client_user_agent`, `elapsed`, etc. Single-letter names are only acceptable as loop indices or in very narrow local scopes (e.g., list comprehensions).
 - **None check:** Use `if x is None` and `if x is not None` for checking if a variable is `None`. Avoid truthy/falsy checks like `if x` or `if not x` when the variable can have valid falsy values (e.g., empty string, zero, empty list).
