@@ -70,6 +70,8 @@ def _run(args: argparse.Namespace) -> None:
     decoding_kwargs: dict[str, object] = {}
     if args.decoding_num_samples is not None:
         decoding_kwargs["num_samples"] = args.decoding_num_samples
+    if args.self_certainty_borda_power is not None:
+        decoding_kwargs["borda_power"] = args.self_certainty_borda_power
     decoding_strategy = get_decoding(args.decoding, strategy, **decoding_kwargs)
 
     report = evaluate(

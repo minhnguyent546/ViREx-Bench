@@ -1,12 +1,14 @@
 from typing import Any
 
 from virex_bench.decoding.base import DecodingStrategy, SinglePass
+from virex_bench.decoding.self_certainty import SelfCertainty
 from virex_bench.decoding.self_consistency import SelfConsistency
 from virex_bench.strategies.base import ReasoningStrategy
 
 _DECODING_REGISTRY: dict[str, type[DecodingStrategy]] = {
     SinglePass.name: SinglePass,
     SelfConsistency.name: SelfConsistency,
+    SelfCertainty.name: SelfCertainty,
 }
 
 

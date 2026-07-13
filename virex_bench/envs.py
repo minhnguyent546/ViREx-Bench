@@ -167,6 +167,17 @@ if TYPE_CHECKING:
     # Whether to use the LLM aggregator (False = deterministic vote only).
     VIREX_BENCH_SC_USE_AGGREGATOR: bool = True
 
+    # --- Self-certainty decoding ---
+    # Number of independent reasoning paths sampled per example.
+    VIREX_BENCH_SELFC_NUM_SAMPLES: int = 5
+    # Maximum parallel workers for the path thread pool.
+    VIREX_BENCH_SELFC_MAX_WORKERS: int = 5
+    # Per-path wall-clock timeout (seconds).
+    VIREX_BENCH_SELFC_SOLVE_TIMEOUT: int = 360
+    # Borda voting exponent. 0 -> plain majority vote (self-consistency);
+    # larger -> pure certainty selection. The paper's code default is 0.5.
+    VIREX_BENCH_SELFC_BORDA_POWER: float = 0.5
+
 
 def get_bool(env_name: str, default: str) -> bool:
     """Parse a boolean env var. Truthy values: 1, true, yes, on (case-insensitive)."""
@@ -374,6 +385,19 @@ environment_variables: dict[str, Callable[[], Any]] = {
         os.environ.get("VIREX_BENCH_SC_AGGREGATE_TIMEOUT", "120")
     ),
     "VIREX_BENCH_SC_USE_AGGREGATOR": lambda: get_bool("VIREX_BENCH_SC_USE_AGGREGATOR", "1"),
+    # --- Self-certainty decoding ---
+    "VIREX_BENCH_SELFC_NUM_SAMPLES": lambda: int(
+        os.environ.get("VIREX_BENCH_SELFC_NUM_SAMPLES", "5")
+    ),
+    "VIREX_BENCH_SELFC_MAX_WORKERS": lambda: int(
+        os.environ.get("VIREX_BENCH_SELFC_MAX_WORKERS", "5")
+    ),
+    "VIREX_BENCH_SELFC_SOLVE_TIMEOUT": lambda: int(
+        os.environ.get("VIREX_BENCH_SELFC_SOLVE_TIMEOUT", "360")
+    ),
+    "VIREX_BENCH_SELFC_BORDA_POWER": lambda: float(
+        os.environ.get("VIREX_BENCH_SELFC_BORDA_POWER", "0.5")
+    ),
 }
 
 
