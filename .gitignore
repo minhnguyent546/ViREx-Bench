@@ -42,6 +42,10 @@ _*
 /report/
 /.bashrc
 /final_results/
+/.analysis
+/.plans
+/*.tar.gz
+
 
 # datasets
 /data

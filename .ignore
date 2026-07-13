@@ -2,3 +2,5 @@
 !*.log
 !/logs/
 !/log
+!/.analysis
+!/.plans
