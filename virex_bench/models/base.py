@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, ClassVar
 
 import dspy
 import litellm.exceptions
@@ -87,3 +87,25 @@ class BaseLM(dspy.LM):
         return await tenacity.AsyncRetrying(**_build_retry_kwargs())(
             super().aforward, prompt=prompt, messages=messages, **kwargs
         )
+
+
+class CapturingLMWrapper(BaseLM):
+    """Base for LM wrappers that delegate attribute access to a wrapped base LM.
+
+    Subclasses declare capture attributes in ``_local_attrs`` and override
+    ``__call__``/``acall`` to stash data from each completion.
+    """
+
+    _local_attrs: ClassVar[tuple[str, ...]] = ()
+
+    def __init__(self, base_lm: BaseLM) -> None:
+        object.__setattr__(self, "_base_lm", base_lm)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._base_lm, name)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if name == "_base_lm" or name in self._local_attrs:
+            object.__setattr__(self, name, value)
+        else:
+            setattr(self._base_lm, name, value)

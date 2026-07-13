@@ -4,27 +4,19 @@ from typing import Any
 import dspy
 from pydantic.fields import FieldInfo
 
-from virex_bench.models.base import BaseLM
+from virex_bench.models.base import BaseLM, CapturingLMWrapper
 
 
-class ThinkingCaptureLM(BaseLM):
+class ThinkingCaptureLM(CapturingLMWrapper):
+    """A wrapper around a base LM that captures the last reasoning content and response."""
+
+    _local_attrs = ("last_thinking", "last_messages", "last_response")
+
     def __init__(self, base_lm: BaseLM):
-        """
-        A wrapper around a base language model that captures the last reasoning content and response.
-        """
-        object.__setattr__(self, "_base_lm", base_lm)
+        super().__init__(base_lm)
         object.__setattr__(self, "last_thinking", "")
         object.__setattr__(self, "last_messages", None)
         object.__setattr__(self, "last_response", "")
-
-    def __getattr__(self, name: str):
-        return getattr(self._base_lm, name)
-
-    def __setattr__(self, name: str, value):
-        if name in ("_base_lm", "last_thinking", "last_messages", "last_response"):
-            object.__setattr__(self, name, value)
-        else:
-            setattr(self._base_lm, name, value)
 
     def __call__(
         self,
