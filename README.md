@@ -15,10 +15,13 @@
         <img alt="Zenodo DOI" src="https://zenodo.org/badge/1272222849.svg">
     </a>
     <a href="https://github.com/minhnguyent546/ViREx-Bench/releases">
-        <img alt="ViREX-Bench latest release" src="https://img.shields.io/github/v/release/minhnguyent546/ViREx-Bench.svg">
+        <img alt="ViREX-Bench latest release" src="https://img.shields.io/github/v/release/minhnguyent546/ViREx-Bench.svg?color=green">
     </a>
     <a href="https://github.com/minhnguyent546/ViREx-Bench/blob/main/LICENSE">
-        <img alt="License" src="https://img.shields.io/github/license/minhnguyent546/ViREx-Bench">
+        <img alt="License" src="https://img.shields.io/github/license/minhnguyent546/ViREx-Bench?color=blue">
+    </a>
+    <a href="https://pepy.tech/projects/virex-bench">
+        <img alt="PyPI downloads" src="https://static.pepy.tech/personalized-badge/virex-bench?period=total&units=international_system&left_color=grey&right_color=orange&left_text=Downloads">        
     </a>
 </p>
 
