@@ -106,10 +106,17 @@ class SelfCertainty(DecodingStrategy):
     Borda-weighted vote ``(N - rank + 1) ** borda_power`` for its normalized answer.
     ``borda_power = 0`` reproduces plain majority vote; degrades to it when the
     endpoint returns no log-probs. Requires ``temperature > 0`` for diversity.
+
+    Restricted to single-call strategies (``direct``, ``cot``): the certainty signal
+    is the mean log-prob of the answer-generating LM call. Multi-step strategies
+    (``cr``, ``tot``, ``pot``) issue many internal calls, so the captured log-probs
+    would reflect an arbitrary internal completion rather than the answer, turning the
+    Borda weighting into noise.
     """
 
     name = "self-certainty"
     description = "Sample N candidates, score by mean log-prob, Borda vote."
+    compatible_strategies = {"direct", "cot"}
 
     def __init__(
         self,

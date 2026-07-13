@@ -51,10 +51,16 @@ class SelfConsistency(DecodingStrategy):
     :meth:`configure_from_task` raises. All knobs default from the
     ``VIREX_BENCH_SC_*`` env vars; explicit kwargs override. Requires
     ``temperature > 0`` on the model under test for sample diversity.
+
+    Restricted to single-call strategies (``direct``, ``cot``). Multi-step strategies
+    (``cr``, ``tot``, ``pot``) run their own internal search and aggregation, so an
+    outer majority vote would stack two aggregation layers rather than sampling
+    independent reasoning paths.
     """
 
     name = "self-consistency"
     description = "Sample N paths, majority-vote + LLM-aggregate the answer."
+    compatible_strategies = {"direct", "cot"}
 
     def __init__(
         self,
