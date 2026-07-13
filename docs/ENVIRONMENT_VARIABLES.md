@@ -6,17 +6,22 @@ to the listed default.
 
 Table of Contents
 ===
-* [Environment Variables](#environment-variables)
-   * [Logging](#logging)
-   * [Paths](#paths)
-   * [Model Endpoint (OpenAI-compatible)](#model-endpoint-openai-compatible)
-   * [HuggingFace Hub](#huggingface-hub)
-   * [LLM-as-a-Judge](#llm-as-a-judge)
-   * [LM Retry (transient connection / HTTP errors)](#lm-retry-transient-connection--http-errors)
-   * [Tree-of-Thoughts (ToT) — General](#tree-of-thoughts-tot--general)
-   * [Tree-of-Thoughts (ToT) — Per-Variant Knobs](#tree-of-thoughts-tot--per-variant-knobs)
-   * [Cumulative Reasoning (CR)](#cumulative-reasoning-cr)
-   * [Self-Consistency Decoding](#self-consistency-decoding)
+
+ * [Logging](#logging)
+ * [Paths](#paths)
+ * [Model Endpoint (OpenAI-compatible)](#model-endpoint-openai-compatible)
+ * [HuggingFace Hub](#huggingface-hub)
+ * [LLM-as-a-Judge](#llm-as-a-judge)
+ * [LM Retry (transient connection / HTTP errors)](#lm-retry-transient-connection--http-errors)
+ * [Prompting Strategies (--strategy)](#prompting-strategies---strategy)
+    * [Tree-of-Thoughts (ToT) — General](#tree-of-thoughts-tot--general)
+    * [Tree-of-Thoughts (ToT) — Per-Variant Knobs](#tree-of-thoughts-tot--per-variant-knobs)
+    * [Cumulative Reasoning (CR)](#cumulative-reasoning-cr)
+    * [Program-of-Thought (PoT / Z3)](#program-of-thought-pot--z3)
+ * [Decoding Strategies (--decoding)](#decoding-strategies---decoding)
+    * [Self-Consistency Decoding](#self-consistency-decoding)
+    * [Self-Certainty Decoding](#self-certainty-decoding)
+
 
 ## Logging
 
@@ -50,7 +55,8 @@ Table of Contents
 | Variable | Description | Default | Note |
 | --- | --- | --- | --- |
 | `VIREX_BENCH_JUDGE_API_KEY` | API key for the judge model provider. | _unset_ (`None`) | Used by the LLM-as-a-judge metric. |
-| `VIREX_BENCH_JUDGE_MODEL` | DeepSeek model used by the LLM-as-a-judge metric. | `deepseek/deepseek-v4-flash` | Matched case-insensitively. Choices: `deepseek/deepseek-v4-pro`, `deepseek/deepseek-v4-flash`, `opencode-go/deepseek-v4-pro`, `opencode-go/deepseek-v4-flash`. |
+| `VIREX_BENCH_JUDGE_BASE_URL` | Base URL of the OpenAI-compatible endpoint serving a self-hosted judge model. | _unset_ (`None`) | Required when `VIREX_BENCH_JUDGE_MODEL` starts with `hosted_vllm/` (raises otherwise). |
+| `VIREX_BENCH_JUDGE_MODEL` | DeepSeek model used by the LLM-as-a-judge metric. | `deepseek/deepseek-v4-flash` | Matched case-insensitively. Choices: `deepseek/deepseek-v4-pro`, `deepseek/deepseek-v4-flash`, `opencode-go/deepseek-v4-pro`, `opencode-go/deepseek-v4-flash`, `hosted_vllm/deepseek-v4-pro`, `hosted_vllm/deepseek-v4-flash`. |
 
 ## LM Retry (transient connection / HTTP errors)
 
@@ -61,7 +67,13 @@ Table of Contents
 | `VIREX_BENCH_LM_RETRY_MAX_WAIT` | Capped max wait between LM retries (seconds). | `30.0` | |
 | `VIREX_BENCH_LM_RETRY_JITTER` | Max random jitter added to each LM retry wait (seconds). | `1.0` | |
 
-## Tree-of-Thoughts (ToT) — General
+## Prompting Strategies (`--strategy`)
+
+Knobs for the inference-time reasoning strategies selected via `--strategy`.
+
+### Tree-of-Thoughts (ToT) — General
+
+Search a tree of reasoning steps, then commit an answer. Knobs shared by all search variants (`tot`, `tot-beam`, `tot-dfs`, `tot-mcts`).
 
 | Variable | Description | Default | Note |
 | --- | --- | --- | --- |
@@ -74,9 +86,9 @@ Table of Contents
 | `VIREX_BENCH_TOT_SEARCH_ALGORITHM` | Search algorithm for the bare `tot` strategy. | `beam` | CLI composites like `tot-beam` override this. Matched case-insensitively. Choices: `beam`, `dfs`, `mcts`. |
 | `VIREX_BENCH_TOT_DEDUPE_SIMILARITY_THRESHOLD` | Fuzzy dedupe threshold for proposed thoughts. | `0.9` | Higher is more conservative. |
 
-## Tree-of-Thoughts (ToT) — Per-Variant Knobs
+### Tree-of-Thoughts (ToT) — Per-Variant Knobs
 
-Semantics differ by algorithm; resolved by `_build_search_config` in `strategies/tot/strategy.py`.
+Knobs specific to one search algorithm; semantics differ by variant (resolved by `_build_search_config`).
 
 | Variable | Description | Default | Note |
 | --- | --- | --- | --- |
@@ -88,7 +100,9 @@ Semantics differ by algorithm; resolved by `_build_search_config` in `strategies
 | `VIREX_BENCH_TOT_MCTS_MAX_ITERATIONS` | MCTS: hard cap on iterations. | _unset_ (`None`) | `MCTSSearch` applies a 30-iteration default when unset. Ignored by beam/DFS. |
 | `VIREX_BENCH_TOT_MCTS_STOP_THRESHOLD` | MCTS: stop-on-success threshold (analogous to beam/DFS). | _unset_ (`None`) | `_build_search_config` applies `9.0` when unset. `0` disables it. |
 
-## Cumulative Reasoning (CR)
+### Cumulative Reasoning (CR)
+
+Propose/verify loop that accumulates entailed propositions before a solver commits the answer.
 
 | Variable | Description | Default | Note |
 | --- | --- | --- | --- |
@@ -100,7 +114,25 @@ Semantics differ by algorithm; resolved by `_build_search_config` in `strategies
 | `VIREX_BENCH_CR_N_PROPOSE_SAMPLES` | Number of candidate propositions sampled per propose call. | `3` | `> 1` gives the loop multiple diverse candidates (deduped, verified in order), combating proposer diversity exhaustion. Mirrors ToT's branching factor. |
 | `VIREX_BENCH_CR_DEDUPE_SIMILARITY_THRESHOLD` | Fuzzy dedupe threshold for proposed propositions. | `0.9` | Higher is more conservative. |
 
-## Self-Consistency Decoding
+### Program-of-Thought (PoT / Z3)
+
+Generates a Z3 program from the premises, executes it sandboxed, and regenerates on failure.
+
+| Variable | Description | Default | Note |
+| --- | --- | --- | --- |
+| `VIREX_BENCH_POT_MAX_ITERS` | Code-regeneration attempts allowed on execution failure. Each retry feeds the previous code + error back to the LM. | `3` | |
+| `VIREX_BENCH_POT_EXECUTION_TIMEOUT` | Wall-clock timeout for the sandboxed Z3-program subprocess (seconds). | `15.0` | Guards against pathological/quantified formulas hanging the solver; typical tasks decide in well under a second. |
+| `VIREX_BENCH_POT_GENERATE_TEMPERATURE` | Sampling temperature for the initial code-generation call. | _unset_ (`None`) | `None` inherits the LM's `--model-kwargs` profile. |
+| `VIREX_BENCH_POT_REGENERATE_TEMPERATURE` | Sampling temperature for the regeneration call (fed previous code + error). | _unset_ (`None`) | `None` inherits the LM's profile. |
+| `VIREX_BENCH_POT_FALLBACK_ON_ERROR` | Behavior after exhausting `MAX_ITERS` regenerations on an unrecoverable execution failure. | `1` (`True`) | `True` = commit an answer by reasoning over the premises directly (no solver result); `False` (or `0`) = raise `RuntimeError`. Truthy values: `1`, `true`, `yes`, `on` (case-insensitive). |
+
+## Decoding Strategies (`--decoding`)
+
+Knobs for the answer-aggregation methods selected via `--decoding`.
+
+### Self-Consistency Decoding
+
+Samples N reasoning paths and merges them via majority vote + optional LLM aggregation. `direct`/`cot` only.
 
 | Variable | Description | Default | Note |
 | --- | --- | --- | --- |
@@ -109,3 +141,14 @@ Semantics differ by algorithm; resolved by `_build_search_config` in `strategies
 | `VIREX_BENCH_SC_SOLVE_TIMEOUT` | Per-path wall-clock timeout (seconds). | `360` | |
 | `VIREX_BENCH_SC_AGGREGATE_TIMEOUT` | Aggregator LM call timeout (seconds). | `120` | |
 | `VIREX_BENCH_SC_USE_AGGREGATOR` | Whether to use the LLM aggregator. | `1` (`True`) | `False` (or `0`) = deterministic majority vote only. Truthy values: `1`, `true`, `yes`, `on` (case-insensitive). |
+
+### Self-Certainty Decoding
+
+Samples N candidates and Borda-votes by mean token log-prob. `direct`/`cot` only; needs `temperature > 0` and an endpoint that returns `logprobs`.
+
+| Variable | Description | Default | Note |
+| --- | --- | --- | --- |
+| `VIREX_BENCH_SELFC_NUM_SAMPLES` | Number of independent candidates sampled per example before Borda-voting. | `5` | Must be `>= 1`. |
+| `VIREX_BENCH_SELFC_MAX_WORKERS` | Maximum parallel workers for the path thread pool. | `5` | Must be `>= 1`. |
+| `VIREX_BENCH_SELFC_SOLVE_TIMEOUT` | Per-path wall-clock timeout (seconds). | `360` | |
+| `VIREX_BENCH_SELFC_BORDA_POWER` | Borda voting exponent. Candidates are ranked by certainty (mean token log-prob) descending; each casts a weighted vote of `(N - rank + 1) ** borda_power` for its normalized answer. | `0.5` | Must be `>= 0`. `0` collapses to plain majority vote; larger values push toward pure certainty-based selection. Falls back to uniform weights (majority vote) if the endpoint returns no log-probs. |
