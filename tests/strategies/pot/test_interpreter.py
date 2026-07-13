@@ -1,9 +1,6 @@
-"""Tests for the Z3 execution sandbox in ``interpreter.py``.
+"""Tests for the Z3 execution sandbox in ``interpreter.py``."""
 
-Covers the two crown jewels (``check_entailment`` / ``find_solution``), the
-LLM-friendly wrapper API, and the ``LocalZ3PythonInterpreter.execute`` contract
-(stdout capture, fallbacks, error modes, timeout, proxy forgiveness).
-"""
+# pyright: reportPrivateUsage=false
 
 import multiprocessing
 
@@ -91,12 +88,12 @@ def test_apply_solver_timeout_invokes_solver_set_with_configured_ms() -> None:
     try:
         interpreter_module._Z3_SOFT_TIMEOUT_MS = 5000
         configured = _RecordingSolver()
-        _apply_solver_timeout(configured)
+        _apply_solver_timeout(configured)  # pyright: ignore[reportArgumentType]
         assert configured.set_calls == [("timeout", 5000)]
 
         interpreter_module._Z3_SOFT_TIMEOUT_MS = None
         unconfigured = _RecordingSolver()
-        _apply_solver_timeout(unconfigured)
+        _apply_solver_timeout(unconfigured)  # pyright: ignore[reportArgumentType]
         assert unconfigured.set_calls == []
     finally:
         interpreter_module._Z3_SOFT_TIMEOUT_MS = saved

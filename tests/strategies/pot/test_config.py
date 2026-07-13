@@ -1,12 +1,4 @@
-"""Tests for env-var resolution in ``build_pot_config``.
-
-Mirrors ``tests/strategies/cr/test_config.py``: clears the POT env vars, then
-asserts defaults and overrides resolve into a :class:`POTConfig`.
-
-Unlike the CR tests (which go through ``get_strategy`` because ``_build_cr_config``
-is private to ``strategy.py``), our ``build_pot_config`` is public in ``common.py``
-so we call it directly -- no DSPy configuration or registry wiring needed.
-"""
+"""Tests for env-var resolution in ``build_pot_config``."""
 
 import pytest
 

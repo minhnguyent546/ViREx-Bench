@@ -1,12 +1,14 @@
+# pyright: reportPrivateUsage=false
+
 import dspy
 import pytest
 
 from virex_bench.evaluation.metrics import (
-    _debug_value,  # pyright: ignore[reportPrivateUsage]
-    _parse_premise_indices,  # pyright: ignore[reportPrivateUsage]
-    _parse_premise_texts,  # pyright: ignore[reportPrivateUsage]
-    _parse_reasoning_premise_references,  # pyright: ignore[reportPrivateUsage]
-    _rematch_premise_indices,  # pyright: ignore[reportPrivateUsage]
+    _debug_value,
+    _parse_premise_indices,
+    _parse_premise_texts,
+    _parse_reasoning_premise_references,
+    _rematch_premise_indices,
     contains,
     exact_match,
     get_metric,

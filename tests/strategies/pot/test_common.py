@@ -1,9 +1,4 @@
-"""Tests for shared PoT-Z3 helpers in ``common.py``.
-
-Covers the pure-Python helpers (``parse_code``, ``strip_ansi``,
-``strip_imports``, ``format_solver_result``) and the :class:`POTConfig` bounds
-validation. Config env-var resolution is tested separately in ``test_config.py``.
-"""
+"""Tests for shared PoT-Z3 helpers in ``common.py``."""
 
 import pytest
 

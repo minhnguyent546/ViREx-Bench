@@ -120,7 +120,7 @@ def test_module_getattr_resolves_registered_var_lazily(
 
 def test_module_getattr_unknown_name_raises_attributeerror() -> None:
     with pytest.raises(AttributeError, match="has no attribute 'NOT_A_REAL_VAR'"):
-        _ = envs.NOT_A_REAL_VAR  # type: ignore[attr-defined]
+        _ = envs.NOT_A_REAL_VAR
 
 
 def test_module_dir_lists_registered_variable_names() -> None:
