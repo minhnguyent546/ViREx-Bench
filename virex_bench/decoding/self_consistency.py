@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import contextvars
-import copy
 import difflib
 import json
-import re
 import time
 from collections.abc import Sequence
 from concurrent.futures import ALL_COMPLETED, Future, ThreadPoolExecutor, wait
@@ -14,6 +12,11 @@ import dspy
 
 from virex_bench import envs
 from virex_bench.decoding.base import DecodingStrategy
+from virex_bench.decoding.common import (
+    copy_lm_with_request_timeout,
+    normalize_case_and_whitespaces,
+    run_parallel_paths,
+)
 from virex_bench.logger import init_logger
 from virex_bench.models.base import BaseLM
 from virex_bench.strategies.base import ReasoningStrategy
@@ -131,7 +134,14 @@ class SelfConsistency(DecodingStrategy):
     def forward(self, **inputs: object) -> dspy.Prediction:
         start_time = time.perf_counter()
 
-        results = self._run_parallel_paths(inputs)
+        results = run_parallel_paths(
+            num_samples=self.num_samples,
+            max_workers=self.max_workers,
+            solve_timeout=self.solve_timeout,
+            inputs=inputs,
+            run_single_path=self._run_single_path,
+            strategy_label="Self-consistency",
+        )
 
         if not results:
             raise RuntimeError(
@@ -213,60 +223,6 @@ class SelfConsistency(DecodingStrategy):
         )
         return dspy.Prediction(**merged)
 
-    def _run_parallel_paths(self, inputs: dict[str, object]) -> list[dspy.Prediction]:
-        """Run ``num_samples`` paths in parallel and return successful paths in index order."""
-        # Run each path in a copied context so the active query-id tag (set by
-        # `log_query_context` in the evaluator) reaches the worker threads, which
-        # ThreadPoolExecutor does not propagate on its own.
-        executor = ThreadPoolExecutor(max_workers=self.max_workers)
-        try:
-            future_to_index: dict[Future[dspy.Prediction], int] = {
-                executor.submit(
-                    contextvars.copy_context().run,
-                    self._run_single_path,
-                    inputs,
-                    path_index,
-                ): path_index
-                for path_index in range(self.num_samples)
-            }
-            done, not_done = wait(
-                set(future_to_index),
-                timeout=self.solve_timeout,
-                return_when=ALL_COMPLETED,
-            )
-
-            results_by_index: dict[int, dspy.Prediction] = {}
-            for future in done:
-                path_index = future_to_index[future]
-                try:
-                    path_result = future.result()
-                except Exception as error:  # noqa: BLE001
-                    logger.warning(f"Self-consistency path {path_index} raised: {error!r}")
-                    path_result = None
-                if path_result is not None:
-                    results_by_index[path_index] = path_result
-
-            for future in not_done:
-                path_index = future_to_index[future]
-                was_cancelled = future.cancel()
-                cancel_status = (
-                    "cancelled before start"
-                    if was_cancelled
-                    else "already running; it may continue until the LM request timeout"
-                )
-                logger.warning(
-                    f"Self-consistency path {path_index} did not finish within "
-                    f"{self.solve_timeout}s ({cancel_status})."
-                )
-
-            return [
-                results_by_index[path_index]
-                for path_index in range(self.num_samples)
-                if path_index in results_by_index
-            ]
-        finally:
-            executor.shutdown(wait=False, cancel_futures=True)
-
     def _run_single_path(
         self,
         inputs: dict[str, object],
@@ -274,7 +230,7 @@ class SelfConsistency(DecodingStrategy):
     ) -> dspy.Prediction:
         base_lm = dspy.settings.lm
         assert isinstance(base_lm, BaseLM)  # set by the evaluator via dspy.configure(lm=...)
-        sampling_lm = self._copy_lm_with_request_timeout(
+        sampling_lm = copy_lm_with_request_timeout(
             base_lm,
             self.solve_timeout,
             cache=False,
@@ -287,10 +243,6 @@ class SelfConsistency(DecodingStrategy):
         )
         return result
 
-    @staticmethod
-    def _normalize_answer(answer: str) -> str:
-        return re.sub(r"\s+", " ", str(answer).strip().lower())
-
     def _majority_vote(
         self,
         results: Sequence[dspy.Prediction],
@@ -301,7 +253,7 @@ class SelfConsistency(DecodingStrategy):
         """
         groups: dict[str, list[int]] = {}
         for index, result in enumerate(results):
-            normalized = self._normalize_answer(str(getattr(result, "answer", "Unknown")))
+            normalized = normalize_case_and_whitespaces(str(getattr(result, "answer", "Unknown")))
             groups.setdefault(normalized, []).append(index)
 
         best_key = max(groups, key=lambda norm: len(groups[norm]))
@@ -315,9 +267,9 @@ class SelfConsistency(DecodingStrategy):
         target_answer: str,
     ) -> dspy.Prediction | None:
         """Find the first result whose answer matches *target_answer*."""
-        target_norm = self._normalize_answer(target_answer)
+        target_norm = normalize_case_and_whitespaces(target_answer)
         for result in results:
-            if self._normalize_answer(str(getattr(result, "answer", ""))) == target_norm:
+            if normalize_case_and_whitespaces(str(getattr(result, "answer", ""))) == target_norm:
                 return result
         return None
 
@@ -327,10 +279,10 @@ class SelfConsistency(DecodingStrategy):
         target_answer: str,
     ) -> float:
         """Return the highest SequenceMatcher ratio between *target_answer* and any candidate."""
-        target_norm = self._normalize_answer(target_answer)
+        target_norm = normalize_case_and_whitespaces(target_answer)
         best_ratio = 0.0
         for result in results:
-            candidate_norm = self._normalize_answer(str(getattr(result, "answer", "")))
+            candidate_norm = normalize_case_and_whitespaces(str(getattr(result, "answer", "")))
             ratio = difflib.SequenceMatcher(None, target_norm, candidate_norm).ratio()
             if ratio > best_ratio:
                 best_ratio = ratio
@@ -429,23 +381,6 @@ class SelfConsistency(DecodingStrategy):
         assert self._aggregator is not None  # set by configure_from_task
         base_lm = dspy.settings.lm
         assert isinstance(base_lm, BaseLM)  # set by the evaluator via dspy.configure(lm=...)
-        aggregation_lm = self._copy_lm_with_request_timeout(base_lm, self.aggregate_timeout)
+        aggregation_lm = copy_lm_with_request_timeout(base_lm, self.aggregate_timeout)
         with dspy.context(lm=aggregation_lm):
             return self._aggregator(**kwargs)
-
-    @staticmethod
-    def _copy_lm_with_request_timeout(
-        base_lm: BaseLM,
-        request_timeout: int | None,
-        *,
-        cache: bool | None = None,
-    ) -> BaseLM:
-        copied_lm = copy.copy(base_lm)
-        if cache is not None:
-            copied_lm.cache = cache
-
-        lm_kwargs = dict(copied_lm.kwargs)
-        if request_timeout is not None:
-            lm_kwargs["timeout"] = request_timeout
-        copied_lm.kwargs = lm_kwargs
-        return copied_lm

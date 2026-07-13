@@ -1,5 +1,5 @@
 from virex_bench.models.backends import load_backend
-from virex_bench.models.base import BaseLM
+from virex_bench.models.base import BaseLM, CapturingLMWrapper
 
 
 def get_model(
@@ -22,6 +22,7 @@ def get_model(
 
 __all__ = [
     "BaseLM",
+    "CapturingLMWrapper",
     "get_model",
     "load_backend",
 ]
