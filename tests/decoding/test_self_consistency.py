@@ -1,11 +1,4 @@
-"""Unit tests for ``SelfConsistency`` decoding with a stubbed strategy and aggregator.
-
-Exercises validation, task configuration, the deterministic majority-vote helpers,
-the LLM-aggregator override extraction, and the ``forward`` merge/fallback paths
-(no real LM calls): aggregator-disabled vote winner, total-path-failure, closed and
-open-ended aggregator acceptance, and the three fallback cases (empty answer,
-closed-answer no-match, open-answer below the fuzzy threshold).
-"""
+"""Unit tests for ``SelfConsistency`` decoding with a stubbed strategy and aggregator."""
 
 from __future__ import annotations
 
@@ -14,6 +7,10 @@ from typing import Any
 import dspy
 import pytest
 
+from virex_bench.decoding.common import (
+    copy_lm_with_request_timeout,
+    normalize_case_and_whitespaces,
+)
 from virex_bench.decoding.self_consistency import SelfConsistency
 from virex_bench.models.base import BaseLM
 from virex_bench.strategies.base import ReasoningStrategy
@@ -152,7 +149,7 @@ def test_config_and_display_name() -> None:
     ],
 )
 def test_normalize_answer(raw: str, expected: str) -> None:
-    assert SelfConsistency._normalize_answer(raw) == expected  # pyright: ignore[reportPrivateUsage]
+    assert normalize_case_and_whitespaces(raw) == expected
 
 
 def test_majority_vote_picks_largest_group() -> None:
@@ -205,7 +202,7 @@ def test_extract_overrides_drops_reasoning_maps_explanation_skips_none() -> None
 
 def test_copy_lm_with_request_timeout_sets_cache_and_timeout_without_mutating_base() -> None:
     base_lm = _make_lm()
-    copied = SelfConsistency._copy_lm_with_request_timeout(base_lm, 42, cache=False)  # pyright: ignore[reportPrivateUsage]
+    copied = copy_lm_with_request_timeout(base_lm, 42, cache=False)
     assert copied.cache is False
     assert copied.kwargs["timeout"] == 42
     # The base LM is left untouched.
