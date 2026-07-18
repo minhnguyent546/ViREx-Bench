@@ -22,7 +22,7 @@
         <img alt="License" src="https://img.shields.io/github/license/minhnguyent546/ViREx-Bench?color=blue">
     </a>
     <a href="https://pepy.tech/projects/virex-bench">
-        <img alt="PyPI downloads" src="https://static.pepy.tech/personalized-badge/virex-bench?period=total&units=international_system&left_color=grey&right_color=orange&left_text=Downloads">        
+        <img alt="PyPI downloads" src="https://static.pepy.tech/personalized-badge/virex-bench?period=total&units=international_system&left_color=grey&right_color=orange&left_text=Downloads">
     </a>
 </p>
 
@@ -224,6 +224,7 @@ If you find `ViREx-Bench` useful in your research, please consider citing:
     author={Minh-Thien Nguyen},
     title={{ViREx-Bench}: A Framework for Inference-Time Scaling on {Vietnamese} Reasoning Tasks},
     year={2026},
+    doi={10.5281/zenodo.21247474},
     howpublished={\url{https://github.com/minhnguyent546/ViREx-Bench}}
 }
 ```
