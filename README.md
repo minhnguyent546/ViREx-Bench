@@ -52,6 +52,12 @@ uv run virex-bench --version
 uv run vb --version
 ```
 
+Alternatively, run `virex-bench` with [`uvx`](https://docs.astral.sh/uv/guides/tools/) without installing it:
+
+```bash
+uvx virex-bench strategies --list
+```
+
 ## Example of Usage
 
 ViREx-Bench evaluates a model on a Vietnamese reasoning task using a prompting strategy and a decoding method. Models are served behind any OpenAI-compatible endpoint (e.g. vLLM, SGLang).
