@@ -12,7 +12,7 @@
 
 <div align="center">
 
-[![Zenodo DOI](https://zenodo.org/badge/1272222849.svg)](https://doi.org/10.5281/zenodo.21247474)
+[![Zenodo DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21247474.svg)](https://doi.org/10.5281/zenodo.21247474)
 [![ViREX-Bench latest release](https://img.shields.io/github/v/release/minhnguyent546/ViREx-Bench.svg?color=green)](https://github.com/minhnguyent546/ViREx-Bench/releases)
 [![License](https://img.shields.io/github/license/minhnguyent546/ViREx-Bench?color=blue)](https://github.com/minhnguyent546/ViREx-Bench/blob/main/LICENSE)
 [![PyPI downloads](https://static.pepy.tech/personalized-badge/virex-bench?period=total&units=international_system&left_color=grey&right_color=orange&left_text=Downloads)](https://pepy.tech/projects/virex-bench)
