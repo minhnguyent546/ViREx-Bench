@@ -30,18 +30,18 @@ modeled on [`mteb`](https://github.com/embeddings-benchmark/mteb) — a CLI is s
 
 ## Commands
 
-Always prefix Python/tool commands with `uv run --no-sync`, omit the `--no-sync` flag only when you actually needed to avoid syncing packages everytime (which take times).
+Prefix Python/tool commands with `uv run --frozen` to sync from the existing lockfile without checking remote wheel sources. Run `uv lock` explicitly when dependencies change. Use `--no-sync` only when you intentionally need to keep the current environment unchanged.
 
 ```bash
 # Lint
-uv run --no-sync ruff check
+uv run --frozen ruff check
 
 # Format
-uv run --no-sync ruff format
+uv run --frozen ruff format
 
 # Run the benchmark CLI (task × model × strategy × decoding)
 # Models are served behind an OpenAI-compatible endpoint (no local loading).
-uv run virex-bench run \
+uv run --frozen virex-bench run \
     --model Qwen/Qwen3.5 \
     --task vietnamese-logical-reasoning \
     --strategy cot \
@@ -50,18 +50,18 @@ uv run virex-bench run \
     --output-dir results
 
 # `vb` is a shorter alias for `virex-bench`
-uv run vb run --model Qwen/Qwen3.5 --strategy cot
+uv run --frozen vb run --model Qwen/Qwen3.5 --strategy cot
 
 # Inspect available tasks / strategies
-uv run virex-bench tasks --list
-uv run virex-bench strategies --list
+uv run --frozen virex-bench tasks --list
+uv run --frozen virex-bench strategies --list
 ```
 
 ### File-scoped fast feedback
 
 ```bash
-uv run --no-sync ruff check path/to/file.py
-uv run --no-sync ruff format path/to/file.py
+uv run --frozen ruff check path/to/file.py
+uv run --frozen ruff format path/to/file.py
 ```
 
 ## Project Structure
@@ -132,10 +132,10 @@ results/            # benchmark run outputs
 
 - **Python 3.12** — use modern syntax (`str | None`, `list[int]`, etc.)
 - **Git**: Do not try to use `git checkout <file>` to discard or revert changes as you might cause loose uncommitted work.
-- **Formatter**: Ruff (`uv run --no-sync ruff format`) — double quotes, 4-space indent, LF endings, line length 99
-- **Linter**: Ruff (`uv run --no-sync ruff check`) — rules: B, C, E, F, I, W, RUF013, UP006
+- **Formatter**: Ruff (`uv run --frozen ruff format`) — double quotes, 4-space indent, LF endings, line length 99
+- **Linter**: Ruff (`uv run --frozen ruff check`) — rules: B, C, E, F, I, W, RUF013, UP006
 - **Type checker**: Pyright in strict mode. Use `# pyright: ignore` to suppress false positive or workaround some limitation in the type checker. DO NOT silence legitimate type errors.
-- **Testing**: pytest (`uv run --no-sync pytest`)
+- **Testing**: pytest (`uv run --frozen pytest`)
 - **Imports**: sorted by Ruff (isort rules), grouped: stdlib → third-party → local
 - **DSPy**: Reasoning strategies are implemented as `dspy.Module` subclasses under `strategies/`. Follow the existing patterns there for signatures and modules. Write signature docstrings and field descriptions in **English** (the instruction language), even for Vietnamese tasks — the target models are multilingual, and English instructions keep the prompt contract consistent across tasks. The task data (premises/questions/answers) stays in its native language.
 - **Grepping**: Prefer using `rg` (ripgrep) over `grep` for speed and better defaults.

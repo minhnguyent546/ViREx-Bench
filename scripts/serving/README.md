@@ -15,8 +15,8 @@ These serving scripts are intended to be run with `vLLM v0.23.0` or `SGLang v0.5
 # at the project root
 uv sync --group sglang-v0-5-14
 
-# verify installation
-uv run --no-sync sglang version
+# Verify the installation
+uv run --frozen --group sglang-v0-5-14 sglang version
 
 # serving model
 CUDA_VISIBLE_DEVICES=0 SPEC_DECODING_METHOD=DFLASH bash scripts/serving/run_sglang_qwen3_5_4b.sh
@@ -30,8 +30,8 @@ CUDA_VISIBLE_DEVICES=0,1 SPEC_DECODING_METHOD=DFLASH DP=2 bash scripts/serving/r
 # at the project root
 uv sync --group vllm-v0-23
 
-# verify installation
-uv run --no-sync vllm --version
+# Verify the installation
+uv run --frozen --group vllm-v0-23 vllm --version
 
 # serving model
 CUDA_VISIBLE_DEVICES=0 SPEC_DECODING_METHOD=DFLASH bash scripts/serving/run_vllm_qwen3_5_4b.sh

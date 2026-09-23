@@ -117,14 +117,14 @@ cd ViREx-Bench
 uv sync  # creates the venv and installs the package with dev dependencies
 ```
 
-Quality checks — prefix commands with `uv run` so they use the project environment:
+For quality checks, use `uv run --frozen` to run commands in the project environment using the locked dependencies. Run `uv lock` when dependencies change:
 
 ```bash
-uv run --no-sync ruff check             # lint
-uv run --no-sync ruff format            # format
-uv run --no-sync pytest                 # test suite
-uv run --no-sync ruff check path/to/file.py   # scope lint/format to a single file
-uv run --no-sync ruff format path/to/file.py
+uv run --frozen ruff check             # lint
+uv run --frozen ruff format            # format
+uv run --frozen pytest                 # test suite
+uv run --frozen ruff check path/to/file.py   # scope lint/format to a single file
+uv run --frozen ruff format path/to/file.py
 ```
 
 ### Serving models locally
