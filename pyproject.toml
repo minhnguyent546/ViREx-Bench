@@ -17,7 +17,6 @@ license = "GPL-3.0-only"
 license-files = ["LICENSE"]
 keywords = ["vietnamese", "reasoning", "benchmark", "logical-reasoning", "llm", "evaluation"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
     "Environment :: Console",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",

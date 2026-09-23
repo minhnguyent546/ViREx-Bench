@@ -21,9 +21,6 @@
 
 ---
 
-> [!WARNING]
-> Work in progress: dataset format, evaluation protocol, and supported reasoning methods are **under active development**.
-
 ## Overview
 
 `ViREx-Bench` is a framework for inference-time scaling on Vietnamese reasoning tasks. The project is designed to benchmark different prompting strategies under consistent evaluation settings and measure how much each strategy improves over a direct-answer baseline.
