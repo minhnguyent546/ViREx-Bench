@@ -1,0 +1,26 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: ViREx-Bench
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Minh-Thien
+    family-names: Nguyen
+    email: minhnguyent546@gmail.com
+    orcid: 'https://orcid.org/0009-0004-1472-9537'
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.21247474
+repository-code: 'https://github.com/minhnguyent546/ViREx-Bench'
+abstract: >-
+  ViREx-Bench: A framework for inference-time scaling on
+  Vietnamese reasoning tasks
+keywords:
+  - Logical Reasoning
+  - Inference-Time Scaling
+  - Vietnamese
+license: GPL-3.0-only
