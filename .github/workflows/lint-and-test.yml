@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.12"]
+        python-version: ["3.12.15"]
     steps:
       - name: Clone the repository
         uses: actions/checkout@v7
@@ -51,7 +51,7 @@ jobs:
       runs-on: ubuntu-latest
       strategy:
         matrix:
-          python-version: ["3.12", "3.13", "3.14"]
+          python-version: ["3.12.15", "3.13.17", "3.14.9"]
       steps:
         - name: Clone the repository
           uses: actions/checkout@v7
